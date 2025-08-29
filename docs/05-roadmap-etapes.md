@@ -218,3 +218,4 @@ Le développement de Dream Market se décompose en **22+ étapes** organisées e
 - **Fin de phase** : Validation complète avant passage à la phase suivante
 - **Livraisons** : Démonstrations des fonctionnalités implémentées
 - **Feedback** : Retours utilisateurs et ajustements
+

@@ -148,3 +148,4 @@ Accueil → Services → Sélection Service → Réservation (Auth Gate) → Con
 ## Conclusion
 
 Le MVP Dream Market vise à créer une expérience d'achat simple et transparente pour les produits agricoles locaux, en mettant l'accent sur la proximité, la qualité et la simplicité d'usage. L'objectif est de valider le concept et d'établir une base solide pour l'évolution future de la plateforme.
+

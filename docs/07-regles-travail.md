@@ -477,3 +477,4 @@ Ces règles de travail garantissent :
 - **Évolution** : Base solide pour les étapes futures
 
 Le respect de ces règles est essentiel pour la réussite du projet Dream Market et la satisfaction de toutes les parties prenantes.
+

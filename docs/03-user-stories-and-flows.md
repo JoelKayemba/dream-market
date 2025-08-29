@@ -282,3 +282,4 @@ const handleAction = (action, user) => {
 ## Conclusion
 
 Les user stories et parcours utilisateur de Dream Market sont conçus pour maximiser la simplicité et l'efficacité. L'Auth Gate stratégiquement placé permet de collecter les informations nécessaires tout en minimisant la friction. Les parcours sont optimisés pour une expérience fluide et intuitive, adaptée au contexte RDC et aux habitudes des utilisateurs locaux.
+

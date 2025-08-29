@@ -161,3 +161,4 @@ App Root
 - **Résolution** : Optimisée pour écrans basse résolution
 - **Performance** : Animations légères, chargement rapide
 - **Réseau** : Gestion gracieuse des déconnexions
+

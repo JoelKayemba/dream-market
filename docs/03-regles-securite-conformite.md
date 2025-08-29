@@ -247,3 +247,4 @@ FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
 - **Analyse post-mortem** : Revue complète de l'incident
 - **Amélioration** : Mise à jour des procédures
 - **Prévention** : Renforcement des mesures de sécurité
+

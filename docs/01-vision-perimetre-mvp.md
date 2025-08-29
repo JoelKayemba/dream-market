@@ -121,3 +121,4 @@ Dream Market vise à démocratiser l'accès aux produits agricoles de qualité e
 - [ ] Parcours utilisateur sans friction
 - [ ] Performance acceptable en conditions RDC
 - [ ] Accessibilité de base respectée
+

@@ -255,3 +255,4 @@
 - **Niveau 2** : Chef de projet (escalade si > 24h)
 - **Niveau 3** : Direction (décisions stratégiques)
 - **Niveau 4** : Comité de crise (situations critiques)
+

@@ -325,3 +325,4 @@ const usePerformanceMonitoring = (screenName) => {
 - **Implémentation** : Développement des optimisations
 - **Validation** : Mesure de l'amélioration obtenue
 - **Itération** : Amélioration continue basée sur les résultats
+
