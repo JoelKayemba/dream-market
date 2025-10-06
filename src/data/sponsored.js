@@ -3,7 +3,7 @@ import { products } from './products';
 export const sponsoredProducts = [
   {
     id: '1',
-    productId: '1', // Tomates Bio
+    productId: 1, // Tomates Bio
     title: '🌟 Produit de la semaine',
     subtitle: 'Tomates Bio de la Ferme du Soleil',
     description: 'Découvrez nos délicieuses tomates bio cultivées avec passion. Parfaites pour vos salades d\'été !',
@@ -25,7 +25,7 @@ export const sponsoredProducts = [
   },
   {
     id: '2',
-    productId: '4', // Pommes Golden
+    productId: 2, // Pommes Golden
     title: '🍎 Offre spéciale verger',
     subtitle: 'Pommes Golden du Verger des Trois Chênes',
     description: 'Profitez de nos pommes Golden juteuses et sucrées. Variété traditionnelle de qualité exceptionnelle.',
@@ -47,7 +47,7 @@ export const sponsoredProducts = [
   },
   {
     id: '3',
-    productId: '7', // Miel de Lavande
+    productId: 6, // Miel de Lavande
     title: '🍯 Découverte gourmet',
     subtitle: 'Miel de Lavande du Rucher du Plateau',
     description: 'Un miel d\'exception, récolté dans les champs de lavande de Provence. Une expérience gustative unique !',
@@ -69,7 +69,7 @@ export const sponsoredProducts = [
   },
   {
     id: '4',
-    productId: '11', // Fromage de Chèvre Frais
+    productId: 10, // Fromage de Chèvre Frais
     title: '🧀 Nouveauté fromagerie',
     subtitle: 'Fromage de Chèvre Frais de la Fromagerie du Bocage',
     description: 'Un fromage frais et onctueux, parfait pour vos apéritifs et vos recettes créatives.',
@@ -91,7 +91,7 @@ export const sponsoredProducts = [
   },
   {
     id: '5',
-    productId: '9', // Bœuf Limousin
+    productId: 8, // Poires Williams Bio
     title: '🥩 Viande de qualité',
     subtitle: 'Bœuf Limousin de l\'Élevage de la Vallée Verte',
     description: 'Viande de bœuf Limousin de qualité supérieure, élevée en plein air et nourrie aux céréales.',

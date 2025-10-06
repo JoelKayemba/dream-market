@@ -9,18 +9,12 @@ import {
   Rating,
   Button
 } from '../components/ui';
+import { serviceCategories } from '../data/categories';
 
 export default function ServicesScreen({ navigation }) {
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
-  const serviceCategories = [
-    { id: 'all', name: 'Tous', emoji: '🔧', color: '#777E5C' },
-    { id: 'delivery', name: 'Livraison', emoji: '🚚', color: '#4CAF50' },
-    { id: 'consulting', name: 'Conseil', emoji: '🌱', color: '#8BC34A' },
-    { id: 'digital', name: 'Digital', emoji: '📱', color: '#2196F3' },
-    { id: 'certification', name: 'Certification', emoji: '🔒', color: '#9C27B0' },
-    { id: 'training', name: 'Formation', emoji: '🎓', color: '#FF9800' },
-  ];
+  // Utiliser les catégories centralisées
 
   const services = [
     {
@@ -174,8 +168,7 @@ export default function ServicesScreen({ navigation }) {
   };
 
   const handleServicePress = (service) => {
-    console.log('Service sélectionné:', service.name);
-    // Navigation vers la page de détail du service
+    navigation.navigate('ServiceDetail', { service });
   };
 
   const handleContact = (service) => {
@@ -183,15 +176,15 @@ export default function ServicesScreen({ navigation }) {
     // Navigation vers la page de contact
   };
 
-  const handleCategoryFilter = (categoryId) => {
-    setSelectedCategory(categoryId);
+  const handleCategoryFilter = (category) => {
+    setSelectedCategory(category);
   };
 
   const getFilteredServices = () => {
-    if (selectedCategory === 'all') {
+    if (!selectedCategory) {
       return services;
     }
-    return services.filter(service => service.category === selectedCategory);
+    return services.filter(service => service.category === selectedCategory.name);
   };
 
   const getPopularServices = () => {
@@ -228,129 +221,147 @@ export default function ServicesScreen({ navigation }) {
 
       <Divider />
 
-      {/* Filtres par catégorie */}
-      <Container style={styles.filtersSection}>
+      {/* Section Catégories */}
+      <Container style={styles.section}>
         <SectionHeader
-          title="Filtrer par catégorie"
-          subtitle="Trouvez le service qui correspond à vos besoins"
-          onActionPress={() => console.log('Voir toutes les catégories')}
-          style={styles.fullWidthHeader}
+          title="Catégories"
+          subtitle="Parcourez nos différentes catégories de services"
         />
         
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesContainer}
-        >
+        <View style={styles.categoriesGrid}>
           {serviceCategories.map((category) => (
-            <View
+            <TouchableOpacity
               key={category.id}
               style={[
-                styles.categoryFilter,
-                selectedCategory === category.id && styles.selectedCategory
+                styles.categoryCard,
+                selectedCategory?.id === category.id && styles.selectedCategoryCard
               ]}
+              onPress={() => handleCategoryFilter(category)}
             >
-              <TouchableOpacity
-                onPress={() => handleCategoryFilter(category.id)}
-                style={[
-                  styles.categoryButton,
-                  { borderColor: category.color }
-                ]}
-              >
-                <Text style={[styles.categoryEmoji, { color: category.color }]}>
-                  {category.emoji}
+              <View style={[styles.categoryIconContainer, { backgroundColor: category.color + '20' }]}>
+                <Text style={[styles.categoryIcon, { fontSize: 28, color: category.color }]}>
+                  {category.emoji || '❓'}
                 </Text>
-                <Text style={[styles.categoryName, { color: category.color }]}>
-                  {category.name}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </ScrollView>
-      </Container>
-
-      <Divider />
-
-      {/* Section Services populaires */}
-      <Container style={styles.section}>
-        <SectionHeader
-          title="Services populaires"
-          subtitle="Les services les plus demandés par nos clients"
-          onActionPress={() => console.log('Voir tous les services populaires')}
-          style={styles.fullWidthHeader}
-        />
-        
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.servicesContainer}
-        >
-          {popularServices.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              onPress={handleServicePress}
-              onContact={handleContact}
-              variant="featured"
-              style={styles.serviceCard}
-            />
-          ))}
-        </ScrollView>
-      </Container>
-
-      <Divider />
-
-      {/* Section Nouveaux services */}
-      <Container style={styles.section}>
-        <SectionHeader
-          title="Nouveaux services"
-          subtitle="Découvrez nos dernières offres"
-          onActionPress={() => console.log('Voir tous les nouveaux services')}
-          style={styles.fullWidthHeader}
-        />
-        
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.servicesContainer}
-        >
-          {newServices.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              onPress={handleServicePress}
-              onContact={handleContact}
-              variant="default"
-              style={styles.serviceCard}
-            />
-          ))}
-        </ScrollView>
-      </Container>
-
-      <Divider />
-
-      {/* Section Tous les services */}
-      <Container style={styles.section}>
-        <SectionHeader
-          title={`Tous nos services (${filteredServices.length})`}
-          subtitle="Explorez notre gamme complète de services"
-          onActionPress={() => console.log('Voir tous les services')}
-          style={styles.fullWidthHeader}
-        />
-        
-        <View style={styles.allServicesGrid}>
-          {filteredServices.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              onPress={handleServicePress}
-              onContact={handleContact}
-              variant="default"
-              style={styles.gridServiceCard}
-            />
+              </View>
+              <Text style={styles.categoryLabel}>
+                {category.name}
+              </Text>
+            </TouchableOpacity>
           ))}
         </View>
       </Container>
+
+      <Divider />
+
+      {/* Affichage conditionnel : soit les sections normales, soit les services de la catégorie */}
+      {!selectedCategory || selectedCategory.id === 0 ? (
+        // Affichage normal avec toutes les sections
+        <>
+          {/* Section Services populaires */}
+          <Container style={styles.section}>
+            <SectionHeader
+              title="Services populaires"
+              subtitle="Les services les plus demandés par nos clients"
+              onActionPress={() => navigation.navigate('AllServices', { filter: 'popular' })}
+              style={styles.fullWidthHeader}
+            />
+            
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.servicesContainer}
+            >
+              {popularServices.map((service) => (
+                <ServiceCard
+                  key={service.id}
+                  service={service}
+                  onPress={handleServicePress}
+                  onContact={handleContact}
+                  variant="featured"
+                  style={styles.serviceCard}
+                />
+              ))}
+            </ScrollView>
+          </Container>
+
+          <Divider />
+
+          {/* Section Nouveaux services */}
+          <Container style={styles.section}>
+            <SectionHeader
+              title="Nouveaux services"
+              subtitle="Découvrez nos dernières offres"
+              onActionPress={() => navigation.navigate('AllServices', { filter: 'new' })}
+              style={styles.fullWidthHeader}
+            />
+            
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.servicesContainer}
+            >
+              {newServices.map((service) => (
+                <ServiceCard
+                  key={service.id}
+                  service={service}
+                  onPress={handleServicePress}
+                  onContact={handleContact}
+                  variant="default"
+                  style={styles.serviceCard}
+                />
+              ))}
+            </ScrollView>
+          </Container>
+
+          <Divider />
+
+          {/* Section Tous les services */}
+          <Container style={styles.section}>
+            <SectionHeader
+              title="Tous nos services"
+              subtitle="Explorez notre gamme complète de services"
+              onActionPress={() => navigation.navigate('AllServices', { filter: 'all' })}
+              style={styles.fullWidthHeader}
+            />
+            
+            <View style={styles.allServicesGrid}>
+              {services.map((service) => (
+                <ServiceCard
+                  key={service.id}
+                  service={service}
+                  onPress={handleServicePress}
+                  onContact={handleContact}
+                  variant="default"
+                  style={styles.gridServiceCard}
+                />
+              ))}
+            </View>
+          </Container>
+        </>
+      ) : (
+        // Affichage des services de la catégorie sélectionnée en pleine largeur
+        <Container style={styles.section}>
+          <SectionHeader
+            title={`${selectedCategory.name}`}
+            subtitle={`Services de la catégorie ${selectedCategory.name}`}
+            onActionPress={() => navigation.navigate('AllServices', { filter: selectedCategory.name })}
+            style={styles.fullWidthHeader}
+          />
+          
+          <View style={styles.categoryServicesGrid}>
+            {filteredServices.map((service) => (
+              <ServiceCard
+                key={service.id}
+                service={service}
+                onPress={handleServicePress}
+                onContact={handleContact}
+                variant="default"
+                style={styles.categoryServiceCard}
+              />
+            ))}
+          </View>
+        </Container>
+      )}
 
       <Divider />
 
@@ -564,8 +575,61 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     minWidth: 80,
   },
-  selectedCategory: {
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 8,
+  },
+  categoryCard: {
+    width: '22%',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    minHeight: 100,
+    justifyContent: 'center',
+  },
+  selectedCategoryCard: {
     backgroundColor: '#F0F8F0',
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+  },
+  categoryIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  categoryIcon: {
+    fontSize: 28,
+    textAlign: 'center',
+    lineHeight: 28,
+  },
+  categoryLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    color: '#283106',
+    lineHeight: 14,
+  },
+  categoryServicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  categoryServiceCard: {
+    width: '48%',
   },
   categoryEmoji: {
     fontSize: 24,

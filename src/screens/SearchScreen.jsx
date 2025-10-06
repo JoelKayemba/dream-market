@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, ScrollView, FlatList, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button, Badge } from '../components/ui';
-import { productsData } from '../data/products';
-import { farmsData } from '../data/farms';
-import { servicesData } from '../data/services';
+import { Container, Button, Badge, ProductCard, FarmCard } from '../components/ui';
+import { products } from '../data/products';
+import { farms } from '../data/farms';
+import { services } from '../data/services';
 
 export default function SearchScreen({ navigation, route }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,7 +35,7 @@ export default function SearchScreen({ navigation, route }) {
     const lowerQuery = query.toLowerCase();
 
     // Recherche dans les produits
-    const filteredProducts = productsData.filter(product =>
+    const filteredProducts = products.filter(product =>
       product.name.toLowerCase().includes(lowerQuery) ||
       product.description.toLowerCase().includes(lowerQuery) ||
       product.farm.toLowerCase().includes(lowerQuery) ||
@@ -43,18 +43,24 @@ export default function SearchScreen({ navigation, route }) {
     );
 
     // Recherche dans les fermes
-    const filteredFarms = farmsData.filter(farm =>
+    const filteredFarms = farms.filter(farm =>
       farm.name.toLowerCase().includes(lowerQuery) ||
       farm.description.toLowerCase().includes(lowerQuery) ||
-      farm.speciality.toLowerCase().includes(lowerQuery) ||
-      farm.location.toLowerCase().includes(lowerQuery)
+      farm.specialty.toLowerCase().includes(lowerQuery) ||
+      farm.location.toLowerCase().includes(lowerQuery) ||
+      farm.region.toLowerCase().includes(lowerQuery) ||
+      (farm.products && farm.products.some(product => product.toLowerCase().includes(lowerQuery))) ||
+      (farm.certifications && farm.certifications.some(cert => cert.toLowerCase().includes(lowerQuery)))
     );
 
     // Recherche dans les services
-    const filteredServices = servicesData.filter(service =>
+    const filteredServices = services.filter(service =>
       service.name.toLowerCase().includes(lowerQuery) ||
       service.description.toLowerCase().includes(lowerQuery) ||
-      service.category.toLowerCase().includes(lowerQuery)
+      service.shortDescription.toLowerCase().includes(lowerQuery) ||
+      service.category.toLowerCase().includes(lowerQuery) ||
+      service.coverage.toLowerCase().includes(lowerQuery) ||
+      (service.features && service.features.some(feature => feature.toLowerCase().includes(lowerQuery)))
     );
 
     setSearchResults({
@@ -79,33 +85,23 @@ export default function SearchScreen({ navigation, route }) {
   };
 
   const renderProductItem = ({ item }) => (
-    <TouchableOpacity style={styles.resultItem} onPress={() => navigation.navigate('ProductDetail', { product: item })}>
-      <Image source={{ uri: item.image }} style={styles.itemImage} />
-      <View style={styles.itemContent}>
-        <Text style={styles.itemTitle} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.itemSubtitle}>{item.farm}</Text>
-        <View style={styles.itemFooter}>
-          <Text style={styles.itemPrice}>{item.price}€</Text>
-          {item.badges && item.badges.length > 0 && (
-            <Badge text={item.badges[0]} variant="primary" size="small" />
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
+    <ProductCard
+      product={item}
+      navigation={navigation}
+      variant="default"
+      size="large"
+      fullWidth={true}
+      style={styles.productCard}
+    />
   );
 
   const renderFarmItem = ({ item }) => (
-    <TouchableOpacity style={styles.resultItem} onPress={() => navigation.navigate('FarmDetail', { farm: item })}>
-      <Image source={{ uri: item.image }} style={styles.itemImage} />
-      <View style={styles.itemContent}>
-        <Text style={styles.itemTitle} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.itemSubtitle}>{item.location}</Text>
-        <View style={styles.itemFooter}>
-          <Badge text={item.speciality} variant="outline" size="small" />
-          <Text style={styles.itemRating}>⭐ {item.rating}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+    <FarmCard
+      farm={item}
+      navigation={navigation}
+      variant="default"
+      style={styles.farmCard}
+    />
   );
 
   const renderServiceItem = ({ item }) => (
@@ -204,21 +200,30 @@ export default function SearchScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
-        {/* Liste des résultats */}
+        {/* Grille des résultats */}
         {activeTab === 'all' && (
-          <View>
+          <View style={styles.resultsGrid}>
             {searchResults.products.length > 0 && (
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>Produits ({searchResults.products.length})</Text>
-                <FlatList
-                  data={searchResults.products.slice(0, 3)}
-                  renderItem={renderProductItem}
-                  keyExtractor={(item) => item.id.toString()}
-                  scrollEnabled={false}
-                  showsVerticalScrollIndicator={false}
-                />
-                {searchResults.products.length > 3 && (
-                  <TouchableOpacity style={styles.seeMoreButton}>
+                <View style={styles.cardsGrid}>
+                  {searchResults.products.slice(0, 6).map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      navigation={navigation}
+                      variant="default"
+                      size="large"
+                      fullWidth={true}
+                      style={styles.productCard}
+                    />
+                  ))}
+                </View>
+                {searchResults.products.length > 6 && (
+                  <TouchableOpacity 
+                    style={styles.seeMoreButton}
+                    onPress={() => navigation.navigate('AllProducts', { filter: 'all' })}
+                  >
                     <Text style={styles.seeMoreText}>Voir tous les produits</Text>
                     <Ionicons name="arrow-forward" size={16} color="#4CAF50" />
                   </TouchableOpacity>
@@ -229,15 +234,22 @@ export default function SearchScreen({ navigation, route }) {
             {searchResults.farms.length > 0 && (
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>Fermes ({searchResults.farms.length})</Text>
-                <FlatList
-                  data={searchResults.farms.slice(0, 3)}
-                  renderItem={renderFarmItem}
-                  keyExtractor={(item) => item.id.toString()}
-                  scrollEnabled={false}
-                  showsVerticalScrollIndicator={false}
-                />
-                {searchResults.farms.length > 3 && (
-                  <TouchableOpacity style={styles.seeMoreButton}>
+                <View style={styles.cardsGrid}>
+                  {searchResults.farms.slice(0, 4).map((farm) => (
+                    <FarmCard
+                      key={farm.id}
+                      farm={farm}
+                      navigation={navigation}
+                      variant="default"
+                      style={styles.farmCard}
+                    />
+                  ))}
+                </View>
+                {searchResults.farms.length > 4 && (
+                  <TouchableOpacity 
+                    style={styles.seeMoreButton}
+                    onPress={() => navigation.navigate('AllFarms', { filter: 'all' })}
+                  >
                     <Text style={styles.seeMoreText}>Voir toutes les fermes</Text>
                     <Ionicons name="arrow-forward" size={16} color="#4CAF50" />
                   </TouchableOpacity>
@@ -248,15 +260,30 @@ export default function SearchScreen({ navigation, route }) {
             {searchResults.services.length > 0 && (
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>Services ({searchResults.services.length})</Text>
-                <FlatList
-                  data={searchResults.services.slice(0, 3)}
-                  renderItem={renderServiceItem}
-                  keyExtractor={(item) => item.id.toString()}
-                  scrollEnabled={false}
-                  showsVerticalScrollIndicator={false}
-                />
-                {searchResults.services.length > 3 && (
-                  <TouchableOpacity style={styles.seeMoreButton}>
+                <View style={styles.cardsGrid}>
+                  {searchResults.services.slice(0, 6).map((service) => (
+                    <TouchableOpacity 
+                      key={service.id}
+                      style={styles.resultItem} 
+                      onPress={() => navigation.navigate('ServiceDetail', { service })}
+                    >
+                      <Image source={{ uri: service.image }} style={styles.itemImage} />
+                      <View style={styles.itemContent}>
+                        <Text style={styles.itemTitle} numberOfLines={2}>{service.name}</Text>
+                        <Text style={styles.itemSubtitle}>{service.description}</Text>
+                        <View style={styles.itemFooter}>
+                          <Badge text={service.category} variant="secondary" size="small" />
+                          <Text style={styles.itemPrice}>{service.price}€</Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {searchResults.services.length > 6 && (
+                  <TouchableOpacity 
+                    style={styles.seeMoreButton}
+                    onPress={() => navigation.navigate('AllServices', { filter: 'all' })}
+                  >
                     <Text style={styles.seeMoreText}>Voir tous les services</Text>
                     <Ionicons name="arrow-forward" size={16} color="#4CAF50" />
                   </TouchableOpacity>
@@ -267,30 +294,55 @@ export default function SearchScreen({ navigation, route }) {
         )}
 
         {activeTab === 'products' && (
-          <FlatList
-            data={searchResults.products}
-            renderItem={renderProductItem}
-            keyExtractor={(item) => item.id.toString()}
-            showsVerticalScrollIndicator={false}
-          />
+          <View style={styles.cardsGrid}>
+            {searchResults.products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                navigation={navigation}
+                variant="default"
+                size="large"
+                fullWidth={true}
+                style={styles.productCard}
+              />
+            ))}
+          </View>
         )}
 
         {activeTab === 'farms' && (
-          <FlatList
-            data={searchResults.farms}
-            renderItem={renderFarmItem}
-            keyExtractor={(item) => item.id.toString()}
-            showsVerticalScrollIndicator={false}
-          />
+          <View style={styles.cardsGrid}>
+            {searchResults.farms.map((farm) => (
+              <FarmCard
+                key={farm.id}
+                farm={farm}
+                navigation={navigation}
+                variant="default"
+                style={styles.farmCard}
+              />
+            ))}
+          </View>
         )}
 
         {activeTab === 'services' && (
-          <FlatList
-            data={searchResults.services}
-            renderItem={renderServiceItem}
-            keyExtractor={(item) => item.id.toString()}
-            showsVerticalScrollIndicator={false}
-          />
+          <View style={styles.cardsGrid}>
+            {searchResults.services.map((service) => (
+              <TouchableOpacity 
+                key={service.id}
+                style={styles.resultItem} 
+                onPress={() => navigation.navigate('ServiceDetail', { service })}
+              >
+                <Image source={{ uri: service.image }} style={styles.itemImage} />
+                <View style={styles.itemContent}>
+                  <Text style={styles.itemTitle} numberOfLines={2}>{service.name}</Text>
+                  <Text style={styles.itemSubtitle}>{service.description}</Text>
+                  <View style={styles.itemFooter}>
+                    <Badge text={service.category} variant="secondary" size="small" />
+                    <Text style={styles.itemPrice}>{service.price}€</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
       </View>
     );
@@ -473,13 +525,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    padding: 16,
+    marginBottom: 16,
+    width: '100%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   itemImage: {
     width: 60,
@@ -527,5 +580,19 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontSize: 14,
     fontWeight: '500',
+  },
+  resultsGrid: {
+    padding: 16,
+  },
+  cardsGrid: {
+    gap: 16,
+  },
+  productCard: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  farmCard: {
+    width: '100%',
+    marginBottom: 16,
   },
 });

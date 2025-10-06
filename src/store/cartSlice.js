@@ -10,32 +10,6 @@ export const addToCart = createAsyncThunk(
   }
 );
 
-export const removeFromCart = createAsyncThunk(
-  'cart/removeFromCart',
-  async (productId) => {
-    // Simulation d'un appel API
-    await new Promise(resolve => setTimeout(resolve, 100));
-    return productId;
-  }
-);
-
-export const updateCartItemQuantity = createAsyncThunk(
-  'cart/updateCartItemQuantity',
-  async ({ productId, quantity }) => {
-    // Simulation d'un appel API
-    await new Promise(resolve => setTimeout(resolve, 100));
-    return { productId, quantity };
-  }
-);
-
-export const clearCart = createAsyncThunk(
-  'cart/clearCart',
-  async () => {
-    // Simulation d'un appel API
-    await new Promise(resolve => setTimeout(resolve, 100));
-    return true;
-  }
-);
 
 const cartSlice = createSlice({
   name: 'cart',
@@ -81,6 +55,30 @@ const cartSlice = createSlice({
         });
       }
     },
+    
+    // Actions synchrones pour le panier
+    removeFromCartSync: (state, action) => {
+      const productId = action.payload;
+      state.items = state.items.filter(item => item.product.id !== productId);
+    },
+    
+    updateCartItemQuantitySync: (state, action) => {
+      const { productId, quantity } = action.payload;
+      const item = state.items.find(item => item.product.id === productId);
+      
+      if (item) {
+        if (quantity <= 0) {
+          // Retirer l'article si la quantité est 0 ou négative
+          state.items = state.items.filter(item => item.product.id !== productId);
+        } else {
+          item.quantity = quantity;
+        }
+      }
+    },
+    
+    clearCartSync: (state) => {
+      state.items = [];
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -110,59 +108,6 @@ const cartSlice = createSlice({
         state.loading = false;
         state.error = action.error.message;
       })
-      
-      // removeFromCart
-      .addCase(removeFromCart.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(removeFromCart.fulfilled, (state, action) => {
-        state.loading = false;
-        const productId = action.payload;
-        state.items = state.items.filter(item => item.product.id !== productId);
-      })
-      .addCase(removeFromCart.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message;
-      })
-      
-      // updateCartItemQuantity
-      .addCase(updateCartItemQuantity.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(updateCartItemQuantity.fulfilled, (state, action) => {
-        state.loading = false;
-        const { productId, quantity } = action.payload;
-        const item = state.items.find(item => item.product.id === productId);
-        
-        if (item) {
-          if (quantity <= 0) {
-            // Retirer l'article si la quantité est 0 ou négative
-            state.items = state.items.filter(item => item.product.id !== productId);
-          } else {
-            item.quantity = quantity;
-          }
-        }
-      })
-      .addCase(updateCartItemQuantity.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message;
-      })
-      
-      // clearCart
-      .addCase(clearCart.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(clearCart.fulfilled, (state) => {
-        state.loading = false;
-        state.items = [];
-      })
-      .addCase(clearCart.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message;
-      });
   },
 });
 
@@ -185,7 +130,15 @@ export const selectCartError = (state) => state.cart.error;
 export const { 
   incrementQuantity, 
   decrementQuantity, 
-  toggleCartItem 
+  toggleCartItem,
+  removeFromCartSync,
+  updateCartItemQuantitySync,
+  clearCartSync
 } = cartSlice.actions;
+
+// Actions synchrones pour le panier (exportées directement)
+export { removeFromCartSync as removeFromCart };
+export { updateCartItemQuantitySync as updateCartItemQuantity };
+export { clearCartSync as clearCart };
 
 export default cartSlice.reducer;

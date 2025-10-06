@@ -4,9 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Container, Badge, Button, SearchBar, ProductCard } from '../components/ui';
 import { products } from '../data/products';
+import { productCategories } from '../data/categories';
 
 export default function AllProductsScreen({ navigation, route }) {
-  const { filter } = route.params || {};
+  const { filter, farmId } = route.params || {};
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('name'); // 'name', 'price', 'rating', 'newest'
@@ -20,7 +21,7 @@ export default function AllProductsScreen({ navigation, route }) {
     if (products && products.length > 0) {
       applyInitialFilter();
     }
-  }, [filter]);
+  }, [filter, farmId]);
 
   useEffect(() => {
     if (products && products.length > 0) {
@@ -51,6 +52,11 @@ export default function AllProductsScreen({ navigation, route }) {
       default:
         // Pas de filtre, tous les produits
         break;
+    }
+
+    // Appliquer le filtre par ferme si spécifié
+    if (farmId) {
+      filtered = filtered.filter(product => product.farmId === farmId);
     }
 
     setFilteredProducts(filtered);
@@ -129,10 +135,9 @@ export default function AllProductsScreen({ navigation, route }) {
     setFilteredProducts(filtered);
   };
 
+  // Utiliser les catégories centralisées
   const getCategoriesList = () => {
-    if (!products || !Array.isArray(products)) return [];
-    const categories = [...new Set(products.map(p => p.category))];
-    return categories;
+    return productCategories;
   };
 
   const getFarmsList = () => {
@@ -227,18 +232,19 @@ export default function AllProductsScreen({ navigation, route }) {
         >
           {getCategoriesList().map(category => (
             <TouchableOpacity
-              key={category}
+              key={category.id}
               style={[
-                styles.categoryFilter,
-                selectedCategories.includes(category) && styles.selectedCategoryFilter
+                styles.categoryButton,
+                selectedCategories.includes(category.name) && styles.selectedCategoryButton,
+                { borderColor: category.color }
               ]}
-              onPress={() => toggleCategoryFilter(category)}
+              onPress={() => toggleCategoryFilter(category.name)}
             >
-              <Text style={[
-                styles.categoryFilterText,
-                selectedCategories.includes(category) && styles.selectedCategoryFilterText
-              ]}>
-                {category}
+              <Text style={[styles.categoryEmoji, { color: category.color }]}>
+                {category.emoji}
+              </Text>
+              <Text style={[styles.categoryName, { color: category.color }]}>
+                {category.name}
               </Text>
             </TouchableOpacity>
           ))}
@@ -250,7 +256,7 @@ export default function AllProductsScreen({ navigation, route }) {
         <Text style={styles.filterTitle}>Fourchette de prix</Text>
         <View style={styles.priceRangeContainer}>
           <Text style={styles.priceRangeText}>
-            {priceRange.min}€ - {priceRange.max}€
+            {priceRange.min}$ - {priceRange.max}$
           </Text>
           <TouchableOpacity
             style={styles.resetPriceButton}
@@ -313,7 +319,12 @@ export default function AllProductsScreen({ navigation, route }) {
         
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>
-            {filter === 'featured' ? 'Produits Vedettes' :
+            {farmId ? 
+              (() => {
+                const farm = require('../data/farms').farms.find(f => f.id === farmId);
+                return farm ? `Produits de ${farm.name}` : 'Produits de la ferme';
+              })() :
+             filter === 'featured' ? 'Produits Vedettes' :
              filter === 'new' ? 'Nouveautés' :
              filter === 'promotions' ? 'Promotions' :
              'Tous nos produits'}
@@ -475,27 +486,31 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   categoriesContainer: {
-    gap: 8,
+    paddingHorizontal: 4,
+    gap: 12,
   },
-  categoryFilter: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#F5F5F5',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+  categoryButton: {
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 25,
+    borderWidth: 2,
+    backgroundColor: '#FFFFFF',
+    minWidth: 80,
+ 
+    justifyContent: 'center',
   },
-  selectedCategoryFilter: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
+  selectedCategoryButton: {
+    backgroundColor: '#F0F8F0',
   },
-  categoryFilterText: {
+  categoryEmoji: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  categoryName: {
     fontSize: 12,
-    color: '#777E5C',
-    fontWeight: '500',
-  },
-  selectedCategoryFilterText: {
-    color: '#FFFFFF',
+    fontWeight: '600',
+    textAlign: 'center',
   },
   priceRangeContainer: {
     flexDirection: 'row',

@@ -14,22 +14,16 @@ import {
   getNewFarms,
   searchFarms 
 } from '../data/farms';
+import { farmCategories } from '../data/categories';
 
 const { width } = Dimensions.get('window');
 
 export default function FarmsScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSpecialty, setSelectedSpecialty] = useState('all');
+  const [selectedSpecialty, setSelectedSpecialty] = useState(null);
 
-  const specialties = [
-    { id: 'all', name: 'Toutes', emoji: '🌾', color: '#777E5C' },
-    { id: 'organic', name: 'Bio', emoji: '🌱', color: '#4CAF50' },
-    { id: 'fruits', name: 'Fruits', emoji: '🍎', color: '#FF9800' },
-    { id: 'cereals', name: 'Céréales', emoji: '🌾', color: '#8BC34A' },
-    { id: 'dairy', name: 'Laitiers', emoji: '🥛', color: '#2196F3' },
-    { id: 'wine', name: 'Vins', emoji: '🍷', color: '#9C27B0' },
-    { id: 'herbs', name: 'Herbes', emoji: '🌿', color: '#795548' },
-  ];
+  // Utiliser les catégories centralisées
+  const specialties = farmCategories;
 
   const handleSearch = () => {
     navigation.navigate('Search', { searchQuery: searchQuery });
@@ -50,19 +44,30 @@ export default function FarmsScreen({ navigation }) {
     // Navigation vers la page de contact
   };
 
-  const handleSpecialtyFilter = (specialtyId) => {
-    setSelectedSpecialty(specialtyId);
+  const handleSpecialtyFilter = (specialty) => {
+    setSelectedSpecialty(specialty);
   };
 
   const getFilteredFarms = () => {
     let filtered = farms;
     
-    if (selectedSpecialty !== 'all') {
-      filtered = getFarmsBySpecialty(selectedSpecialty);
+    // Filtre par spécialité
+    if (selectedSpecialty) {
+      filtered = filtered.filter(farm => farm.specialty === selectedSpecialty.name);
     }
     
+    // Filtre par recherche
     if (searchQuery.trim()) {
-      filtered = searchFarms(searchQuery);
+      const lowerQuery = searchQuery.toLowerCase();
+      filtered = filtered.filter(farm =>
+        farm.name.toLowerCase().includes(lowerQuery) ||
+        farm.description.toLowerCase().includes(lowerQuery) ||
+        farm.specialty.toLowerCase().includes(lowerQuery) ||
+        farm.location.toLowerCase().includes(lowerQuery) ||
+        farm.region.toLowerCase().includes(lowerQuery) ||
+        (farm.products && farm.products.some(product => product.toLowerCase().includes(lowerQuery))) ||
+        (farm.certifications && farm.certifications.some(cert => cert.toLowerCase().includes(lowerQuery)))
+      );
     }
     
     return filtered;
@@ -94,132 +99,155 @@ export default function FarmsScreen({ navigation }) {
 
       <Divider />
 
-      {/* Filtres par spécialité */}
-      <Container style={styles.filtersSection}>
+      {/* Section Catégories */}
+      <Container style={styles.section}>
         <SectionHeader
-          title="Filtrer par spécialité"
-          subtitle="Trouvez la ferme qui correspond à vos besoins"
-          onActionPress={() => console.log('Voir toutes les spécialités')}
-          style={styles.fullWidthHeader}
+          title="Spécialités"
+          subtitle="Parcourez nos différentes spécialités de fermes"
         />
         
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.specialtiesContainer}
-        >
+        <View style={styles.categoriesGrid}>
           {specialties.map((specialty) => (
-            <View
+            <TouchableOpacity
               key={specialty.id}
               style={[
-                styles.specialtyFilter,
-                selectedSpecialty === specialty.id && styles.selectedSpecialty
+                styles.categoryCard,
+                selectedSpecialty?.id === specialty.id && styles.selectedCategoryCard
               ]}
+              onPress={() => handleSpecialtyFilter(specialty)}
             >
-              <TouchableOpacity
-                onPress={() => handleSpecialtyFilter(specialty.id)}
-                style={[
-                  styles.specialtyButton,
-                  { borderColor: specialty.color }
-                ]}
-              >
-                <Text style={[styles.specialtyEmoji, { color: specialty.color }]}>
-                  {specialty.emoji}
+              <View style={[styles.categoryIconContainer, { backgroundColor: specialty.color + '20' }]}>
+                <Text style={[styles.categoryIcon, { fontSize: 28, color: specialty.color }]}>
+                  {specialty.emoji || '❓'}
                 </Text>
-                <Text style={[styles.specialtyName, { color: specialty.color }]}>
-                  {specialty.name}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </ScrollView>
-      </Container>
-
-      <Divider />
-
-      {/* Section Fermes populaires */}
-      <Container style={styles.section}>
-        <SectionHeader
-          title="Fermes populaires"
-          subtitle="Les fermes les plus appréciées par nos clients"
-          onActionPress={() => console.log('Voir toutes les fermes populaires')}
-          style={styles.fullWidthHeader}
-        />
-        
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.farmsContainer}
-        >
-          {popularFarms.map((farm) => (
-            <FarmCard
-              key={farm.id}
-              farm={farm}
-              onPress={handleFarmPress}
-              onViewProducts={handleViewProducts}
-              onContact={handleContact}
-              variant="featured"
-              style={styles.farmCard}
-            />
-          ))}
-        </ScrollView>
-      </Container>
-
-      <Divider />
-
-      {/* Section Nouvelles fermes */}
-      <Container style={styles.section}>
-        <SectionHeader
-          title="Nouvelles fermes"
-          subtitle="Découvrez nos nouveaux partenaires"
-          onActionPress={() => console.log('Voir toutes les nouvelles fermes')}
-          style={styles.fullWidthHeader}
-        />
-        
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.farmsContainer}
-        >
-          {newFarms.map((farm) => (
-            <FarmCard
-              key={farm.id}
-              farm={farm}
-              onPress={handleFarmPress}
-              onViewProducts={handleViewProducts}
-              onContact={handleContact}
-              variant="default"
-              style={styles.farmCard}
-            />
-          ))}
-        </ScrollView>
-      </Container>
-
-      <Divider />
-
-      {/* Section Toutes les fermes */}
-      <Container style={styles.section}>
-        <SectionHeader
-          title={`Toutes nos fermes (${filteredFarms.length})`}
-          subtitle="Explorez notre réseau de fermes partenaires"
-          onActionPress={() => console.log('Voir toutes les fermes')}
-          style={styles.fullWidthHeader}
-        />
-        
-        <View style={styles.allFarmsGrid}>
-          {filteredFarms.map((farm) => (
-            <FarmCard
-              key={farm.id}
-              farm={farm}
-              onPress={handleFarmPress}
-              onViewProducts={handleViewProducts}
-              onContact={handleContact}
-              variant="default"
-              style={styles.gridFarmCard}
-            />
+              </View>
+              <Text style={styles.categoryLabel}>
+                {specialty.name}
+              </Text>
+            </TouchableOpacity>
           ))}
         </View>
       </Container>
+
+      <Divider />
+
+      {/* Affichage conditionnel : soit les sections normales, soit les fermes de la spécialité */}
+      {!selectedSpecialty || selectedSpecialty.id === 0 ? (
+        // Affichage normal avec toutes les sections
+        <>
+          {/* Section Fermes populaires */}
+          <Container style={styles.section}>
+            <SectionHeader
+              title="Fermes populaires"
+              subtitle="Les fermes les plus appréciées par nos clients"
+              onActionPress={() => navigation.navigate('AllFarms', { filter: 'popular' })}
+              style={styles.fullWidthHeader}
+            />
+            
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.farmsContainer}
+            >
+              {popularFarms.map((farm) => (
+                <FarmCard
+                  key={farm.id}
+                  farm={farm}
+                  navigation={navigation}
+                  onPress={handleFarmPress}
+                  onViewProducts={handleViewProducts}
+                  onContact={handleContact}
+                  variant="featured"
+                  style={styles.farmCard}
+                />
+              ))}
+            </ScrollView>
+          </Container>
+
+          <Divider />
+
+          {/* Section Nouvelles fermes */}
+          <Container style={styles.section}>
+            <SectionHeader
+              title="Nouvelles fermes"
+              subtitle="Découvrez nos nouveaux partenaires"
+              onActionPress={() => navigation.navigate('AllFarms', { filter: 'new' })}
+              style={styles.fullWidthHeader}
+            />
+            
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.farmsContainer}
+            >
+              {newFarms.map((farm) => (
+                <FarmCard
+                  key={farm.id}
+                  farm={farm}
+                  navigation={navigation}
+                  onPress={handleFarmPress}
+                  onViewProducts={handleViewProducts}
+                  onContact={handleContact}
+                  variant="default"
+                  style={styles.farmCard}
+                />
+              ))}
+            </ScrollView>
+          </Container>
+
+          <Divider />
+
+          {/* Section Toutes les fermes */}
+          <Container style={styles.section}>
+            <SectionHeader
+              title="Toutes nos fermes"
+              subtitle="Explorez notre réseau de fermes partenaires"
+              onActionPress={() => navigation.navigate('AllFarms', { filter: 'all' })}
+              style={styles.fullWidthHeader}
+            />
+            
+            <View style={styles.allFarmsGrid}>
+              {farms.map((farm) => (
+                <FarmCard
+                  key={farm.id}
+                  farm={farm}
+                  navigation={navigation}
+                  onPress={handleFarmPress}
+                  onViewProducts={handleViewProducts}
+                  onContact={handleContact}
+                  variant="default"
+                  style={styles.gridFarmCard}
+                />
+              ))}
+            </View>
+          </Container>
+        </>
+      ) : (
+        // Affichage des fermes de la spécialité sélectionnée en pleine largeur
+        <Container style={styles.section}>
+          <SectionHeader
+            title={`${selectedSpecialty.name}`}
+            subtitle={`Fermes spécialisées en ${selectedSpecialty.name.toLowerCase()}`}
+            onActionPress={() => navigation.navigate('AllFarms', { filter: selectedSpecialty.name })}
+            style={styles.fullWidthHeader}
+          />
+          
+          <View style={styles.categoryFarmsGrid}>
+            {filteredFarms.map((farm) => (
+              <FarmCard
+                key={farm.id}
+                farm={farm}
+                navigation={navigation}
+                onPress={handleFarmPress}
+                onViewProducts={handleViewProducts}
+                onContact={handleContact}
+                variant="default"
+                style={styles.categoryFarmCard}
+              />
+            ))}
+          </View>
+        </Container>
+      )}
 
       <Divider />
 
@@ -314,13 +342,67 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: '#FFFFFF',
     minWidth: 80,
+    justifyContent: 'center',
   },
-  selectedSpecialty: {
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 8,
+  },
+  categoryCard: {
+    width: '22%',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    minHeight: 100,
+    justifyContent: 'center',
+  },
+  selectedCategoryCard: {
     backgroundColor: '#F0F8F0',
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+  },
+  categoryIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  categoryIcon: {
+    fontSize: 28,
+    textAlign: 'center',
+    lineHeight: 28,
+  },
+  categoryLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    color: '#283106',
+    lineHeight: 14,
+  },
+  categoryFarmsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  categoryFarmCard: {
+    width: '48%',
   },
   specialtyEmoji: {
     fontSize: 24,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   specialtyName: {
     fontSize: 12,

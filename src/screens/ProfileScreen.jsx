@@ -106,8 +106,7 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.userName}>{user.firstName} {user.lastName}</Text>
             <Text style={styles.userEmail}>{user.email}</Text>
             <Text style={styles.userPhone}>{user.phone}</Text>
-            <Text style={styles.userAddress}>📍 {user.address}</Text>
-            <Text style={styles.memberSince}>Membre depuis 2024</Text>
+            
           </View>
         </View>
       </Container>
@@ -142,9 +141,9 @@ export default function ProfileScreen({ navigation }) {
         <Button
           title="Se déconnecter"
           onPress={handleLogout}
-          variant="outline"
           size="large"
           style={styles.logoutButton}
+          variant="warning"
         />
         
         {/* Bouton d'accès admin (discret) */}

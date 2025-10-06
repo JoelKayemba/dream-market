@@ -177,7 +177,7 @@ export default function PersonalInfoScreen({ navigation }) {
         <Button
           title="Supprimer mon compte"
           onPress={handleDeleteAccount}
-          variant="outline"
+          variant="warning"
           size="large"
           style={styles.deleteButton}
         />

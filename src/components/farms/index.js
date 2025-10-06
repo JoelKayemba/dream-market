@@ -2,7 +2,7 @@
 // Export centralisé de tous les composants liés aux fermes
 
 // 🎯 Composants principaux des fermes
-export { default as FarmCard } from './FarmCard';
+// export { default as FarmCard } from './FarmCard'; // Utilise celui de ui/FarmCard.jsx
 export { default as FarmGallery } from './FarmGallery';
 export { default as FarmInfo } from './FarmInfo';
 export { default as FarmHeader } from './FarmHeader';
@@ -52,7 +52,7 @@ export { default as VisitButton } from './VisitButton';
 // 📋 Export par défaut
 export default {
   // Composants principaux
-  FarmCard,
+  // FarmCard, // Utilise celui de ui/FarmCard.jsx
   FarmGallery,
   FarmInfo,
   FarmHeader,

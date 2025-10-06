@@ -9,7 +9,7 @@ import {
   SectionHeader,
   Divider
 } from '../components/ui';
-import { categories } from '../data/categories';
+import { productCategories } from '../data/categories';
 import { 
   getProductsByCategory, 
   getPopularProducts, 
@@ -19,8 +19,19 @@ import {
 
 const { width } = Dimensions.get('window');
 
-export default function ProductsScreen({ navigation }) {
+export default function ProductsScreen({ navigation, route }) {
+  const { categoryName } = route.params || {};
   const [selectedCategory, setSelectedCategory] = useState(null);
+
+  // Initialiser la catégorie sélectionnée si reçue via navigation
+  React.useEffect(() => {
+    if (categoryName) {
+      const category = productCategories.find(cat => cat.name === categoryName);
+      if (category) {
+        setSelectedCategory(category);
+      }
+    }
+  }, [categoryName]);
 
   // Gestionnaire de recherche
   const handleSearch = (query) => {
@@ -50,7 +61,7 @@ export default function ProductsScreen({ navigation }) {
   // Obtenir les produits de la catégorie sélectionnée
   const getCategoryProducts = () => {
     if (!selectedCategory) return [];
-    return getProductsByCategory(selectedCategory.id);
+    return getProductsByCategory(selectedCategory.name);
   };
 
   return (
@@ -79,23 +90,27 @@ export default function ProductsScreen({ navigation }) {
          
         />
         
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesContainer}
-        >
-          {categories.map((category) => (
-            <CategoryCard
+        <View style={styles.categoriesGrid}>
+          {productCategories.map((category) => (
+            <TouchableOpacity
               key={category.id}
-              category={category}
-              onPress={() => handleCategorySelect(category)}
               style={[
                 styles.categoryCard,
-                selectedCategory?.id === category.id && styles.selectedCategory
+                selectedCategory?.id === category.id && styles.selectedCategoryCard
               ]}
-            />
+              onPress={() => handleCategorySelect(category)}
+            >
+              <View style={[styles.categoryIconContainer, { backgroundColor: category.color + '20' }]}>
+                <Text style={[styles.categoryIcon, { fontSize: 28, color: category.color }]}>
+                  {category.emoji || '❓'}
+                </Text>
+              </View>
+              <Text style={styles.categoryLabel}>
+                {category.name}
+              </Text>
+            </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
       </Container>
 
       <Divider />
@@ -264,15 +279,52 @@ const styles = StyleSheet.create({
   section: {
     paddingVertical: 24,
   },
-  categoriesContainer: {
-    paddingHorizontal: 4,
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 8,
   },
   categoryCard: {
-    marginRight: 16,
+    width: '22%',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    minHeight: 100,
+    justifyContent: 'center',
   },
-  selectedCategory: {
-    borderColor: '#283106',
+  selectedCategoryCard: {
+    backgroundColor: '#F0F8F0',
     borderWidth: 2,
+    borderColor: '#4CAF50',
+  },
+  categoryIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  categoryIcon: {
+    fontSize: 28,
+    textAlign: 'center',
+    lineHeight: 28,
+  },
+  categoryLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    color: '#283106',
+    lineHeight: 14,
   },
   productsContainer: {
     paddingHorizontal: 4,

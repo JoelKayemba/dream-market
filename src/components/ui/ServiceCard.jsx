@@ -5,11 +5,14 @@ import {
   StyleSheet,
   Dimensions,
   Image,
-  Text
+  Text,
+  Alert
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Badge from './Badge';
 import Rating from './Rating';
 import Button from './Button';
+import { useFavorites } from '../../hooks/useFavorites';
 
 const { width } = Dimensions.get('window');
 
@@ -21,6 +24,8 @@ export default function ServiceCard({
   fullWidth = false, // Nouvelle prop pour permettre l'élargissement
   style 
 }) {
+  const { toggleServiceFavorite, isServiceFavorite } = useFavorites();
+  const isFavorite = isServiceFavorite(service.id);
   const getCardStyle = () => {
     let baseStyle;
     switch (variant) {
@@ -50,6 +55,27 @@ export default function ServiceCard({
         return styles.compactImage;
       default:
         return styles.defaultImage;
+    }
+  };
+
+  const handleToggleFavorite = (e) => {
+    e.stopPropagation(); // Empêcher la navigation vers ServiceDetail
+    const wasFavorite = isFavorite;
+    toggleServiceFavorite(service);
+    
+    // Afficher une notification différente selon l'action
+    if (wasFavorite) {
+      Alert.alert(
+        'Retiré des favoris',
+        `${service.name} a été retiré de vos favoris.`,
+        [{ text: 'OK', style: 'default' }]
+      );
+    } else {
+      Alert.alert(
+        'Ajouté aux favoris !',
+        `${service.name} a été ajouté à vos favoris.`,
+        [{ text: 'OK', style: 'default' }]
+      );
     }
   };
 
@@ -89,6 +115,18 @@ export default function ServiceCard({
             <Rating value={service.rating} size="small" />
             <Text style={styles.reviewCount}>({service.reviewCount})</Text>
           </View>
+
+          {/* Bouton Favori */}
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            onPress={handleToggleFavorite}
+          >
+            <Ionicons 
+              name={isFavorite ? "heart" : "heart-outline"} 
+              size={20} 
+              color={isFavorite ? "#FF6B6B" : "#FFFFFF"} 
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Informations du service */}
@@ -228,6 +266,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  favoriteButton: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   reviewCount: {
     color: '#777E5C',

@@ -6,12 +6,14 @@ import {
   Animated, 
   Dimensions,
   Image,
-  Text
+  Text,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Badge from './Badge';
 import Rating from './Rating';
 import Button from './Button';
+import { useFavorites } from '../../hooks/useFavorites';
 
 const { width } = Dimensions.get('window');
 
@@ -20,11 +22,14 @@ export default function FarmCard({
   onPress, 
   onViewProducts,
   onContact,
+  navigation,
   style,
   variant = 'default' // 'default', 'featured', 'compact'
 }) {
   const [scaleValue] = useState(new Animated.Value(1));
   const [isPressed, setIsPressed] = useState(false);
+  const { toggleFarmFavorite, isFarmFavorite } = useFavorites();
+  const isFavorite = isFarmFavorite(farm.id);
 
   const handlePressIn = () => {
     setIsPressed(true);
@@ -43,15 +48,49 @@ export default function FarmCard({
   };
 
   const handlePress = () => {
-    onPress && onPress(farm);
+    if (navigation) {
+      navigation.navigate('FarmDetail', { farm });
+    } else {
+      onPress && onPress(farm);
+    }
   };
 
   const handleViewProducts = () => {
-    onViewProducts && onViewProducts(farm);
+    if (navigation) {
+      navigation.navigate('AllProducts', { farmId: farm.id });
+    } else {
+      onViewProducts && onViewProducts(farm);
+    }
   };
 
   const handleContact = () => {
-    onContact && onContact(farm);
+    if (navigation) {
+      // Pour l'instant, on navigue vers les détails de la ferme
+      navigation.navigate('FarmDetail', { farm });
+    } else {
+      onContact && onContact(farm);
+    }
+  };
+
+  const handleToggleFavorite = (e) => {
+    e.stopPropagation(); // Empêcher la navigation vers FarmDetail
+    const wasFavorite = isFavorite;
+    toggleFarmFavorite(farm);
+    
+    // Afficher une notification différente selon l'action
+    if (wasFavorite) {
+      Alert.alert(
+        'Retiré des favoris',
+        `${farm.name} a été retiré de vos favoris.`,
+        [{ text: 'OK', style: 'default' }]
+      );
+    } else {
+      Alert.alert(
+        'Ajouté aux favoris !',
+        `${farm.name} a été ajouté à vos favoris.`,
+        [{ text: 'OK', style: 'default' }]
+      );
+    }
   };
 
   const getCardStyle = () => {
@@ -140,6 +179,18 @@ export default function FarmCard({
             <Rating value={farm.rating} size="small" />
             <Text style={styles.reviewCount}>({farm.reviewCount})</Text>
           </View>
+
+          {/* Bouton Favori */}
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            onPress={handleToggleFavorite}
+          >
+            <Ionicons 
+              name={isFavorite ? "heart" : "heart-outline"} 
+              size={20} 
+              color={isFavorite ? "#FF6B6B" : "#FFFFFF"} 
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Informations de la ferme */}
@@ -323,6 +374,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  favoriteButton: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   reviewCount: {
     color: '#777E5C',

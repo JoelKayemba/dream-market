@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Dimensions } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Dimensions, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { Container, Badge, Button } from '../components/ui';
-import { toggleCartItem, selectIsInCart, selectCartItemQuantity } from '../store/cartSlice';
+import { toggleCartItem, selectIsInCart, selectCartItemQuantity, selectCartItemsCount } from '../store/cartSlice';
+import { useFavorites } from '../hooks/useFavorites';
+import { formatPrice } from '../utils/currency';
 
 const { width } = Dimensions.get('window');
 
@@ -12,17 +14,59 @@ export default function ProductDetailScreen({ route, navigation }) {
   const { product } = route.params;
   const dispatch = useDispatch();
   const [selectedImage, setSelectedImage] = useState(0);
-  const [isFavorite, setIsFavorite] = useState(false);
+  const scrollViewRef = useRef(null);
+  const { toggleProductFavorite, isProductFavorite } = useFavorites();
+  const isFavorite = isProductFavorite(product.id);
   const isInCart = useSelector(state => selectIsInCart(state, product.id));
   const cartQuantity = useSelector(state => selectCartItemQuantity(state, product.id));
+  const cartItemsCount = useSelector(selectCartItemsCount);
   const [quantity, setQuantity] = useState(cartQuantity || 1);
 
   const handleFavoriteToggle = () => {
-    setIsFavorite(!isFavorite);
+    const wasFavorite = isFavorite;
+    toggleProductFavorite(product);
+    
+    // Afficher une notification différente selon l'action
+    if (wasFavorite) {
+      Alert.alert(
+        'Retiré des favoris',
+        `${product.name} a été retiré de vos favoris.`,
+        [{ text: 'OK', style: 'default' }]
+      );
+    } else {
+      Alert.alert(
+        'Ajouté aux favoris !',
+        `${product.name} a été ajouté à vos favoris.`,
+        [{ text: 'OK', style: 'default' }]
+      );
+    }
   };
 
   const handleAddToCart = () => {
+    const wasInCart = isInCart;
     dispatch(toggleCartItem({ product, quantity }));
+    
+    // Afficher une notification différente selon l'action
+    if (wasInCart) {
+      Alert.alert(
+        'Produit retiré du panier',
+        `${product.name} a été retiré de votre panier.`,
+        [{ text: 'OK', style: 'default' }]
+      );
+    } else {
+      Alert.alert(
+        'Produit ajouté au panier !',
+        `${product.name} a été ajouté à votre panier.`,
+        [
+          { text: 'Continuer', style: 'cancel' },
+          { 
+            text: 'Voir le panier', 
+            onPress: () => navigation.navigate('Cart'),
+            style: 'default'
+          }
+        ]
+      );
+    }
   };
 
   const handleQuantityChange = (newQuantity) => {
@@ -35,13 +79,36 @@ export default function ProductDetailScreen({ route, navigation }) {
     console.log('Acheter maintenant:', product.name, 'Quantité:', quantity);
   };
 
-  const images = [product.image, product.image, product.image];
+  const scrollToImage = (index) => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({
+        x: index * width,
+        animated: true
+      });
+    }
+    setSelectedImage(index);
+  };
+
+  const scrollToPreviousImage = () => {
+    if (selectedImage > 0) {
+      scrollToImage(selectedImage - 1);
+    }
+  };
+
+  const scrollToNextImage = () => {
+    if (selectedImage < images.length - 1) {
+      scrollToImage(selectedImage + 1);
+    }
+  };
+
+  const images = product.images || [product.image];
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Images du produit avec boutons superposés */}
       <View style={styles.imageSection}>
         <ScrollView
+          ref={scrollViewRef}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -60,6 +127,29 @@ export default function ProductDetailScreen({ route, navigation }) {
           ))}
         </ScrollView>
         
+        {/* Boutons de navigation pour les images */}
+        {images.length > 1 && (
+          <>
+            {selectedImage > 0 && (
+              <TouchableOpacity
+                style={[styles.navButton, styles.prevButton]}
+                onPress={scrollToPreviousImage}
+              >
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+            
+            {selectedImage < images.length - 1 && (
+              <TouchableOpacity
+                style={[styles.navButton, styles.nextButton]}
+                onPress={scrollToNextImage}
+              >
+                <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+        
         {/* Boutons superposés sur l'image */}
         <View style={styles.imageOverlay}>
           <TouchableOpacity
@@ -69,30 +159,43 @@ export default function ProductDetailScreen({ route, navigation }) {
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           
-          <TouchableOpacity
-            style={[styles.favoriteButtonOverlay, isFavorite && styles.favoriteButtonActive]}
-            onPress={handleFavoriteToggle}
-          >
-            <Ionicons 
-              name={isFavorite ? 'heart' : 'heart-outline'} 
-              size={24} 
-              color="#FFFFFF"
-            />
-          </TouchableOpacity>
+          <View style={styles.topRightButtons}>
+            {images.length > 1 && (
+              <View style={styles.imageCounter}>
+                <Text style={styles.imageCounterText}>
+                  {selectedImage + 1} / {images.length}
+                </Text>
+              </View>
+            )}
+            
+            <TouchableOpacity
+              style={[styles.favoriteButtonOverlay, isFavorite && styles.favoriteButtonActive]}
+              onPress={handleFavoriteToggle}
+            >
+              <Ionicons 
+                name={isFavorite ? 'heart' : 'heart-outline'} 
+                size={24} 
+                color="#FFFFFF"
+              />
+            </TouchableOpacity>
+          </View>
         </View>
         
-        {/* Indicateurs d'images */}
-        <View style={styles.imageIndicators}>
-          {images.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.imageIndicator,
-                selectedImage === index && styles.activeImageIndicator
-              ]}
-            />
-          ))}
-        </View>
+        {/* Indicateurs d'images cliquables */}
+        {images.length > 1 && (
+          <View style={styles.imageIndicators}>
+            {images.map((_, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.imageIndicator,
+                  selectedImage === index && styles.activeImageIndicator
+                ]}
+                onPress={() => scrollToImage(index)}
+              />
+            ))}
+          </View>
+        )}
 
         {/* Badges avec styles améliorés */}
         <View style={styles.badgesContainer}>
@@ -106,6 +209,11 @@ export default function ProductDetailScreen({ route, navigation }) {
               <Text style={styles.newText}>Nouveau</Text>
             </View>
           )}
+          {product.isOrganic && (
+            <View style={styles.organicBadge}>
+              <Text style={styles.organicText}>Bio</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -113,12 +221,35 @@ export default function ProductDetailScreen({ route, navigation }) {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.productHeader}>
           <Text style={styles.productName}>{product.name}</Text>
-          <Text style={styles.productPrice}>{product.price}€</Text>
-          
-          <View style={styles.productFarm}>
-            <Text style={styles.farmIcon}>🏡</Text>
-            <Text style={styles.farmText}>{product.farm}</Text>
+          <View style={styles.priceContainer}>
+            {product.oldPrice && (
+              <Text style={styles.oldPrice}>{formatPrice(product.oldPrice, product.currency)}</Text>
+            )}
+            <Text style={styles.productPrice}>{formatPrice(product.price, product.currency)}</Text>
           </View>
+          
+          <TouchableOpacity 
+            style={styles.productFarm}
+            onPress={() => {
+              if (product.farmId && navigation) {
+                // Trouver la ferme correspondante
+                const farm = require('../data/farms').farms.find(f => f.id === product.farmId);
+                if (farm) {
+                  navigation.navigate('FarmDetail', { farm });
+                }
+              }
+            }}
+          >
+            <Text style={styles.farmIcon}>🏡</Text>
+            <Text style={styles.farmText}>
+              {product.farmId ? 
+                (() => {
+                  const farm = require('../data/farms').farms.find(f => f.id === product.farmId);
+                  return farm ? farm.name : product.farm;
+                })() : 
+                'Dream Market'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.productInfo}>
@@ -143,6 +274,9 @@ export default function ProductDetailScreen({ route, navigation }) {
                 ))}
               </View>
               <Text style={styles.infoValue}>{product.rating || 'N/A'}</Text>
+              {product.reviewCount && (
+                <Text style={styles.reviewCount}>({product.reviewCount} avis)</Text>
+              )}
             </View>
           </View>
           
@@ -190,10 +324,12 @@ export default function ProductDetailScreen({ route, navigation }) {
         {/* Boutons d'action */}
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={styles.addToCartButton}
+            style={[styles.addToCartButton, isInCart && styles.addToCartButtonActive]}
             onPress={handleAddToCart}
           >
-            <Text style={styles.addToCartButtonText}>Ajouter au panier</Text>
+            <Text style={styles.addToCartButtonText}>
+              {isInCart ? 'Retirer du panier' : 'Ajouter au panier'}
+            </Text>
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -244,6 +380,22 @@ const styles = StyleSheet.create({
   favoriteButtonActive: {
     backgroundColor: '#FF6B6B',
   },
+  topRightButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  imageCounter: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  imageCounterText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   productImage: {
     width: width,
     height: width * 0.8,
@@ -268,6 +420,26 @@ const styles = StyleSheet.create({
   activeImageIndicator: {
     backgroundColor: '#4CAF50',
     width: 24,
+  },
+  
+  // Boutons de navigation pour les images
+  navButton: {
+    position: 'absolute',
+    top: '50%',
+    transform: [{ translateY: -25 }],
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  prevButton: {
+    left: 16,
+  },
+  nextButton: {
+    right: 16,
   },
   badgesContainer: {
     position: 'absolute',
@@ -309,6 +481,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  organicBadge: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  organicText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
   content: {
 
     marginTop: 16,
@@ -329,26 +517,36 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     lineHeight: 30,
   },
+  priceContainer: {
+    marginBottom: 12,
+  },
   productPrice: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#4CAF50',
-    marginBottom: 12,
+  },
+  oldPrice: {
+    fontSize: 20,
+    color: '#999',
+    textDecorationLine: 'line-through',
+    marginBottom: 4,
   },
   productFarm: {
     fontSize: 16,
-    color: '#777E5C',
+    color: '#4CAF50',
     marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    paddingVertical: 4,
   },
   farmIcon: {
     fontSize: 18,
   },
   farmText: {
     fontSize: 16,
-    color: '#777E5C',
+    color: '#4CAF50',
+    fontWeight: '500',
   },
   productInfo: {
     marginBottom: 24,
@@ -380,6 +578,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flex: 1,
   },
   ratingStars: {
     flexDirection: 'row',
@@ -403,6 +602,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#777E5C',
     fontWeight: '500',
+  },
+  reviewCount: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
   },
   productDescription: {
     fontSize: 16,
@@ -450,6 +654,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+  },
+  addToCartButtonActive: {
+    backgroundColor: '#FF6B6B',
   },
   addToCartButtonText: {
     color: '#FFFFFF',

@@ -9,6 +9,7 @@ import {
   Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSelector } from 'react-redux';
 import {
   Container,
   Text,
@@ -20,22 +21,26 @@ import {
   ProductCard,
   SectionHeader
 } from '../components/ui';
-import { categories, getPopularCategories, getNewCategories } from '../data/categories';
+import { productCategories } from '../data/categories';
 import { products, getPopularProducts, getNewProducts, getDiscountedProducts } from '../data/products';
+import { selectCartItemsCount } from '../store/cartSlice';
 
 const { width, height } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
   const [scrollY] = useState(new Animated.Value(0));
+  const cartItemsCount = useSelector(selectCartItemsCount);
   const [searchFocused, setSearchFocused] = useState(false);
   const scrollViewRef = useRef(null);
 
   // Données pour les sections
-  const popularCategories = getPopularCategories();
-  const newCategories = getNewCategories();
   const popularProducts = getPopularProducts();
   const newProducts = getNewProducts();
   const discountedProducts = getDiscountedProducts();
+
+  // Debug: Vérifier les données des catégories
+  console.log('📊 All productCategories:', productCategories);
+  console.log('📊 Categories slice(1, 6):', productCategories.slice(1, 6));
 
   // Gestionnaires d'événements
   const handleSearch = (query) => {
@@ -45,7 +50,7 @@ export default function HomeScreen({ navigation }) {
 
   const handleCategoryPress = (category) => {
     console.log('Catégorie sélectionnée:', category.name);
-    navigation.navigate('Produits', { categoryId: category.id });
+    navigation.navigate('Produits', { categoryName: category.name });
   };
 
   const handleProductPress = (product) => {
@@ -89,6 +94,14 @@ export default function HomeScreen({ navigation }) {
     extrapolate: 'clamp',
   });
 
+  // Debug: Vérifier les styles au moment du rendu
+  console.log('🎨 Styles object:', {
+    categoryButton: styles.categoryButton,
+    categoryEmoji: styles.categoryEmoji,
+    categoryName: styles.categoryName,
+    categoryFilter: styles.categoryFilter
+  });
+
   return (
     <View style={styles.container}>
       {/* Header animé */}
@@ -117,13 +130,25 @@ export default function HomeScreen({ navigation }) {
             </View>
           </View>
           
-          <TouchableOpacity 
-            style={styles.notificationButton}
-            onPress={() => navigation.navigate('Notifications')}
-          >
-            <Ionicons name="notifications-outline" size={20} color="#283106" />
-            <Badge text="3" style={styles.notificationBadge} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.notificationButton}
+              onPress={() => navigation.navigate('Notifications')}
+            >
+              <Ionicons name="notifications-outline" size={20} color="#283106" />
+              <Badge text="3" style={styles.notificationBadge} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.cartButton}
+              onPress={() => navigation.navigate('Cart')}
+            >
+              <Ionicons name="cart-outline" size={20} color="#283106" />
+              {cartItemsCount > 0 && (
+                <Badge text={cartItemsCount.toString()} style={styles.cartBadge} />
+              )}
+            </TouchableOpacity>
+          </View>
         </Container>
       </Animated.View>
 
@@ -183,20 +208,33 @@ export default function HomeScreen({ navigation }) {
             onActionPress={handleViewAllCategories}
           />
           
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesContainer}
-          >
-            {popularCategories.map((category) => (
-              <CategoryCard
-                key={category.id}
-                category={category}
-                onPress={handleCategoryPress}
-                style={styles.categoryCard}
-              />
-            ))}
-          </ScrollView>
+          <View style={styles.categoriesGrid}>
+            {productCategories.slice(1, 4).map((category) => {
+              console.log('🔍 Category data:', {
+                id: category.id,
+                name: category.name,
+                emoji: category.emoji,
+                color: category.color
+              });
+              
+              return (
+                <TouchableOpacity
+                  key={category.id}
+                  style={styles.categoryCard}
+                  onPress={() => handleCategoryPress(category)}
+                >
+                  <View style={[styles.categoryIconContainer, { backgroundColor: category.color + '20' }]}>
+                    <Text style={[styles.categoryIcon, { fontSize: 28, color: category.color }]}>
+                      {category.emoji || '❓'}
+                    </Text>
+                  </View>
+                  <Text style={styles.categoryLabel}>
+                    {category.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </Container>
 
         <Divider />
@@ -379,6 +417,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 13,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   notificationButton: {
     position: 'relative',
     padding: 6,
@@ -390,6 +433,18 @@ const styles = StyleSheet.create({
     top: -10,
     right: 0,
     backgroundColor: '#FF6B6B',
+  },
+  cartButton: {
+    position: 'relative',
+    padding: 6,
+    minWidth: 32,
+    alignItems: 'center',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -10,
+    right: 0,
+    backgroundColor: '#4CAF50',
   },
   searchSection: {
     paddingVertical: 5,
@@ -454,12 +509,47 @@ const styles = StyleSheet.create({
   section: {
     paddingVertical: 20,
   },
-  categoriesContainer: {
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
     paddingHorizontal: 8,
-    paddingRight: 8,
   },
   categoryCard: {
-    marginRight: 6,
+    width: '30%',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    minHeight: 100,
+    justifyContent: 'center',
+  },
+  categoryIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  categoryIcon: {
+    fontSize: 28,
+    textAlign: 'center',
+    lineHeight: 28,
+  },
+  categoryLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    color: '#283106',
+    lineHeight: 14,
   },
   productsContainer: {
     paddingHorizontal: 0,

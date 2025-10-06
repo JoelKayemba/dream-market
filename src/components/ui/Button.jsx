@@ -90,7 +90,11 @@ const styles = StyleSheet.create({
   },
   primary: {
     backgroundColor: colors.primary.main,
-    borderColor: colors.primary.main,
+    
+  },
+  warning: {
+    backgroundColor: 'transparent',
+    borderColor: '#FF6B6B',
     borderWidth: borders.width.normal,
   },
   secondary: {
@@ -132,6 +136,9 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     color: colors.text.disabled,
+  },
+  warningText: {
+    color: '#FF6B6B',
   },
 });
 

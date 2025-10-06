@@ -62,7 +62,7 @@ export const getAppStats = () => {
   const { products, farms, services, sponsoredProducts } = require('./index');
   
   const activeSponsored = sponsoredProducts.filter(s => s.isActive);
-  const availableProducts = products.filter(p => p.isAvailable);
+  const availableProducts = products.filter(p => p.status === 'active');
   
   return {
     totalProducts: products.length,

@@ -1,117 +1,369 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Image } from 'react-native';
+import { 
+  View, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  Text, 
+  RefreshControl,
+  Alert 
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button } from '../components/ui';
+import { 
+  Container, 
+  SectionHeader,
+  Divider,
+  ProductCard,
+  FarmCard,
+  ServiceCard,
+  Button
+} from '../components/ui';
+import { useFavorites } from '../hooks/useFavorites';
 
 export default function FavoritesScreen({ navigation }) {
-  const [favorites] = useState([
-    {
-      id: 1,
-      name: 'Tomates Bio',
-      price: 12.50,
-      image: 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=100&h=100&fit=crop',
-      farm: 'Ferme du Soleil Levant',
-      isOrganic: true
-    },
-    {
-      id: 2,
-      name: 'Pommes Golden',
-      price: 18.90,
-      image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=100&h=100&fit=crop',
-      farm: 'Verger des Trois Chênes',
-      isOrganic: false
-    },
-    {
-      id: 3,
-      name: 'Lait Bio',
-      price: 12.80,
-      image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=100&h=100&fit=crop',
-      farm: 'Ferme de la Vallée',
-      isOrganic: true
-    }
-  ]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('all'); // 'all', 'products', 'farms', 'services'
+  
+  const { 
+    favorites,
+    favoriteProducts, 
+    favoriteFarms, 
+    favoriteServices,
+    getFavoriteCount,
+    clearAllFavorites 
+  } = useFavorites();
 
-  const handleRemoveFavorite = (productId) => {
-    console.log('Retirer des favoris:', productId);
-    // Ici on retirerait le produit des favoris
+  const handleRefresh = () => {
+    setRefreshing(true);
+    // Simuler un refresh
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
   };
 
-  const handleViewProduct = (product) => {
-    console.log('Voir produit:', product.name);
-    // Ici on naviguerait vers la page produit
+  const handleClearAll = () => {
+    Alert.alert(
+      'Vider les favoris',
+      'Êtes-vous sûr de vouloir supprimer tous vos favoris ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: 'Vider', 
+          style: 'destructive',
+          onPress: () => {
+            clearAllFavorites();
+            Alert.alert('Favoris vidés', 'Tous vos favoris ont été supprimés.');
+          }
+        }
+      ]
+    );
+  };
+
+  const handleProductPress = (product) => {
+    navigation.navigate('ProductDetail', { product });
+  };
+
+  const handleFarmPress = (farm) => {
+    navigation.navigate('FarmDetail', { farm });
+  };
+
+  const handleServicePress = (service) => {
+    navigation.navigate('ServiceDetail', { service });
+  };
+
+  const tabs = [
+    { id: 'all', label: 'Tous', count: getFavoriteCount() },
+    { id: 'products', label: 'Produits', count: favoriteProducts.length },
+    { id: 'farms', label: 'Fermes', count: favoriteFarms.length },
+    { id: 'services', label: 'Services', count: favoriteServices.length },
+  ];
+
+  const renderContent = () => {
+    if (favorites.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="heart-outline" size={80} color="#E0E0E0" />
+          <Text style={styles.emptyTitle}>Aucun favori</Text>
+          <Text style={styles.emptySubtitle}>
+            Ajoutez des produits, fermes ou services à vos favoris pour les retrouver facilement.
+          </Text>
+          <Button
+            title="Découvrir nos produits"
+            onPress={() => navigation.navigate('Products')}
+            style={styles.exploreButton}
+          />
+        </View>
+      );
+    }
+
+    switch (activeTab) {
+      case 'products':
+        return (
+          <View style={styles.content}>
+            {favoriteProducts.length === 0 ? (
+              <View style={styles.emptyTabContainer}>
+                <Ionicons name="basket-outline" size={60} color="#E0E0E0" />
+                <Text style={styles.emptyTabTitle}>Aucun produit favori</Text>
+                <Text style={styles.emptyTabSubtitle}>
+                  Explorez nos produits et ajoutez-les à vos favoris.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.gridContainer}>
+                {favoriteProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onPress={() => handleProductPress(product)}
+                    navigation={navigation}
+                    style={styles.gridItem}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        );
+
+      case 'farms':
+        return (
+          <View style={styles.content}>
+            {favoriteFarms.length === 0 ? (
+              <View style={styles.emptyTabContainer}>
+                <Ionicons name="leaf-outline" size={60} color="#E0E0E0" />
+                <Text style={styles.emptyTabTitle}>Aucune ferme favorite</Text>
+                <Text style={styles.emptyTabSubtitle}>
+                  Découvrez nos fermes partenaires et ajoutez-les à vos favoris.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.farmsContainer}>
+                {favoriteFarms.map((farm) => (
+                  <FarmCard
+                    key={farm.id}
+                    farm={farm}
+                    onPress={() => handleFarmPress(farm)}
+                    navigation={navigation}
+                    style={styles.farmItem}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        );
+
+      case 'services':
+        return (
+          <View style={styles.content}>
+            {favoriteServices.length === 0 ? (
+              <View style={styles.emptyTabContainer}>
+                <Ionicons name="construct-outline" size={60} color="#E0E0E0" />
+                <Text style={styles.emptyTabTitle}>Aucun service favori</Text>
+                <Text style={styles.emptyTabSubtitle}>
+                  Explorez nos services et ajoutez-les à vos favoris.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.servicesContainer}>
+                {favoriteServices.map((service) => (
+                  <ServiceCard
+                    key={service.id}
+                    service={service}
+                    onPress={() => handleServicePress(service)}
+                    style={styles.serviceItem}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        );
+
+      default: // 'all'
+        return (
+          <View style={styles.content}>
+            {favoriteProducts.length > 0 && (
+              <>
+                <SectionHeader
+                  title="Produits favoris"
+                  subtitle={`${favoriteProducts.length} produit${favoriteProducts.length > 1 ? 's' : ''}`}
+                  style={styles.sectionHeader}
+                />
+                <View style={styles.gridContainer}>
+                  {favoriteProducts.slice(0, 4).map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onPress={() => handleProductPress(product)}
+                      navigation={navigation}
+                      style={styles.gridItem}
+                    />
+                  ))}
+                </View>
+                {favoriteProducts.length > 4 && (
+                  <TouchableOpacity
+                    style={styles.seeMoreButton}
+                    onPress={() => setActiveTab('products')}
+                  >
+                    <Text style={styles.seeMoreText}>
+                      Voir tous les produits ({favoriteProducts.length})
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color="#4CAF50" />
+                  </TouchableOpacity>
+                )}
+                <Divider style={styles.divider} />
+              </>
+            )}
+
+            {favoriteFarms.length > 0 && (
+              <>
+                <SectionHeader
+                  title="Fermes favorites"
+                  subtitle={`${favoriteFarms.length} ferme${favoriteFarms.length > 1 ? 's' : ''}`}
+                  style={styles.sectionHeader}
+                />
+                <View style={styles.farmsContainer}>
+                  {favoriteFarms.slice(0, 2).map((farm) => (
+                    <FarmCard
+                      key={farm.id}
+                      farm={farm}
+                      onPress={() => handleFarmPress(farm)}
+                      navigation={navigation}
+                      style={styles.farmItem}
+                    />
+                  ))}
+                </View>
+                {favoriteFarms.length > 2 && (
+                  <TouchableOpacity
+                    style={styles.seeMoreButton}
+                    onPress={() => setActiveTab('farms')}
+                  >
+                    <Text style={styles.seeMoreText}>
+                      Voir toutes les fermes ({favoriteFarms.length})
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color="#4CAF50" />
+                  </TouchableOpacity>
+                )}
+                <Divider style={styles.divider} />
+              </>
+            )}
+
+            {favoriteServices.length > 0 && (
+              <>
+                <SectionHeader
+                  title="Services favoris"
+                  subtitle={`${favoriteServices.length} service${favoriteServices.length > 1 ? 's' : ''}`}
+                  style={styles.sectionHeader}
+                />
+                <View style={styles.servicesContainer}>
+                  {favoriteServices.slice(0, 2).map((service) => (
+                    <ServiceCard
+                      key={service.id}
+                      service={service}
+                      onPress={() => handleServicePress(service)}
+                      style={styles.serviceItem}
+                    />
+                  ))}
+                </View>
+                {favoriteServices.length > 2 && (
+                  <TouchableOpacity
+                    style={styles.seeMoreButton}
+                    onPress={() => setActiveTab('services')}
+                  >
+                    <Text style={styles.seeMoreText}>
+                      Voir tous les services ({favoriteServices.length})
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color="#4CAF50" />
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
+        );
+    }
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
+    <View style={styles.container}>
+      {/* Header avec titre et actions */}
       <Container style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#283106" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Mes Favoris</Text>
-        <View style={styles.placeholder} />
-      </Container>
-
-      {/* Liste des favoris */}
-      <Container style={styles.favoritesSection}>
-        {favorites.length > 0 ? (
-          <View style={styles.favoritesList}>
-            {favorites.map((product) => (
-              <View key={product.id} style={styles.favoriteCard}>
-                <Image source={{ uri: product.image }} style={styles.productImage} />
-                
-                <View style={styles.productInfo}>
-                  <Text style={styles.productName}>{product.name}</Text>
-                  <Text style={styles.productFarm}>🏡 {product.farm}</Text>
-                  <Text style={styles.productPrice}>{product.price.toFixed(2)} €</Text>
-                  
-                  {product.isOrganic && (
-                    <View style={styles.organicBadge}>
-                      <Text style={styles.organicText}>Bio</Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.actions}>
-                  <TouchableOpacity
-                    style={styles.removeButton}
-                    onPress={() => handleRemoveFavorite(product.id)}
-                  >
-                    <Ionicons name="heart-dislike" size={20} color="#FF6B6B" />
-                  </TouchableOpacity>
-                  
-                  <Button
-                    title="Voir"
-                    onPress={() => handleViewProduct(product)}
-                    variant="outline"
-                    size="small"
-                    style={styles.viewButton}
-                  />
-                </View>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptyState}>
-            <Ionicons name="heart-outline" size={60} color="#C7C2AB" />
-            <Text style={styles.emptyTitle}>Aucun favori</Text>
-            <Text style={styles.emptySubtitle}>
-              Vous n'avez pas encore ajouté de produits à vos favoris
+        <View style={styles.headerContent}>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Mes Favoris</Text>
+            <Text style={styles.subtitle}>
+              {getFavoriteCount()} élément{getFavoriteCount() > 1 ? 's' : ''} sauvegardé{getFavoriteCount() > 1 ? 's' : ''}
             </Text>
-            <Button
-              title="Découvrir des produits"
-              onPress={() => navigation.navigate('Products')}
-              variant="primary"
-              size="large"
-              style={styles.discoverButton}
-            />
           </View>
-        )}
+          {favorites.length > 0 && (
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={handleClearAll}
+            >
+              <Ionicons name="trash-outline" size={20} color="#FF6B6B" />
+            </TouchableOpacity>
+          )}
+        </View>
       </Container>
-    </ScrollView>
+
+      <Divider />
+
+      {/* Onglets */}
+      {favorites.length > 0 && (
+        <>
+          <Container style={styles.tabsContainer}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.tabsContent}
+            >
+              {tabs.map((tab) => (
+                <TouchableOpacity
+                  key={tab.id}
+                  style={[
+                    styles.tab,
+                    activeTab === tab.id && styles.activeTab
+                  ]}
+                  onPress={() => setActiveTab(tab.id)}
+                >
+                  <Text style={[
+                    styles.tabText,
+                    activeTab === tab.id && styles.activeTabText
+                  ]}>
+                    {tab.label}
+                  </Text>
+                  <View style={[
+                    styles.tabBadge,
+                    activeTab === tab.id && styles.activeTabBadge
+                  ]}>
+                    <Text style={[
+                      styles.tabBadgeText,
+                      activeTab === tab.id && styles.activeTabBadgeText
+                    ]}>
+                      {tab.count}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Container>
+          <Divider />
+        </>
+      )}
+
+      {/* Contenu */}
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#4CAF50']}
+            tintColor="#4CAF50"
+          />
+        }
+      >
+        {renderContent()}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -119,111 +371,170 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    marginHorizontal: -20,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 20,
+    paddingVertical: 0,
   },
-  backButton: {
-    padding: 8,
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  titleContainer: {
+    flex: 1,
   },
   title: {
-    color: '#283106',
+    fontSize: 24,
     fontWeight: 'bold',
-    fontSize: 20,
-  },
-  placeholder: {
-    width: 40,
-  },
-  favoritesSection: {
-    paddingVertical: 20,
-  },
-  favoritesList: {
-    gap: 16,
-  },
-  favoriteCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  productImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    marginRight: 16,
-  },
-  productInfo: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  productName: {
     color: '#283106',
-    fontWeight: 'bold',
-    fontSize: 16,
     marginBottom: 4,
   },
-  productFarm: {
-    color: '#777E5C',
+  subtitle: {
     fontSize: 14,
-    marginBottom: 4,
+    color: '#777E5C',
   },
-  productPrice: {
-    color: '#4CAF50',
-    fontWeight: 'bold',
-    fontSize: 18,
-    marginBottom: 8,
+  clearButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#FFF5F5',
   },
-  organicBadge: {
+  tabsContainer: {
+    paddingVertical: 16,
+  },
+  tabsContent: {
+    paddingHorizontal: 0,
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  activeTab: {
     backgroundColor: '#4CAF50',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
+    borderColor: '#4CAF50',
   },
-  organicText: {
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#777E5C',
+    marginRight: 6,
+  },
+  activeTabText: {
     color: '#FFFFFF',
+  },
+  tabBadge: {
+    backgroundColor: '#F0F0F0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  activeTabBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  tabBadgeText: {
     fontSize: 12,
     fontWeight: '600',
+    color: '#777E5C',
   },
-  actions: {
+  activeTabBadgeText: {
+    color: '#FFFFFF',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  removeButton: {
-    padding: 8,
-  },
-  viewButton: {
-    minWidth: 60,
-  },
-  emptyState: {
-    alignItems: 'center',
+    paddingHorizontal: 32,
     paddingVertical: 60,
   },
   emptyTitle: {
-    color: '#283106',
-    fontWeight: 'bold',
     fontSize: 20,
+    fontWeight: 'bold',
+    color: '#283106',
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
-    color: '#777E5C',
     fontSize: 16,
+    color: '#777E5C',
     textAlign: 'center',
-    marginBottom: 32,
-    paddingHorizontal: 20,
+    lineHeight: 22,
+    marginBottom: 24,
   },
-  discoverButton: {
+  exploreButton: {
     minWidth: 200,
+  },
+  emptyTabContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyTabTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#283106',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  emptyTabSubtitle: {
+    fontSize: 14,
+    color: '#777E5C',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  sectionHeader: {
+    marginBottom: 16,
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 16,
+  },
+  gridItem: {
+    width: '47%',
+  },
+  farmsContainer: {
+    gap: 16,
+    marginBottom: 16,
+  },
+  farmItem: {
+    marginBottom: 0,
+  },
+  servicesContainer: {
+    gap: 16,
+    marginBottom: 16,
+  },
+  serviceItem: {
+    marginBottom: 0,
+  },
+  seeMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  seeMoreText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#4CAF50',
+    marginRight: 4,
+  },
+  divider: {
+    marginVertical: 16,
   },
 });

@@ -7,10 +7,16 @@ export const products = [
     name: 'Tomates Bio Premium',
     description: 'Tomates biologiques cultivées avec soin, parfaites pour vos salades et plats. Récoltées à maturité optimale pour un goût exceptionnel.',
     price: 2.50,
+    currency: 'CDF',
     oldPrice: 3.20,
     unit: 'kg',
-    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4',
+    images: [
+      'https://images.unsplash.com/photo-1506905925346-21bda4d32df4',
+      'https://images.unsplash.com/photo-1546470427-e8e7b3d8b8b8',
+      'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b'
+    ],
     farm: 'Ferme du Soleil',
+    farmId: 'farm1',
     category: 'Légumes',
     categoryId: 1,
     rating: 4.8,
@@ -21,17 +27,26 @@ export const products = [
     isPopular: true,
     discount: 22,
     isFavorite: false,
-    tags: ['Bio', 'Premium', 'Saison', 'Local']
+    tags: ['Bio', 'Premium', 'Saison', 'Local'],
+    status: 'active',
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z'
   },
   {
     id: 2,
     name: 'Pommes Golden Deluxe',
     description: 'Pommes Golden de qualité exceptionnelle, récoltées à maturité optimale. Douceur et croquant garantis pour un plaisir gustatif unique.',
     price: 3.20,
+    currency: 'CDF',
     oldPrice: null,
     unit: 'kg',
-    image: 'https://images.unsplash.com/photo-1519996529931-28324d5a630e',
+    images: [
+      'https://images.unsplash.com/photo-1519996529931-28324d5a630e',
+      'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6',
+      'https://images.unsplash.com/photo-1619546813926-a78fa6372cd2'
+    ],
     farm: 'Verger des Collines',
+    farmId: 'farm2',
     category: 'Fruits',
     categoryId: 2,
     rating: 4.6,
@@ -42,17 +57,26 @@ export const products = [
     isPopular: true,
     discount: null,
     isFavorite: true,
-    tags: ['Fruits', 'Qualité', 'Tradition', 'Sucré']
+    tags: ['Fruits', 'Qualité', 'Tradition', 'Sucré'],
+    status: 'active',
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z'
   },
   {
     id: 3,
     name: 'Blé Dur Traditionnel',
     description: 'Blé dur cultivé selon les méthodes traditionnelles, parfait pour vos pâtes et pains. Goût authentique du terroir français.',
     price: 1.80,
+    currency: 'CDF',
     oldPrice: null,
     unit: 'kg',
-    image: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b',
+    images: [
+      'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b',
+      'https://images.unsplash.com/photo-1506905925346-21bda4d32df4',
+      'https://images.unsplash.com/photo-1546470427-e8e7b3d8b8b8'
+    ],
     farm: 'Champs de l\'Ouest',
+    farmId: 'farm3',
     category: 'Céréales',
     categoryId: 3,
     rating: 4.4,
@@ -63,17 +87,26 @@ export const products = [
     isPopular: false,
     discount: null,
     isFavorite: false,
-    tags: ['Céréales', 'Tradition', 'Professionnel', 'Bio']
+    tags: ['Céréales', 'Tradition', 'Professionnel', 'Bio'],
+    status: 'active',
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z'
   },
   {
     id: 4,
     name: 'Lait Frais du Matin',
     description: 'Lait frais du jour, récolté le matin même, pour une fraîcheur incomparable. Crémeux et délicieux comme autrefois.',
     price: 1.20,
+    currency: 'USD',
     oldPrice: 1.50,
     unit: 'L',
-    image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150',
+    images: [
+      'https://images.unsplash.com/photo-1550583724-b2692b85b150',
+      'https://images.unsplash.com/photo-1569288063648-5bb1d0e3b3b8',
+      'https://images.unsplash.com/photo-1486297678162-eb2a19b0a9d2'
+    ],
     farm: 'Ferme du Plateau',
+    farmId: 'farm4',
     category: 'Produits Laitiers',
     categoryId: 4,
     rating: 4.9,
@@ -84,17 +117,26 @@ export const products = [
     isPopular: true,
     discount: 20,
     isFavorite: false,
-    tags: ['Lait', 'Frais', 'Local', 'Bio']
+    tags: ['Lait', 'Frais', 'Local', 'Bio'],
+    status: 'active',
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z'
   },
   {
     id: 5,
     name: 'Carottes Nouvelles',
     description: 'Carottes nouvelles et tendres, récoltées jeunes pour une saveur douce et sucrée. Parfaites crues ou cuites.',
     price: 1.90,
+    currency: 'CDF',
     oldPrice: null,
     unit: 'kg',
-    image: 'https://images.unsplash.com/photo-1447175008436-170170e886ae',
+    images: [
+      'https://images.unsplash.com/photo-1447175008436-170170e886ae',
+      'https://images.unsplash.com/photo-1518977676601-b53f82aba655',
+      'https://images.unsplash.com/photo-1556801712-76c8eb07bbc9'
+    ],
     farm: 'Ferme du Soleil',
+    farmId: 'farm1',
     category: 'Légumes',
     categoryId: 1,
     rating: 4.7,
@@ -105,7 +147,10 @@ export const products = [
     isPopular: false,
     discount: null,
     isFavorite: false,
-    tags: ['Légumes', 'Nouveau', 'Tendre', 'Sucré']
+    tags: ['Légumes', 'Nouveau', 'Tendre', 'Sucré'],
+    status: 'active',
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z'
   },
   {
     id: 6,
@@ -114,8 +159,13 @@ export const products = [
     price: 8.50,
     oldPrice: 10.00,
     unit: '500g',
-    image: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38',
+    images: [
+      'https://images.unsplash.com/photo-1587049352846-4a222e784d38',
+      'https://images.unsplash.com/photo-1550583724-b2692b85b150',
+      'https://images.unsplash.com/photo-1486297678162-eb2a19b0a9d2'
+    ],
     farm: 'Rucher des Prairies',
+    farmId: 'farm5',
     category: 'Produits de la Ruche',
     categoryId: 5,
     rating: 4.9,
@@ -126,7 +176,10 @@ export const products = [
     isPopular: true,
     discount: 15,
     isFavorite: true,
-    tags: ['Miel', 'Bio', 'Naturel', 'Local']
+    tags: ['Miel', 'Bio', 'Naturel', 'Local'],
+    status: 'active',
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z'
   },
   {
     id: 7,
@@ -135,8 +188,13 @@ export const products = [
     price: 4.20,
     oldPrice: null,
     unit: '6 oeufs',
-    image: 'https://images.unsplash.com/photo-1569288063648-5bb1d0e3b3b8',
+    images: [
+      'https://images.unsplash.com/photo-1569288063648-5bb1d0e3b3b8',
+      'https://images.unsplash.com/photo-1550583724-b2692b85b150',
+      'https://images.unsplash.com/photo-1486297678162-eb2a19b0a9d2'
+    ],
     farm: 'Ferme du Plateau',
+    farmId: 'farm4',
     category: 'Oeufs',
     categoryId: 6,
     rating: 4.8,
@@ -147,7 +205,10 @@ export const products = [
     isPopular: true,
     discount: null,
     isFavorite: false,
-    tags: ['Oeufs', 'Fermier', 'Plein air', 'Frais']
+    tags: ['Oeufs', 'Fermier', 'Plein air', 'Frais'],
+    status: 'active',
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z'
   },
   {
     id: 8,
@@ -156,8 +217,13 @@ export const products = [
     price: 3.80,
     oldPrice: 4.50,
     unit: 'kg',
-    image: 'https://images.unsplash.com/photo-1542838132-92c53300491e',
+    images: [
+      'https://images.unsplash.com/photo-1542838132-92c53300491e',
+      'https://images.unsplash.com/photo-1464965911861-746a04b4bca6',
+      'https://images.unsplash.com/photo-1519996529931-28324d5a630e'
+    ],
     farm: 'Verger des Collines',
+    farmId: 'farm2',
     category: 'Fruits',
     categoryId: 2,
     rating: 4.6,
@@ -168,7 +234,10 @@ export const products = [
     isPopular: false,
     discount: 16,
     isFavorite: true,
-    tags: ['Fruits', 'Bio', 'Juteux', 'Parfumé']
+    tags: ['Fruits', 'Bio', 'Juteux', 'Parfumé'],
+    status: 'active',
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z'
   },
   {
     id: 9,
@@ -177,7 +246,11 @@ export const products = [
     price: 2.20,
     oldPrice: null,
     unit: 'kg',
-    image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655',
+    images: [
+      'https://images.unsplash.com/photo-1518977676601-b53f82aba655',
+      'https://images.unsplash.com/photo-1447175008436-170170e886ae',
+      'https://images.unsplash.com/photo-1556801712-76c8eb07bbc9'
+    ],
     farm: 'Champs de l\'Ouest',
     category: 'Légumes',
     categoryId: 1,
@@ -189,7 +262,10 @@ export const products = [
     isPopular: false,
     discount: null,
     isFavorite: false,
-    tags: ['Légumes', 'Nouveau', 'Primeur', 'Tendre']
+    tags: ['Légumes', 'Nouveau', 'Primeur', 'Tendre'],
+    status: 'active',
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z'
   },
   {
     id: 10,
@@ -198,8 +274,13 @@ export const products = [
     price: 12.50,
     oldPrice: 15.00,
     unit: '200g',
-    image: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a9d2',
+    images: [
+      'https://images.unsplash.com/photo-1486297678162-eb2a19b0a9d2',
+      'https://images.unsplash.com/photo-1569288063648-5bb1d0e3b3b8',
+      'https://images.unsplash.com/photo-1550583724-b2692b85b150'
+    ],
     farm: 'Ferme du Plateau',
+    farmId: 'farm4',
     category: 'Fromages',
     categoryId: 7,
     rating: 4.7,
@@ -210,7 +291,10 @@ export const products = [
     isPopular: true,
     discount: 17,
     isFavorite: false,
-    tags: ['Fromage', 'Chèvre', 'Affiné', 'Crémeux']
+    tags: ['Fromage', 'Chèvre', 'Affiné', 'Crémeux'],
+    status: 'active',
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z'
   },
   {
     id: 11,
@@ -219,8 +303,13 @@ export const products = [
     price: 6.80,
     oldPrice: null,
     unit: '500g',
-    image: 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6',
+    images: [
+      'https://images.unsplash.com/photo-1464965911861-746a04b4bca6',
+      'https://images.unsplash.com/photo-1542838132-92c53300491e',
+      'https://images.unsplash.com/photo-1519996529931-28324d5a630e'
+    ],
     farm: 'Verger des Collines',
+    farmId: 'farm2',
     category: 'Fruits',
     categoryId: 2,
     rating: 4.9,
@@ -231,7 +320,10 @@ export const products = [
     isPopular: true,
     discount: null,
     isFavorite: true,
-    tags: ['Fruits', 'Nouveau', 'Bio', 'Sucré']
+    tags: ['Fruits', 'Nouveau', 'Bio', 'Sucré'],
+    status: 'active',
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z'
   },
   {
     id: 12,
@@ -240,8 +332,13 @@ export const products = [
     price: 2.10,
     oldPrice: null,
     unit: 'kg',
-    image: 'https://images.unsplash.com/photo-1556801712-76c8eb07bbc9',
+    images: [
+      'https://images.unsplash.com/photo-1556801712-76c8eb07bbc9',
+      'https://images.unsplash.com/photo-1447175008436-170170e886ae',
+      'https://images.unsplash.com/photo-1518977676601-b53f82aba655'
+    ],
     farm: 'Ferme du Soleil',
+    farmId: 'farm1',
     category: 'Légumes',
     categoryId: 1,
     rating: 4.4,
@@ -252,7 +349,10 @@ export const products = [
     isPopular: false,
     discount: null,
     isFavorite: false,
-    tags: ['Légumes', 'Bio', 'Tendre', 'Naturel']
+    tags: ['Légumes', 'Bio', 'Tendre', 'Naturel'],
+    status: 'active',
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z'
   }
 ];
 

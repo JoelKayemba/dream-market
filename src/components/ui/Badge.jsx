@@ -73,6 +73,15 @@ const styles = StyleSheet.create({
   info: {
     backgroundColor: '#2196F3',
   },
+  discount: {
+    backgroundColor: '#FF6B6B',
+  },
+  new: {
+    backgroundColor: '#4CAF50',
+  },
+  organic: {
+    backgroundColor: '#8BC34A',
+  },
   
   // 📝 Styles du texte
   text: {
@@ -98,6 +107,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   infoText: {
+    color: '#FFFFFF',
+  },
+  discountText: {
+    color: '#FFFFFF',
+  },
+  newText: {
+    color: '#FFFFFF',
+  },
+  organicText: {
     color: '#FFFFFF',
   },
   

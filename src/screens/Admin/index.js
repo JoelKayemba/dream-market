@@ -1,113 +1,38 @@
-// 📊 Écrans d'administration - Dream Market App
-// Export centralisé de tous les écrans d'administration
-
-// 🎯 Écrans principaux d'administration
-export { default as AdminScreen } from './AdminScreen';
+// Export principal pour tous les écrans d'administration
 export { default as AdminDashboard } from './AdminDashboard';
-export { default as AdminLogin } from './AdminLogin';
+export { default as AdminNavigator } from './AdminNavigator';
 
-// 🛍️ Gestion des produits sponsorisés
-export { default as SponsoredManager } from './SponsoredManager';
-export { default as SponsoredProductsList } from './SponsoredProductsList';
-export { default as SponsoredProductForm } from './SponsoredProductForm';
-export { default as SponsoredProductDetails } from './SponsoredProductDetails';
+// Gestion des produits
+export { default as ProductsManagement } from './Products/ProductsManagement';
+export { default as ProductForm } from './Products/ProductForm';
+export { default as ProductCategories } from './Products/ProductCategories';
 
-// 📊 Analytics et statistiques
-export { default as AnalyticsScreen } from './AnalyticsScreen';
-export { default as DashboardStats } from './DashboardStats';
-export { default as SalesAnalytics } from './SalesAnalytics';
-export { default as UserAnalytics } from './UserAnalytics';
+// Gestion des fermes
+export { default as FarmsManagement } from './Farms/FarmsManagement';
+export { default as FarmForm } from './Farms/FarmForm';
+export { default as FarmVerification } from './Farms/FarmVerification';
 
-// 👥 Gestion des utilisateurs
-export { default as UserManagement } from './UserManagement';
-export { default as UserList } from './UserList';
-export { default as UserDetails } from './UserDetails';
-export { default as UserForm } from './UserForm';
+// Gestion des services
+export { default as ServicesManagement } from './Services/ServicesManagement';
+export { default as ServiceForm } from './Services/ServiceForm';
+export { default as ServiceCategories } from './Services/ServiceCategories';
 
-// 🏡 Gestion des fermes
-export { default as FarmManagement } from './FarmManagement';
-export { default as FarmList } from './FarmList';
-export { default as FarmDetails } from './FarmDetails';
-export { default as FarmForm } from './FarmForm';
+// Gestion des utilisateurs
+export { default as UsersManagement } from './Users/UsersManagement';
+export { default as UserForm } from './Users/UserForm';
+export { default as UserRoles } from './Users/UserRoles';
 
-// 🛍️ Gestion des produits
-export { default as ProductManagement } from './ProductManagement';
-export { default as ProductList } from './ProductList';
-export { default as ProductDetails } from './ProductDetails';
-export { default as ProductForm } from './ProductForm';
+// Gestion des commandes
+export { default as OrdersManagement } from './Orders/OrdersManagement';
+export { default as OrderDetail } from './Orders/OrderDetail';
+export { default as OrderStatus } from './Orders/OrderStatus';
 
-// 🔧 Gestion des services
-export { default as ServiceManagement } from './ServiceManagement';
-export { default as ServiceList } from './ServiceList';
-export { default as ServiceDetails } from './ServiceDetails';
-export { default as ServiceForm } from './ServiceForm';
+// Analytics
+export { default as DashboardAnalytics } from './Analytics/DashboardAnalytics';
+export { default as SalesAnalytics } from './Analytics/SalesAnalytics';
+export { default as UserAnalytics } from './Analytics/UserAnalytics';
 
-// 📋 Gestion des commandes
-export { default as OrderManagement } from './OrderManagement';
-export { default as OrderList } from './OrderList';
-export { default as OrderDetails } from './OrderDetails';
-export { default as OrderStatus } from './OrderStatus';
-
-// ⚙️ Configuration et paramètres
-export { default as SettingsScreen } from './SettingsScreen';
-export { default as AppSettings } from './AppSettings';
-export { default as NotificationSettings } from './NotificationSettings';
-export { default as SecuritySettings } from './SecuritySettings';
-
-// 📋 Export par défaut
-export default {
-  // Écrans principaux
-  AdminScreen,
-  AdminDashboard,
-  AdminLogin,
-  
-  // Gestion des produits sponsorisés
-  SponsoredManager,
-  SponsoredProductsList,
-  SponsoredProductForm,
-  SponsoredProductDetails,
-  
-  // Analytics et statistiques
-  AnalyticsScreen,
-  DashboardStats,
-  SalesAnalytics,
-  UserAnalytics,
-  
-  // Gestion des utilisateurs
-  UserManagement,
-  UserList,
-  UserDetails,
-  UserForm,
-  
-  // Gestion des fermes
-  FarmManagement,
-  FarmList,
-  FarmDetails,
-  FarmForm,
-  
-  // Gestion des produits
-  ProductManagement,
-  ProductList,
-  ProductDetails,
-  ProductForm,
-  
-  // Gestion des services
-  ServiceManagement,
-  ServiceList,
-  ServiceDetails,
-  ServiceForm,
-  
-  // Gestion des commandes
-  OrderManagement,
-  OrderList,
-  OrderDetails,
-  OrderStatus,
-  
-  // Configuration et paramètres
-  SettingsScreen,
-  AppSettings,
-  NotificationSettings,
-  SecuritySettings,
-};
-
-
+// Paramètres
+export { default as AdminSettings } from './Settings/AdminSettings';
+export { default as AppSettings } from './Settings/AppSettings';
+export { default as BackupRestore } from './Settings/BackupRestore';
