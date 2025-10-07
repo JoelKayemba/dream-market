@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button } from '../components/ui';
+import { Container, Button  , ScreenWrapper } from '../components/ui';
 
 export default function SupportScreen({ navigation }) {
   const [subject, setSubject] = useState('');
@@ -62,6 +62,7 @@ export default function SupportScreen({ navigation }) {
   };
 
   return (
+    <ScreenWrapper >
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <Container style={styles.header}>
@@ -182,6 +183,7 @@ export default function SupportScreen({ navigation }) {
         </View>
       </Container>
     </ScrollView>
+    </ScreenWrapper>
   );
 }
 

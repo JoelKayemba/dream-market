@@ -11,7 +11,6 @@ export const categoryService = {
         .order('name', { ascending: true });
 
       if (error) throw error;
-      console.log('📊 Categories from DB:', data);
       return data;
     } catch (error) {
       console.error('❌ Error fetching categories:', error);

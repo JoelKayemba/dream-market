@@ -64,7 +64,6 @@ export const useFavorites = () => {
 
   // Fonctions spécifiques par type avec backend
   const addProductToFavorites = (product) => {
-    console.log('🔄 Adding product to favorites:', { productId: product.id, userId: user?.id });
     if (user?.id) {
       dispatch(addToFavoritesBackend({ userId: user.id, itemType: 'product', itemId: product.id }));
     } else {
@@ -73,7 +72,6 @@ export const useFavorites = () => {
   };
 
   const addFarmToFavorites = (farm) => {
-    console.log('🔄 Adding farm to favorites:', { farmId: farm.id, userId: user?.id });
     if (user?.id) {
       dispatch(addToFavoritesBackend({ userId: user.id, itemType: 'farm', itemId: farm.id }));
     } else {
@@ -82,7 +80,6 @@ export const useFavorites = () => {
   };
 
   const addServiceToFavorites = (service) => {
-    console.log('🔄 Adding service to favorites:', { serviceId: service.id, userId: user?.id });
     if (user?.id) {
       dispatch(addToFavoritesBackend({ userId: user.id, itemType: 'service', itemId: service.id }));
     } else {
@@ -91,7 +88,6 @@ export const useFavorites = () => {
   };
 
   const removeProductFromFavorites = (productId) => {
-    console.log('🔄 Removing product from favorites:', { productId, userId: user?.id });
     if (user?.id) {
       dispatch(removeFromFavoritesBackend({ userId: user.id, itemType: 'product', itemId: productId }));
     } else {
@@ -100,7 +96,6 @@ export const useFavorites = () => {
   };
 
   const removeFarmFromFavorites = (farmId) => {
-    console.log('🔄 Removing farm from favorites:', { farmId, userId: user?.id });
     if (user?.id) {
       dispatch(removeFromFavoritesBackend({ userId: user.id, itemType: 'farm', itemId: farmId }));
     } else {
@@ -109,7 +104,6 @@ export const useFavorites = () => {
   };
 
   const removeServiceFromFavorites = (serviceId) => {
-    console.log('🔄 Removing service from favorites:', { serviceId, userId: user?.id });
     if (user?.id) {
       dispatch(removeFromFavoritesBackend({ userId: user.id, itemType: 'service', itemId: serviceId }));
     } else {
@@ -118,7 +112,6 @@ export const useFavorites = () => {
   };
 
   const toggleProductFavorite = (product) => {
-    console.log('🔄 Toggling product favorite:', { productId: product.id, userId: user?.id });
     if (user?.id) {
       // 1. Mise à jour optimiste de l'UI (immédiate)
       const isCurrentlyFavorite = isFavorite(product.id, 'product');
@@ -151,7 +144,6 @@ export const useFavorites = () => {
   };
 
   const toggleFarmFavorite = (farm) => {
-    console.log('🔄 Toggling farm favorite:', { farmId: farm.id, userId: user?.id });
     if (user?.id) {
       // 1. Mise à jour optimiste de l'UI (immédiate)
       const isCurrentlyFavorite = isFavorite(farm.id, 'farm');
@@ -183,7 +175,6 @@ export const useFavorites = () => {
   };
 
   const toggleServiceFavorite = (service) => {
-    console.log('🔄 Toggling service favorite:', { serviceId: service.id, userId: user?.id });
     if (user?.id) {
       // 1. Mise à jour optimiste de l'UI (immédiate)
       const isCurrentlyFavorite = isFavorite(service.id, 'service');

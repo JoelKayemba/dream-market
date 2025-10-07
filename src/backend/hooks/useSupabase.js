@@ -115,8 +115,6 @@ export const useSupabaseRealtime = (table, query = '*', filters = {}) => {
           table: table,
         },
         (payload) => {
-          console.log(`${table} change received:`, payload);
-          
           setData(currentData => {
             const newData = [...currentData];
             
@@ -197,8 +195,6 @@ export const useAuth = () => {
     // Écouter les changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.id);
-        
         setUser(session?.user ?? null);
         
         if (session?.user) {
@@ -323,3 +319,4 @@ export const useAuth = () => {
     updateProfile,
   };
 };
+

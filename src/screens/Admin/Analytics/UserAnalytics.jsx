@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button } from '../../../components/ui';
+import { Container, Button , ScreenWrapper } from '../../../components/ui';
 
 export default function UserAnalytics({ navigation }) {
   const [userData, setUserData] = useState({});
@@ -104,7 +104,7 @@ export default function UserAnalytics({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -197,7 +197,7 @@ export default function UserAnalytics({ navigation }) {
           )}
         </Container>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

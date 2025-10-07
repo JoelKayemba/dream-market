@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button } from '../components/ui';
+import { Container, Button  , ScreenWrapper } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 
 export default function PasswordChangeScreen({ navigation }) {
@@ -128,6 +128,7 @@ export default function PasswordChangeScreen({ navigation }) {
   const passwordStrength = getPasswordStrength(formData.newPassword);
 
   return (
+    <ScreenWrapper >
     <KeyboardAvoidingView 
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -281,6 +282,7 @@ export default function PasswordChangeScreen({ navigation }) {
         </View>
       </Container>
     </KeyboardAvoidingView>
+    </ScreenWrapper>
   );
 }
 
@@ -411,3 +413,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 });
+

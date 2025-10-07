@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { 
   Container, 
   Divider,
-  Button
+  Button,
+  ScreenWrapper 
 } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 
@@ -46,11 +47,19 @@ export default function ProfileScreen({ navigation }) {
     {
       id: 5,
       title: 'Paramètres',
-      subtitle: 'Notifications, email, mot de passe',
-      icon: 'cog-outline',
+      subtitle: 'Notifications, sécurité',
+      icon: 'settings-outline',
       color: '#9C27B0',
       route: 'Settings'
-    }
+    },
+    /*{
+      id: 6,
+      title: 'Adresses',
+      subtitle: 'Gérer mes adresses',
+      icon: 'location-outline',
+      color: '#607D8B',
+      route: 'Addresses'
+    }*/
   ]);
 
   const handleQuickAction = (action) => {
@@ -60,11 +69,13 @@ export default function ProfileScreen({ navigation }) {
       navigation.navigate('Support');
     } else if (action.route === 'Favorites') {
       navigation.navigate('Favorites');
-        } else if (action.route === 'PersonalInfo') {
-          navigation.navigate('PersonalInfo');
-        } else if (action.route === 'Settings') {
-          navigation.navigate('Settings');
-        }
+    } else if (action.route === 'PersonalInfo') {
+      navigation.navigate('PersonalInfo');
+    } else if (action.route === 'Settings') {
+      navigation.navigate('Settings');
+    } else if (action.route === 'Addresses') {
+      navigation.navigate('Addresses');
+    }
   };
 
   const handleLogout = () => {
@@ -85,12 +96,12 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
-  // Afficher un message si pas d'utilisateur (sans redirection)
   if (!user) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={{ fontSize: 18, marginBottom: 10 }}>Profil en cours de chargement...</Text>
-        <Text style={{ marginBottom: 20, color: '#777E5C', textAlign: 'center', paddingHorizontal: 20 }}>
+        <Ionicons name="person-circle-outline" size={80} color="#777E5C" />
+        <Text style={styles.loadingTitle}>Profil en cours de chargement...</Text>
+        <Text style={styles.loadingSubtitle}>
           Si le problème persiste, veuillez vous reconnecter.
         </Text>
         <Button
@@ -100,201 +111,345 @@ export default function ProfileScreen({ navigation }) {
             navigation.replace('Welcome');
           }}
           variant="outline"
-          style={{ width: 200 }}
+          style={styles.reconnectButton}
         />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header du profil */}
-      <Container style={styles.header}>
-        <View style={styles.profileInfo}>
-          <View style={styles.avatarPlaceholder}>
-            <Ionicons name="person" size={40} color="#777E5C" />
-          </View>
-          <View style={styles.userDetails}>
-            <Text style={styles.userName}>{user.firstName} {user.lastName}</Text>
-            <Text style={styles.userEmail}>{user.email}</Text>
-            <Text style={styles.userPhone}>{user.phone}</Text>
-            
-          </View>
-        </View>
-      </Container>
-
-      <Divider />
-
-      {/* Actions rapides */}
-      <Container style={styles.quickActionsSection}>
-        <Text style={styles.sectionTitle}>Actions Rapides</Text>
+    <ScreenWrapper>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         
-        <View style={styles.quickActionsGrid}>
-          {quickActions.map((action) => (
-            <TouchableOpacity
-              key={action.id}
-              style={styles.quickActionCard}
-              onPress={() => handleQuickAction(action)}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: action.color }]}>
-                <Ionicons name={action.icon} size={24} color="#FFFFFF" />
+        <View style={styles.header}>
+          <View style={styles.profileCard}>
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatar}>
+                <Ionicons name="person" size={32} color="#FFFFFF" />
               </View>
-              <Text style={styles.actionTitle}>{action.title}</Text>
-              <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
-            </TouchableOpacity>
-          ))}
+              {user.role === 'admin' && (
+                <View style={styles.adminBadge}>
+                  <Ionicons name="shield-checkmark" size={12} color="#FFFFFF" />
+                </View>
+              )}
+            </View>
+            
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{user.firstName} {user.lastName}</Text>
+              <Text style={styles.userEmail}>{user.email}</Text>
+              <Text style={styles.userPhone}>{user.phone}</Text>
+              
+              <View style={styles.statsContainer}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>12</Text>
+                  <Text style={styles.statLabel}>Commandes</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>8</Text>
+                  <Text style={styles.statLabel}>Favoris</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>2</Text>
+                  <Text style={styles.statLabel}>Adresses</Text>
+                </View>
+              </View>
+            </View>
+          </View>
         </View>
-      </Container>
 
-      <Divider />
-
-      {/* Bouton de déconnexion */}
-      <Container style={styles.logoutSection}>
-        <Button
-          title="Se déconnecter"
-          onPress={handleLogout}
-          size="large"
-          style={styles.logoutButton}
-          variant="warning"
-        />
         
-        {/* Bouton d'accès admin (discret) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Actions Rapides</Text>
+          <Text style={styles.sectionSubtitle}>Gérez votre compte et vos préférences</Text>
+          
+          <View style={styles.quickActionsGrid}>
+            {quickActions.map((action) => (
+              <TouchableOpacity
+                key={action.id}
+                style={styles.quickActionCard}
+                onPress={() => handleQuickAction(action)}
+              >
+                <View style={[styles.actionIconContainer, { backgroundColor: action.color + '20' }]}>
+                  <Ionicons name={action.icon} size={20} color={action.color} />
+                </View>
+                <View style={styles.actionTextContainer}>
+                  <Text style={styles.actionTitle}>{action.title}</Text>
+                  <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#CBD5E0" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+       
         {user.role === 'admin' && (
-          <TouchableOpacity
-            style={styles.adminButton}
-            onPress={() => navigation.navigate('AdminDashboard')}
-          >
-            <Text style={styles.adminButtonText}>Accès Administration</Text>
-          </TouchableOpacity>
+          <View style={styles.section}>
+            <View style={styles.adminSection}>
+              <View style={styles.adminHeader}>
+                <Ionicons name="shield-checkmark" size={20} color="#9C27B0" />
+                <Text style={styles.adminTitle}>Espace Administrateur</Text>
+              </View>
+              <Text style={styles.adminSubtitle}>
+                Accédez au tableau de bord d'administration
+              </Text>
+              <Button
+                title="Accéder à l'administration"
+                onPress={() => navigation.navigate('AdminDashboard')}
+                variant="primary"
+                size="small"
+                style={styles.adminButton}
+                icon="shield-outline"
+              />
+            </View>
+          </View>
         )}
-      </Container>
-    </ScrollView>
+
+        
+        <View style={styles.section}>
+          <View style={styles.logoutSection}>
+            <Button
+              title="Se déconnecter"
+              onPress={handleLogout}
+              size="large"
+              style={styles.logoutButton}
+              variant="warning"
+              icon="log-out-outline"
+            />
+            
+            <Text style={styles.versionText}>
+              Version 1.0.0 • Dream Market
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.bottomSpacing} />
+      </ScrollView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F8FAFC',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 40,
+  },
+  loadingTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2D3748',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loadingSubtitle: {
+    fontSize: 14,
+    color: '#718096',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  reconnectButton: {
+    width: 200,
   },
   header: {
-    paddingVertical: 30,
-    alignItems: 'center',
+
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    paddingBottom: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
-  profileInfo: {
-    alignItems: 'center',
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
-  avatarPlaceholder: {
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 16,
+  },
+  avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#4CAF50',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  userDetails: {
+  adminBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#9C27B0',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  userInfo: {
+    flex: 1,
   },
   userName: {
-    color: '#283106',
-    fontWeight: 'bold',
-    fontSize: 20,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1A202C',
     marginBottom: 4,
   },
   userEmail: {
-    color: '#777E5C',
     fontSize: 14,
-    marginBottom: 4,
+    color: '#718096',
+    marginBottom: 2,
   },
   userPhone: {
-    color: '#777E5C',
     fontSize: 14,
-    marginBottom: 4,
+    color: '#718096',
+    marginBottom: 16,
   },
-  userAddress: {
-    color: '#777E5C',
-    fontSize: 14,
-    marginBottom: 4,
-    textAlign: 'center',
+  statsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F7FAFC',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 8,
   },
-  memberSince: {
-    color: '#777E5C',
-    fontSize: 12,
-    fontStyle: 'italic',
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
   },
-  quickActionsSection: {
-    paddingVertical: 20,
+  statNumber: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2D3748',
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 10,
+    color: '#718096',
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 8,
+  },
+  section: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
   },
   sectionTitle: {
-    color: '#283106',
-    fontWeight: 'bold',
-    fontSize: 18,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  quickActionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    paddingHorizontal: 4,
-  },
-  quickActionCard: {
-    width: '47%',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  actionTitle: {
-    color: '#283106',
-    fontWeight: '600',
-    fontSize: 14,
-    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A202C',
     marginBottom: 4,
   },
-  actionSubtitle: {
-    color: '#777E5C',
-    fontSize: 12,
-    textAlign: 'center',
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#718096',
+    marginBottom: 20,
   },
-  logoutSection: {
-    paddingVertical: 20,
+  quickActionsGrid: {
+    gap: 12,
+  },
+  quickActionCard: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  logoutButton: {
-    minWidth: 200,
-    borderColor: '#FF6B6B',
+  actionIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  actionTextContainer: {
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2D3748',
+    marginBottom: 2,
+  },
+  actionSubtitle: {
+    fontSize: 12,
+    color: '#718096',
+  },
+  adminSection: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderLeftWidth: 4,
+    borderLeftColor: '#9C27B0',
+  },
+  adminHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  adminTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A202C',
+    marginLeft: 8,
+  },
+  adminSubtitle: {
+    fontSize: 14,
+    color: '#718096',
     marginBottom: 16,
+    lineHeight: 20,
   },
   adminButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    alignSelf: 'flex-start',
   },
-  adminButtonText: {
-    color: '#777E5C',
+  logoutSection: {
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  logoutButton: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  versionText: {
     fontSize: 12,
-    textDecorationLine: 'underline',
+    color: '#A0AEC0',
+    textAlign: 'center',
+  },
+  bottomSpacing: {
+    height: 20,
   },
 });

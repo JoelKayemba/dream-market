@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, Alert, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container } from '../../../components/ui';
+import { Container , ScreenWrapper } from '../../../components/ui';
 import { 
   fetchServices, 
   deleteService,
@@ -242,16 +242,16 @@ export default function ServicesManagement({ navigation }) {
 
   if (loading && services.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Chargement des services...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -417,7 +417,7 @@ export default function ServicesManagement({ navigation }) {
         {/* Espacement */}
         <View style={{ height: 20 }} />
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

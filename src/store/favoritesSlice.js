@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import { favoriteService } from '../backend/services/favoriteService';
 import { FAVORITE_TYPES } from '../backend/config/supabase';
 
@@ -25,9 +25,7 @@ export const toggleFavoriteBackend = createAsyncThunk(
   'favorites/toggleFavoriteBackend',
   async ({ userId, itemType, itemId }, { rejectWithValue }) => {
     try {
-      console.log('🔄 [Redux] toggleFavoriteBackend called:', { userId, itemType, itemId });
       const isFavorite = await favoriteService.toggleFavorite(userId, itemType, itemId);
-      console.log('✅ [Redux] toggleFavoriteBackend success:', { itemType, itemId, isFavorite });
       return { itemType, itemId, isFavorite };
     } catch (error) {
       console.error('❌ [Redux] toggleFavoriteBackend error:', error);
@@ -40,9 +38,7 @@ export const addToFavoritesBackend = createAsyncThunk(
   'favorites/addToFavoritesBackend',
   async ({ userId, itemType, itemId }, { rejectWithValue }) => {
     try {
-      console.log('🔄 [Redux] addToFavoritesBackend called:', { userId, itemType, itemId });
       await favoriteService.addToFavorites(userId, itemType, itemId);
-      console.log('✅ [Redux] addToFavoritesBackend success:', { itemType, itemId });
       return { itemType, itemId };
     } catch (error) {
       console.error('❌ [Redux] addToFavoritesBackend error:', error);
@@ -55,9 +51,7 @@ export const removeFromFavoritesBackend = createAsyncThunk(
   'favorites/removeFromFavoritesBackend',
   async ({ userId, itemType, itemId }, { rejectWithValue }) => {
     try {
-      console.log('🔄 [Redux] removeFromFavoritesBackend called:', { userId, itemType, itemId });
       await favoriteService.removeFromFavorites(userId, itemType, itemId);
-      console.log('✅ [Redux] removeFromFavoritesBackend success:', { itemType, itemId });
       return { itemType, itemId };
     } catch (error) {
       console.error('❌ [Redux] removeFromFavoritesBackend error:', error);
@@ -135,7 +129,6 @@ const favoritesSlice = createSlice({
       // Toggle Favorite Backend
       .addCase(toggleFavoriteBackend.fulfilled, (state, action) => {
         const { itemType, itemId, isFavorite } = action.payload;
-        console.log('✅ [Redux] toggleFavoriteBackend.fulfilled:', { itemType, itemId, isFavorite });
         
         // Avec l'optimistic update, on ne modifie plus l'état ici
         // L'état a déjà été mis à jour par les actions locales
@@ -147,7 +140,6 @@ const favoritesSlice = createSlice({
       
       // Add to Favorites Backend
       .addCase(addToFavoritesBackend.fulfilled, (state, action) => {
-        console.log('✅ [Redux] addToFavoritesBackend.fulfilled:', action.payload);
         // Avec l'optimistic update, on ne modifie plus l'état ici
       })
       .addCase(addToFavoritesBackend.rejected, (state, action) => {
@@ -156,7 +148,6 @@ const favoritesSlice = createSlice({
       
       // Remove from Favorites Backend
       .addCase(removeFromFavoritesBackend.fulfilled, (state, action) => {
-        console.log('✅ [Redux] removeFromFavoritesBackend.fulfilled:', action.payload);
         // Avec l'optimistic update, on ne modifie plus l'état ici
       })
       .addCase(removeFromFavoritesBackend.rejected, (state, action) => {
@@ -180,29 +171,33 @@ export const selectFavorites = (state) => state.favorites.items;
 export const selectFavoritesLoading = (state) => state.favorites.loading;
 export const selectFavoritesError = (state) => state.favorites.error;
 
-// Selector pour vérifier si un item est en favori
-export const selectIsFavorite = (id, type) => (state) => {
-  return state.favorites.items.some(item => item.id === id && item.type === type);
-};
+// Selector pour vérifier si un item est en favori - Mémorisé
+export const selectIsFavorite = createSelector(
+  [(state) => state.favorites.items, (state, id, type) => ({ id, type })],
+  (items, { id, type }) => items.some(item => item.id === id && item.type === type)
+);
 
-// Selectors par type
-export const selectFavoriteProducts = (state) => {
-  return state.favorites.items
+// Selectors par type - Mémorisés pour éviter les re-renders
+export const selectFavoriteProducts = createSelector(
+  [(state) => state.favorites.items],
+  (items) => items
     .filter(item => item.type === 'product')
-    .map(item => item.data);
-};
+    .map(item => item.data)
+);
 
-export const selectFavoriteFarms = (state) => {
-  return state.favorites.items
+export const selectFavoriteFarms = createSelector(
+  [(state) => state.favorites.items],
+  (items) => items
     .filter(item => item.type === 'farm')
-    .map(item => item.data);
-};
+    .map(item => item.data)
+);
 
-export const selectFavoriteServices = (state) => {
-  return state.favorites.items
+export const selectFavoriteServices = createSelector(
+  [(state) => state.favorites.items],
+  (items) => items
     .filter(item => item.type === 'service')
-    .map(item => item.data);
-};
+    .map(item => item.data)
+);
 
 export default favoritesSlice.reducer;
 

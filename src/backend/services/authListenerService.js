@@ -30,8 +30,6 @@ class AuthListenerService {
     this.isListening = true;
     
     this.authSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
-      
       switch (event) {
         case 'SIGNED_IN':
           if (session) {
@@ -50,11 +48,10 @@ class AuthListenerService {
           break;
           
         case 'PASSWORD_RECOVERY':
-          console.log('Password recovery initiated');
           break;
           
         default:
-          console.log('Auth event:', event);
+          break;
       }
       
       // Notifier tous les listeners
@@ -84,8 +81,6 @@ class AuthListenerService {
       await AsyncStorage.setItem('auth_token', session.access_token);
       await AsyncStorage.setItem('user_id', session.user.id);
       await AsyncStorage.setItem('refresh_token', session.refresh_token);
-      
-      console.log('Tokens saved for user:', session.user.email);
     } catch (error) {
       console.error('Error saving tokens:', error);
     }
@@ -98,8 +93,6 @@ class AuthListenerService {
       await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user_id');
       await AsyncStorage.removeItem('refresh_token');
-      
-      console.log('Tokens cleared');
     } catch (error) {
       console.error('Error clearing tokens:', error);
     }
@@ -111,8 +104,6 @@ class AuthListenerService {
       // Mettre à jour les tokens
       await AsyncStorage.setItem('auth_token', session.access_token);
       await AsyncStorage.setItem('refresh_token', session.refresh_token);
-      
-      console.log('Tokens refreshed for user:', session.user.email);
     } catch (error) {
       console.error('Error refreshing tokens:', error);
     }
@@ -167,3 +158,4 @@ class AuthListenerService {
 // Instance singleton
 export const authListenerService = new AuthListenerService();
 export default authListenerService;
+

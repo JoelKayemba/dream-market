@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Image, Text } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Image, Text, RefreshControl } from 'react-native';
 import { 
   Container, 
   SearchBar,
@@ -8,7 +8,7 @@ import {
   Badge,
   Rating,
   Button
-} from '../components/ui';
+ , ScreenWrapper } from '../components/ui';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   selectClientServices, 
@@ -21,25 +21,46 @@ export default function ServicesScreen({ navigation }) {
   const services = useSelector(selectClientServices);
   const loading = useSelector(selectClientServicesLoading);
 
-  // Charger les données au montage du composant
+  const [refreshing, setRefreshing] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  // Charger les données seulement au montage du composant
   useEffect(() => {
-    const loadData = async () => {
+    const loadDataIfNeeded = async () => {
       try {
-        await dispatch(fetchServices());
+        // Charger seulement si les données ne sont pas disponibles et qu'on n'a pas encore chargé
+        if (!hasLoaded && (!services || services.length === 0)) {
+          setHasLoaded(true);
+          await dispatch(fetchServices());
+        } else if (services && services.length > 0) {
+          setHasLoaded(true);
+        }
       } catch (error) {
         console.error('Erreur lors du chargement des services:', error);
+        setHasLoaded(false); // Réinitialiser en cas d'erreur pour permettre un nouveau chargement
       }
     };
     
-    loadData();
-  }, [dispatch]);
+    loadDataIfNeeded();
+  }, [dispatch, hasLoaded]); // Sécurité avec hasLoaded
+
+  // Fonction de pull-to-refresh
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await dispatch(fetchServices());
+    } catch (error) {
+      console.error('Erreur lors du refresh:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleServicePress = (service) => {
     navigation.navigate('ServiceDetail', { service });
   };
 
   const handleContact = (service) => {
-    console.log('Contacter pour:', service.name);
     // Navigation vers la page de contact
   };
 
@@ -53,7 +74,19 @@ export default function ServicesScreen({ navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScreenWrapper >
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={['#4CAF50']}
+          tintColor="#4CAF50"
+        />
+      }
+    >
       {/* Header avec titre et barre de recherche */}
       <Container style={styles.header}>
         <Text style={styles.title}>
@@ -175,6 +208,7 @@ export default function ServicesScreen({ navigation }) {
         </View>
       </Container>
     </ScrollView>
+    </ScreenWrapper>
   );
 }
 

@@ -17,7 +17,7 @@ import {
   FarmCard,
   ServiceCard,
   Button
-} from '../components/ui';
+ , ScreenWrapper } from '../components/ui';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   selectFavorites,
@@ -114,7 +114,7 @@ export default function FavoritesScreen({ navigation }) {
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>Chargement de vos favoris...</Text>
       </View>
-    );
+  );
   }
 
   const tabs = [
@@ -324,7 +324,7 @@ export default function FavoritesScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header avec titre et actions */}
       <Container style={styles.header}>
         <View style={styles.headerContent}>
@@ -405,7 +405,7 @@ export default function FavoritesScreen({ navigation }) {
       >
         {renderContent()}
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }
 

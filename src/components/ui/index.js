@@ -12,6 +12,7 @@ export { default as ProductCard } from './ProductCard';
 export { default as SectionHeader } from './SectionHeader';
 export { default as FarmCard } from './FarmCard';
 export { default as ServiceCard } from './ServiceCard';
+export { default as ScreenWrapper } from '../ScreenWrapper';
 
 // Liste des composants disponibles pour la démo
 export const availableComponents = [
@@ -27,5 +28,6 @@ export const availableComponents = [
   'ProductCard',
   'SectionHeader',
   'FarmCard',
-  'ServiceCard'
+  'ServiceCard',
+  'ScreenWrapper'
 ];

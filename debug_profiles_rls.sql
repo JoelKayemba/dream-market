@@ -82,3 +82,4 @@ ORDER BY policyname;
 -- 8. Test final - compter les profils en tant qu'admin
 -- (Cette requête devrait maintenant retourner tous les profils si l'utilisateur connecté est admin)
 SELECT COUNT(*) as final_count FROM profiles;
+

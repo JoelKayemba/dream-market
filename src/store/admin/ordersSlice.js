@@ -56,6 +56,7 @@ export const fetchOrders = createAsyncThunk(
       
       return transformedOrders;
     } catch (error) {
+      console.error('❌ [AdminOrdersSlice] Error fetching orders:', error);
       return rejectWithValue(error.message);
     }
   }

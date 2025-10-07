@@ -1,10 +1,13 @@
 import 'react-native-gesture-handler';
 import React from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Provider } from 'react-redux';
 import { store } from './src/store';
+import NotificationManager from './src/components/NotificationManager';
+import BackgroundNotificationService from './src/services/backgroundNotificationService';
 
 // Écrans d'authentification
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -34,9 +37,15 @@ import AdminNavigator from './src/screens/Admin/AdminNavigator';
 const Stack = createStackNavigator();
 
 export default function App() {
+  // Initialiser le service de notifications en arrière-plan
+  React.useEffect(() => {
+    BackgroundNotificationService.initialize();
+  }, []);
+
   return (
-    <Provider store={store}>
-      <SafeAreaView style={styles.container}>
+    <SafeAreaProvider>
+      <Provider store={store}>
+        <NotificationManager />
         <NavigationContainer>
           <Stack.Navigator
             screenOptions={{
@@ -188,8 +197,8 @@ export default function App() {
             />
           </Stack.Navigator>
         </NavigationContainer>
-      </SafeAreaView>
-    </Provider>
+      </Provider>
+    </SafeAreaProvider>
   );
 }
 

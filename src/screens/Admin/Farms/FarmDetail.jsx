@@ -1,9 +1,9 @@
 import React, { useState} from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Image, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Button } from '../../../components/ui';
+import { Container, Button , ScreenWrapper } from '../../../components/ui';
 import { deleteFarm, verifyFarm, selectAllFarms } from '../../../store/admin/farmSlice';
 
 export default function FarmDetail({ route, navigation }) {
@@ -66,7 +66,7 @@ export default function FarmDetail({ route, navigation }) {
         <Text style={styles.infoLabel}>{label}</Text>
       </View>
       <Text style={styles.infoValue}>{value}</Text>
-    </View>
+    </ View>
   );
 
   const CertificationBadge = ({ certification }) => (
@@ -89,7 +89,7 @@ export default function FarmDetail({ route, navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -260,7 +260,7 @@ export default function FarmDetail({ route, navigation }) {
           </TouchableOpacity>
         </View>
       </View>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

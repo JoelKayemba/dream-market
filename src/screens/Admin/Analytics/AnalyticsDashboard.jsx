@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Dimensions, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container } from '../../../components/ui';
+import { Container , ScreenWrapper } from '../../../components/ui';
 import { 
   fetchAllAnalytics,
   selectAllAnalytics,
@@ -40,7 +40,7 @@ const StatCard = ({ title, value, subtitle, icon, color, trend }) => (
       </View>
     )}
   </View>
-);
+  );
 
 // Composant pour les graphiques simples (représentation textuelle)
 const SimpleChart = ({ title, data, type = 'bar', showUSD = false }) => (
@@ -130,7 +130,7 @@ export default function AnalyticsDashboard({ navigation }) {
 
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       <Container style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity 
@@ -261,7 +261,7 @@ export default function AnalyticsDashboard({ navigation }) {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

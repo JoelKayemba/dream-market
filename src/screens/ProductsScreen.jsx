@@ -8,7 +8,7 @@ import {
   SearchBar,
   SectionHeader,
   Divider
-} from '../components/ui';
+ , ScreenWrapper } from '../components/ui';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   selectClientProducts, 
@@ -65,11 +65,10 @@ export default function ProductsScreen({ navigation, route }) {
         setSelectedCategory(category);
       }
     }
-  }, [categoryName, categories]);
+  }, [categoryName]); // ✅ Suppression de 'categories' des dépendances pour éviter les re-renders
 
   // Gestionnaire de recherche
   const handleSearch = (query) => {
-    console.log('Recherche depuis Produits:', query);
     navigation.navigate('Search', { searchQuery: query });
   };
 
@@ -80,16 +79,15 @@ export default function ProductsScreen({ navigation, route }) {
 
   // Gestionnaire de produit
   const handleProductPress = (product) => {
-    console.log('Produit sélectionné:', product.name);
     // Navigation vers la page de détail du produit
   };
 
   const handleAddToCart = (product) => {
-    console.log('Ajout au panier:', product.name);
+    // Ajout au panier
   };
 
   const handleAddToFavorites = (product, isFavorite) => {
-    console.log(`${isFavorite ? 'Ajouté aux' : 'Retiré des'} favoris:`, product.name);
+    // Gestion des favoris
   };
 
   // Obtenir les produits de la catégorie sélectionnée
@@ -99,6 +97,7 @@ export default function ProductsScreen({ navigation, route }) {
   };
 
   return (
+    <ScreenWrapper >
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header avec titre et barre de recherche */}
       <Container style={styles.header}>
@@ -199,7 +198,7 @@ export default function ProductsScreen({ navigation, route }) {
                   key={product.id}
                   product={product}
                   navigation={navigation}
-                  variant="featured"
+                  variant="primary"
                   size="large"
                   style={styles.productCard}
                 />
@@ -286,6 +285,7 @@ export default function ProductsScreen({ navigation, route }) {
         </Container>
       )}
     </ScrollView>
+    </ScreenWrapper>
   );
 }
 

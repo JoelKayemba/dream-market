@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Image, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Button } from '../../../components/ui';
+import { Container, Button , ScreenWrapper } from '../../../components/ui';
 import { 
   toggleServiceStatus,
   selectServiceById
@@ -81,7 +81,7 @@ export default function ServiceDetail({ route, navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -238,7 +238,7 @@ export default function ServiceDetail({ route, navigation }) {
         {/* Espacement */}
         <View style={{ height: 20 }} />
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

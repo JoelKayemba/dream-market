@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Text, RefreshControl } from 'react-native';
 import { 
   Container, 
   SearchBar,
   SectionHeader,
   Divider,
   FarmCard
-} from '../components/ui';
+ , ScreenWrapper } from '../components/ui';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   selectClientFarms, 
@@ -22,26 +22,47 @@ export default function FarmsScreen({ navigation }) {
   const loading = useSelector(selectClientFarmsLoading);
   
   const [searchQuery, setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  // Charger les données au montage du composant
+  // Charger les données seulement au montage du composant
   useEffect(() => {
-    const loadData = async () => {
+    const loadDataIfNeeded = async () => {
       try {
-        await dispatch(fetchFarms());
+        // Charger seulement si les données ne sont pas disponibles et qu'on n'a pas encore chargé
+        if (!hasLoaded && (!farms || farms.length === 0)) {
+          setHasLoaded(true);
+          await dispatch(fetchFarms());
+        } else if (farms && farms.length > 0) {
+          setHasLoaded(true);
+        }
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
+        setHasLoaded(false); // Réinitialiser en cas d'erreur pour permettre un nouveau chargement
       }
     };
     
-    loadData();
-  }, [dispatch]);
+    loadDataIfNeeded();
+  }, [dispatch, hasLoaded]); // ✅ Sécurité avec hasLoaded
+
+  // Fonction de pull-to-refresh
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await dispatch(fetchFarms());
+    } catch (error) {
+      console.error('Erreur lors du refresh:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleSearch = () => {
     navigation.navigate('Search', { searchQuery: searchQuery });
   };
 
   const handleFarmPress = (farm) => {
-    console.log('Ferme sélectionnée:', farm.name);
+    navigation.navigate('FarmDetail', { farm: farm });
     // Navigation vers la page de détail de la ferme
   };
 
@@ -50,7 +71,6 @@ export default function FarmsScreen({ navigation }) {
   };
 
   const handleContact = (farm) => {
-    console.log('Contacter:', farm.name);
     // Navigation vers la page de contact
   };
 
@@ -78,7 +98,7 @@ export default function FarmsScreen({ navigation }) {
 
   const filteredFarms = getFilteredFarms();
 
-  // Afficher un état de chargement si les données ne sont pas encore chargées
+ // Afficher un état de chargement si les données ne sont pas encore chargées
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -88,7 +108,19 @@ export default function FarmsScreen({ navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScreenWrapper >
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={['#4CAF50']}
+          tintColor="#4CAF50"
+        />
+      }
+    >
       {/* Header avec titre et barre de recherche */}
       <Container style={styles.header}>
         <Text style={styles.title}>
@@ -170,6 +202,7 @@ export default function FarmsScreen({ navigation }) {
         </View>
       </Container>
     </ScrollView>
+    </ScreenWrapper>
   );
 }
 

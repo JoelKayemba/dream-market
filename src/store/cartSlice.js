@@ -37,8 +37,7 @@ export const loadCart = createAsyncThunk(
 export const addToCart = createAsyncThunk(
   'cart/addToCart',
   async ({ product, quantity = 1 }) => {
-    // Simulation d'un appel API
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Pas de simulation d'appel API - action synchrone pour le panier local
     return { product, quantity };
   }
 );
@@ -100,10 +99,7 @@ export const submitOrder = createAsyncThunk(
         estimated_delivery: estimatedDelivery
       };
 
-      console.log('🛒 [Cart] Submitting order:', orderData);
-      
       const result = await orderService.createOrder(orderData);
-      console.log('✅ [Cart] Order created successfully:', result);
       
       return result;
     } catch (error) {

@@ -132,7 +132,7 @@ export const deleteProduct = createAsyncThunk(
           try {
             await storageService.deleteImage(imageUrl);
           } catch (imageError) {
-            console.warn('Erreur lors de la suppression de l\'image:', imageError);
+            // Ignorer l'erreur de suppression d'image silencieusement
           }
         }
       }

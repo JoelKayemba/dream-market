@@ -18,9 +18,13 @@ export const orderService = {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [OrderService] getAllOrders Supabase error:', error);
+        throw error;
+      }
       return data;
     } catch (error) {
+      console.error('❌ [OrderService] getAllOrders error:', error);
       throw error;
     }
   },
@@ -28,7 +32,6 @@ export const orderService = {
   // Récupérer les commandes d'un utilisateur
   getUserOrders: async (userId) => {
     try {
-      console.log('🔄 [OrderService] Fetching orders for userId:', userId);
       const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -36,27 +39,9 @@ export const orderService = {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('❌ [OrderService] Supabase error:', error);
+        console.error('❌ [OrderService] getUserOrders Supabase error:', error);
         throw error;
       }
-      
-      console.log('✅ [OrderService] Orders data:', data);
-      console.log('✅ [OrderService] Orders count:', data?.length || 0);
-      
-      // Vérifier chaque commande
-      data?.forEach((order, index) => {
-        console.log(`📦 [OrderService] Order ${index + 1}:`, {
-          id: order.id,
-          order_number: order.order_number,
-          status: order.status,
-          items: order.items,
-          totals: order.totals,
-          user_id: order.user_id,
-          delivery_address: order.delivery_address,
-          phone_number: order.phone_number,
-          created_at: order.created_at
-        });
-      });
       
       return data;
     } catch (error) {
@@ -301,7 +286,6 @@ export const orderService = {
     try {
       // Pour l'instant, on peut juste logger l'action
       // Plus tard, on pourra ajouter une table d'activités
-      console.log(`Contacting customer for order ${orderId} via ${method}: ${message}`);
       
       // Mettre à jour les notes de la commande
       const { data: order } = await supabase

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button } from '../components/ui';
+import { Container, Button  , ScreenWrapper } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 
 export default function ForgotPasswordScreen({ navigation }) {
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingTop: 20,
+    paddingTop: 50,
   },
   header: {
     flexDirection: 'row',

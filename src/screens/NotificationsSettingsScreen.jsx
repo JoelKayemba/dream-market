@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Switch, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Divider } from '../components/ui';
+import { Container, Divider  , ScreenWrapper } from '../components/ui';
 
 export default function NotificationsSettingsScreen({ navigation }) {
   const [notifications, setNotifications] = useState({
@@ -125,6 +125,7 @@ export default function NotificationsSettingsScreen({ navigation }) {
   );
 
   return (
+    <ScreenWrapper >
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <Container style={styles.header}>
@@ -364,6 +365,7 @@ export default function NotificationsSettingsScreen({ navigation }) {
 
       <View style={{ height: 40 }} />
     </ScrollView>
+    </ScreenWrapper>
   );
 }
 

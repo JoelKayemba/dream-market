@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Image, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Button } from '../../../components/ui';
+import { Container, Button , ScreenWrapper } from '../../../components/ui';
 import { addFarm, updateFarm, selectFarmsLoading, selectFarmsUploading, selectFarmsError } from '../../../store/admin/farmSlice';
 import { useImagePicker } from '../../../hooks/useImagePicker';
 
@@ -129,7 +129,7 @@ export default function FarmForm({ route, navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -407,7 +407,7 @@ export default function FarmForm({ route, navigation }) {
           loading={uploading || loading}
         />
       </View>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

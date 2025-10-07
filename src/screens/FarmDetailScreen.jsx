@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Dimensions, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button, Badge } from '../components/ui';
+import { Container, Button, Badge , ScreenWrapper } from '../components/ui';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectClientProducts } from '../store/client';
 import ProductCard from '../components/ui/ProductCard';
@@ -21,7 +21,7 @@ export default function FarmDetailScreen({ route, navigation }) {
   // Vérification de sécurité
   if (!farm) {
     return (
-      <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Ferme non trouvée</Text>
           <Button 
@@ -30,8 +30,8 @@ export default function FarmDetailScreen({ route, navigation }) {
             style={styles.errorButton}
           />
         </View>
-      </SafeAreaView>
-    );
+      </ScreenWrapper>
+  );
   }
 
   // Filtrer les produits de cette ferme avec useMemo pour éviter les recalculs
@@ -162,7 +162,7 @@ export default function FarmDetailScreen({ route, navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -216,7 +216,7 @@ export default function FarmDetailScreen({ route, navigation }) {
           {selectedTab === 'info' ? renderFarmInfo() : renderProducts()}
         </Container>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

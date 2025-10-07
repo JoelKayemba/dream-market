@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button, Input } from '../../../components/ui';
+import { Container, Button, Input , ScreenWrapper } from '../../../components/ui';
 
 export default function UserForm({ route, navigation }) {
   const { mode = 'add', user } = route.params || {};
@@ -61,7 +61,7 @@ export default function UserForm({ route, navigation }) {
           </TouchableOpacity>
         ))}
       </View>
-    </View>
+    </ScreenWrapper>
   );
 
   const StatusSelector = () => (
@@ -90,7 +90,7 @@ export default function UserForm({ route, navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -171,7 +171,7 @@ export default function UserForm({ route, navigation }) {
           style={styles.saveButton}
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Button } from '../../../components/ui';
+import { Container, Button , ScreenWrapper } from '../../../components/ui';
 import { addService, updateService, selectAdminServicesLoading, selectAdminCategories, fetchCategories } from '../../../store/admin/servicesSlice';
 import { useImagePicker } from '../../../hooks/useImagePicker';
 
@@ -91,7 +91,7 @@ export default function ServiceForm({ route, navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -385,7 +385,7 @@ export default function ServiceForm({ route, navigation }) {
           </View>
         </View>
       )}
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

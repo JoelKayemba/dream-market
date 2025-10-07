@@ -1,20 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import Container from '../../components/ui/Container';
+import AdminNotificationManager from '../../components/admin/AdminNotificationManager';
+import AdminNotificationCenter from '../../components/admin/AdminNotificationCenter';
 import { useAuth } from '../../hooks/useAuth';
+import { useAdminNotifications } from '../../hooks/useAdminNotifications';
+import BackgroundNotificationService from '../../services/backgroundNotificationService';
 import { fetchOrders, selectOrderStats } from '../../store/admin/ordersSlice';
 import { fetchServices, selectServiceStats } from '../../store/admin/servicesSlice';
 import { selectAdminProducts, fetchProducts } from '../../store/admin/productSlice';
 import { selectAllFarms, fetchFarms } from '../../store/admin/farmSlice';
 import { fetchUserStats, selectAdminUsersStats } from '../../store/admin/usersSlice';
 import { fetchAllAnalytics, selectDashboardStats } from '../../store/admin/analyticsSlice';
+import { ScreenWrapper } from '../../components/ui';
 
 export default function AdminDashboard({ navigation }) {
   const { user } = useAuth();
   const dispatch = useDispatch();
+  
+  // Hook pour les notifications admin
+  const { unreadAdminCount } = useAdminNotifications();
   const orderStats = useSelector(selectOrderStats);
   const serviceStats = useSelector(selectServiceStats);
   const products = useSelector(selectAdminProducts);
@@ -187,14 +194,21 @@ export default function AdminDashboard({ navigation }) {
       route: 'AdminServicesManagement',
       priority: 3
     },
-   
+    {
+      id: 6,
+      title: 'Test Notifications',
+      subtitle: 'Tester les notifications push',
+      icon: 'notifications-outline',
+      color: '#9C27B0',
+      route: 'TestNotifications',
+      badge: 0,
+      priority: 4
+    }
   ];
   
   const sortedQuickActions = [...quickActions].sort((a, b) => a.priority - b.priority); // Trier par priorité
 
   const handleQuickAction = (action) => {
-    console.log('Action admin:', action.title);
-    
     switch (action.route) {
       case 'AnalyticsDashboard':
         navigation.navigate('AnalyticsDashboard');
@@ -214,8 +228,10 @@ export default function AdminDashboard({ navigation }) {
       case 'OrdersManagement':
         navigation.navigate('OrdersManagement');
         break;
-      default:
-        console.log(`Navigation vers ${action.title} - Route non implémentée`);
+      case 'TestNotifications':
+        // Tester les notifications en arrière-plan
+        BackgroundNotificationService.sendTestNotification();
+        break;
     }
   };
 
@@ -288,7 +304,10 @@ export default function AdminDashboard({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
+      {/* Gestionnaire de notifications admin en arrière-plan */}
+      <AdminNotificationManager />
+      
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -299,16 +318,12 @@ export default function AdminDashboard({ navigation }) {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Tableau de Bord Admin</Text>
-          <Text style={styles.headerSubtitle}>Bienvenue, {user?.firstName}</Text>
+          <Text style={styles.headerSubtitle}>
+            Bienvenue, {user?.firstName}
+            {unreadAdminCount > 0 && ` • ${unreadAdminCount} nouvelle(s)`}
+          </Text>
         </View>
-        <TouchableOpacity style={styles.settingsButton}>
-          <Ionicons name="notifications-outline" size={22} color="#283106" />
-          {(stats.pendingOrders > 0 || stats.pendingFarms > 0) && (
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationText}>{stats.pendingOrders + stats.pendingFarms}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <AdminNotificationCenter navigation={navigation} />
       </View>
 
       <ScrollView 
@@ -440,7 +455,7 @@ export default function AdminDashboard({ navigation }) {
           </View>
         </Container>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
@@ -483,22 +498,6 @@ const styles = StyleSheet.create({
   settingsButton: {
     padding: 8,
     position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: '#FF6B35',
-    borderRadius: 10,
-    width: 18,
-    height: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notificationText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
   },
   content: {
     flex: 1,

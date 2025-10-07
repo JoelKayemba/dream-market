@@ -20,7 +20,8 @@ import {
   SearchBar,
   CategoryCard,
   ProductCard,
-  SectionHeader
+  SectionHeader,
+  ScreenWrapper 
 } from '../components/ui';
 import { selectCartItemsCount } from '../store/cartSlice';
 import { 
@@ -46,8 +47,8 @@ export default function HomeScreen({ navigation }) {
   const [searchFocused, setSearchFocused] = useState(false);
   const scrollViewRef = useRef(null);
 
-  // Notifications
-  const { unreadCount, configurePushNotifications } = useNotifications();
+  // Notifications - seulement pour afficher le badge
+  const { unreadCount } = useNotifications();
 
   // Données du backend via Redux
   const categories = useSelector(selectClientCategories);
@@ -55,19 +56,6 @@ export default function HomeScreen({ navigation }) {
   const newProducts = useSelector(selectNewProducts);
   const promotionProducts = useSelector(selectPromotionProducts);
   const loading = useSelector(selectClientProductsLoading);
-
-  // Demander les permissions de notifications au montage
-  useEffect(() => {
-    const requestNotificationPermissions = async () => {
-      try {
-        await configurePushNotifications();
-      } catch (error) {
-        console.error('Erreur lors de la demande de permissions:', error);
-      }
-    };
-
-    requestNotificationPermissions();
-  }, []);
 
   // Charger les données au montage
   useEffect(() => {
@@ -93,19 +81,6 @@ export default function HomeScreen({ navigation }) {
     setRefreshing(false);
   };
 
-  // Debug: Vérifier les données
-  console.log('📊 Categories from backend:', categories);
-  console.log('📊 Popular products:', popularProducts);
-  console.log('📊 New products:', newProducts);
-  console.log('📊 Promotion products:', promotionProducts);
-  console.log('📊 Loading state:', loading);
-  console.log('📊 Categories length:', categories?.length || 0);
-  
-  // Debug: Vérifier les données de ferme dans les produits
-  if (popularProducts && popularProducts.length > 0) {
-    console.log('🏡 First popular product farm data:', popularProducts[0]?.farms);
-  }
-
   // Gestionnaires d'événements
   const handleSearch = (query) => {
     navigation.navigate('Produits', { searchQuery: query });
@@ -115,32 +90,8 @@ export default function HomeScreen({ navigation }) {
     navigation.navigate('Produits', { categoryName: category.name });
   };
 
-  const handleProductPress = (product) => {
-    // Navigation handled by ProductCard
-  };
-
-  const handleAddToCart = (product) => {
-    // Handled by ProductCard
-  };
-
-  const handleAddToFavorites = (product, isFavorite) => {
-    // Handled by ProductCard
-  };
-
   const handleViewAllCategories = () => {
     navigation.navigate('Produits');
-  };
-
-  const handleViewAllProducts = () => {
-    navigation.navigate('Produits');
-  };
-
-  const handleViewAllNew = () => {
-    navigation.navigate('Produits', { filter: 'new' });
-  };
-
-  const handleViewAllDiscounted = () => {
-    navigation.navigate('Produits', { filter: 'discounted' });
   };
 
   // Animation du header
@@ -156,9 +107,8 @@ export default function HomeScreen({ navigation }) {
     extrapolate: 'clamp',
   });
 
-
   return (
-    <View style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header animé */}
       <Animated.View 
         style={[
@@ -273,8 +223,12 @@ export default function HomeScreen({ navigation }) {
             onActionPress={handleViewAllCategories}
           />
           
-          <View style={styles.categoriesGrid}>
-            {(categories && categories.length > 0) ? categories.slice(0, 4).map((category) => (
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesContainer}
+          >
+            {(categories && categories.length > 0) ? categories.slice(0, 8).map((category) => (
                 <TouchableOpacity
                   key={category.id}
                   style={styles.categoryCard}
@@ -294,12 +248,42 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.loadingText}>Chargement des catégories...</Text>
               </View>
             )}
-          </View>
+          </ScrollView>
         </Container>
 
         <Divider />
 
-        {/* Section Produits Vedettes */}
+        {/* Section Nouveautés - PLACÉE AVANT Produits Vedettes */}
+        <Container style={styles.section}>
+          <SectionHeader
+            title="Nouveautés"
+            subtitle="Découvrez nos derniers arrivages"
+            actionText="Voir tout"
+            onActionPress={() => navigation.navigate('AllProducts', { filter: 'new' })}
+          />
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.productsContainer}
+          >
+            {(newProducts || []).map((product) => (
+              <View key={product.id} style={styles.productCardWrapper}>
+                <ProductCard
+                  product={product}
+                  navigation={navigation}
+                  variant="featured"
+                  size="large"
+                  style={styles.productCard}
+                />
+              </View>
+            ))}
+          </ScrollView>
+        </Container>
+
+        <Divider />
+
+        {/* Section Produits Vedettes - PLACÉE APRÈS Nouveautés */}
         <Container style={styles.section}>
           <SectionHeader
             title="Produits Vedettes"
@@ -314,43 +298,15 @@ export default function HomeScreen({ navigation }) {
             contentContainerStyle={styles.productsContainer}
           >
             {(popularProducts || []).map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                navigation={navigation}
-                variant="featured"
-                size="large"
-                style={styles.featuredProductCard}
-              />
-            ))}
-          </ScrollView>
-        </Container>
-
-        <Divider />
-
-        {/* Section Nouveautés */}
-        <Container style={styles.section}>
-          <SectionHeader
-            title="Nouveautés"
-            subtitle="Découvrez nos derniers arrivages"
-            actionText="Voir tout"
-            onActionPress={() => navigation.navigate('AllProducts', { filter: 'new' })}
-          />
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.productsContainer}
-          >
-            {(newProducts || []).slice(0, 6).map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                navigation={navigation}
-                variant="featured"
-                size="large"
-                style={styles.newProductCard}
-              />
+              <View key={product.id} style={styles.productCardWrapper}>
+                <ProductCard
+                  product={product}
+                  navigation={navigation}
+                  variant="featured"
+                  size="large"
+                  style={styles.productCard}
+                />
+              </View>
             ))}
           </ScrollView>
         </Container>
@@ -372,14 +328,15 @@ export default function HomeScreen({ navigation }) {
             contentContainerStyle={styles.productsContainer}
           >
             {(promotionProducts || []).map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                navigation={navigation}
-                variant="featured"
-                size="large"
-                style={styles.promotionProductCard}
-              />
+              <View key={product.id} style={styles.productCardWrapper}>
+                <ProductCard
+                  product={product}
+                  navigation={navigation}
+                  variant="primary"
+                  size="large"
+                  style={styles.productCard}
+                />
+              </View>
             ))}
           </ScrollView>
         </Container>
@@ -395,7 +352,11 @@ export default function HomeScreen({ navigation }) {
             onActionPress={() => navigation.navigate('Services')}
           />
           
-          <View style={styles.servicesGrid}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.servicesContainer}
+          >
             <View style={styles.serviceCard}>
               <Ionicons name="car-outline" size={24} color="#283106" />
               <Text style={styles.serviceTitle}>
@@ -425,12 +386,12 @@ export default function HomeScreen({ navigation }) {
                 Contrôle qualité rigoureux
               </Text>
             </View>
-          </View>
+          </ScrollView>
         </Container>
 
         <View style={{ height: 32 }} />
       </Animated.ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }
 
@@ -509,15 +470,12 @@ const styles = StyleSheet.create({
   searchSection: {
     paddingVertical: 5,
     backgroundColor: '#f5f5f5',
-    
-    
   },
   searchBar: {
     width: '100%',
   },
   scrollView: {
     flex: 1,
-    
   },
   scrollContent: {
     paddingBottom: 16,
@@ -564,23 +522,20 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#E0E0E0', // Placeholder for image
+    backgroundColor: '#E0E0E0',
   },
   section: {
     paddingVertical: 20,
   },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+  // Catégories en scroll horizontal
+  categoriesContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     gap: 12,
-    paddingHorizontal: 8,
   },
   categoryCard: {
-    width: '30%',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
+    padding: 16,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     shadowColor: '#000',
@@ -588,13 +543,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    minHeight: 100,
+    minWidth: 100,
+    marginRight: 12,
+    minHeight: 120,
     justifyContent: 'center',
   },
   categoryIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
@@ -611,50 +568,44 @@ const styles = StyleSheet.create({
     color: '#283106',
     lineHeight: 14,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: '#777E5C',
-    fontStyle: 'italic',
-  },
+  // Produits avec taille uniforme
   productsContainer: {
-    paddingLeft: 16,
-    paddingRight: 16,
+    paddingHorizontal: 16,
     paddingVertical: 8,
+    gap: 16,
   },
-  featuredProductCard: {
-    marginRight: 0,
+  productCardWrapper: {
+    marginRight: 2,
+   
   },
-  newProductCard: {
-    marginRight: 0,
+  productCard: {
+    width: 280,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  promotionProductCard: {
-    marginRight: 0,
-  },
-  servicesGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    gap: 8,
+  // Services en scroll horizontal
+  servicesContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 12,
   },
   serviceCard: {
-    flex: 1,
-    padding: 16,
-    alignItems: 'center',
-    minHeight: 100,
-    minWidth: 80,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    minWidth: 140,
+    marginRight: 12,
+    alignItems: 'center',
+    minHeight: 120,
+    justifyContent: 'center',
   },
   serviceTitle: {
     color: '#283106',
@@ -670,5 +621,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: 'center',
     lineHeight: 13,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#777E5C',
+    fontStyle: 'italic',
   },
 });

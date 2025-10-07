@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, FlatList, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Badge, Button, SearchBar } from '../components/ui';
+import { Container, Badge, Button, SearchBar , ScreenWrapper } from '../components/ui';
 import { products } from '../data/products';
 
 export default function CategoryProductsScreen({ navigation, route }) {
@@ -253,7 +253,7 @@ export default function CategoryProductsScreen({ navigation, route }) {
   const categoryInfo = getCategoryInfo();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -320,7 +320,7 @@ export default function CategoryProductsScreen({ navigation, route }) {
           </View>
         }
       />
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

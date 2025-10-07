@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button, Divider } from '../components/ui';
+import { Container, Button, Divider  , ScreenWrapper } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 
 export default function PersonalInfoScreen({ navigation }) {
@@ -110,6 +110,7 @@ export default function PersonalInfoScreen({ navigation }) {
   }
 
   return (
+    <ScreenWrapper >
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <Container style={styles.header}>
@@ -197,6 +198,7 @@ export default function PersonalInfoScreen({ navigation }) {
         )}
       </Container>
     </ScrollView>
+    </ScreenWrapper>
   );
 }
 

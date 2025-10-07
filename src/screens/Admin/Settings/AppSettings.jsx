@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Alert, Switch } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button, Input } from '../../../components/ui';
+import { Container, Button, Input , ScreenWrapper } from '../../../components/ui';
 
 export default function AppSettings({ navigation }) {
   const [settings, setSettings] = useState({
@@ -61,7 +61,7 @@ export default function AppSettings({ navigation }) {
         trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
         thumbColor={value ? '#FFFFFF' : '#FFFFFF'}
       />
-    </View>
+    </ScreenWrapper>
   );
 
   const SettingInput = ({ title, subtitle, value, onChangeText, keyboardType }) => (
@@ -108,7 +108,7 @@ export default function AppSettings({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -323,7 +323,7 @@ export default function AppSettings({ navigation }) {
           style={styles.saveButton}
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import { orderService } from '../backend';
 
 // Actions asynchrones pour les commandes
@@ -6,9 +6,7 @@ export const fetchUserOrders = createAsyncThunk(
   'orders/fetchUserOrders',
   async (userId, { rejectWithValue }) => {
     try {
-      console.log('🔄 [OrdersSlice] Fetching orders for user:', userId);
       const orders = await orderService.getUserOrders(userId);
-      console.log('✅ [OrdersSlice] Orders fetched:', orders);
       return orders;
     } catch (error) {
       console.error('❌ [OrdersSlice] Error fetching orders:', error);
@@ -57,8 +55,10 @@ const initialState = {
   orders: [],
   currentOrder: null,
   isLoading: false,
+  initialLoading: false, // Nouveau: loading pour le premier chargement
   error: null,
   lastOrder: null,
+  hasInitialized: false, // Nouveau: flag pour savoir si les données ont été chargées
 };
 
 const ordersSlice = createSlice({
@@ -82,15 +82,19 @@ const ordersSlice = createSlice({
     builder
       // fetchUserOrders
       .addCase(fetchUserOrders.pending, (state) => {
-        state.isLoading = true;
+        // Loading seulement si pas encore initialisé
+        if (!state.hasInitialized) {
+          state.initialLoading = true;
+        }
         state.error = null;
       })
       .addCase(fetchUserOrders.fulfilled, (state, action) => {
-        state.isLoading = false;
+        state.initialLoading = false;
         state.orders = action.payload;
+        state.hasInitialized = true;
       })
       .addCase(fetchUserOrders.rejected, (state, action) => {
-        state.isLoading = false;
+        state.initialLoading = false;
         state.error = action.payload;
       })
       
@@ -157,7 +161,7 @@ export const {
 // Sélecteurs
 export const selectOrders = (state) => state.orders?.orders || [];
 export const selectCurrentOrder = (state) => state.orders?.currentOrder || null;
-export const selectOrdersLoading = (state) => state.orders?.isLoading || false;
+export const selectOrdersLoading = (state) => state.orders?.initialLoading || false;
 export const selectOrdersError = (state) => state.orders?.error || null;
 export const selectLastOrder = (state) => state.orders?.lastOrder || null;
 
@@ -173,10 +177,10 @@ export const selectRecentOrders = (state) =>
 export const selectOrderById = (orderId) => (state) => 
   (state.orders?.orders || []).find(order => order.id === orderId);
 
-// Sélecteur pour les statistiques des commandes
-export const selectOrdersStats = (state) => {
-  const orders = state.orders.orders || [];
-  return {
+// Sélecteur pour les statistiques des commandes - Mémorisé
+export const selectOrdersStats = createSelector(
+  [(state) => state.orders.orders || []],
+  (orders) => ({
     total: orders.length,
     pending: orders.filter(order => order.status === 'pending').length,
     confirmed: orders.filter(order => order.status === 'confirmed').length,
@@ -184,8 +188,8 @@ export const selectOrdersStats = (state) => {
     shipped: orders.filter(order => order.status === 'shipped').length,
     delivered: orders.filter(order => order.status === 'delivered').length,
     cancelled: orders.filter(order => order.status === 'cancelled').length,
-  };
-};
+  })
+);
 
 export default ordersSlice.reducer;
 

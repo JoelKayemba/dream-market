@@ -156,7 +156,6 @@ const usersSlice = createSlice({
       })
       .addCase(testUserPermissions.fulfilled, (state, action) => {
         state.loading = false;
-        console.log('🔍 Résultat du test de permissions:', action.payload);
         state.lastUpdated = new Date().toISOString();
       })
       .addCase(testUserPermissions.rejected, (state, action) => {

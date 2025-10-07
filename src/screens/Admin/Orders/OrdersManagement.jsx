@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Button } from '../../../components/ui';
+import { Container, Button , ScreenWrapper } from '../../../components/ui';
+import AdminNotificationCenter from '../../../components/admin/AdminNotificationCenter';
+import { useAdminNotifications } from '../../../hooks/useAdminNotifications';
 import { 
   fetchOrders, 
   updateOrderStatus,
@@ -30,6 +32,9 @@ export default function OrdersManagement({ navigation }) {
   const filters = useSelector(selectAdminOrdersFilters);
   const filteredOrders = useSelector(selectFilteredOrders);
   const stats = useSelector(selectOrderStats);
+
+  // Hook pour les notifications admin
+  const { unreadAdminCount } = useAdminNotifications();
 
   // Charger les commandes au montage du composant
   useEffect(() => {
@@ -267,16 +272,16 @@ export default function OrdersManagement({ navigation }) {
 
   if (loading && orders.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Chargement des commandes...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -287,9 +292,12 @@ export default function OrdersManagement({ navigation }) {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Gestion des Commandes</Text>
-          <Text style={styles.headerSubtitle}>{stats.total} commande(s) • {formatPrice(stats.totalRevenue)} CA</Text>
+          <Text style={styles.headerSubtitle}>
+            {stats.total} commande(s) • {formatPrice(stats.totalRevenue)} CA
+            {unreadAdminCount > 0 && ` • ${unreadAdminCount} nouvelle(s)`}
+          </Text>
         </View>
-        <View style={styles.placeholder} />
+        <AdminNotificationCenter navigation={navigation} />
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -393,7 +401,7 @@ export default function OrdersManagement({ navigation }) {
         {/* Espacement */}
         <View style={{ height: 20 }} />
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

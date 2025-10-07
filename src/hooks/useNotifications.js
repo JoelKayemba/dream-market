@@ -1,5 +1,18 @@
-import { useState, useEffect, useRef } from 'react';
-import { useSelector } from 'react-redux';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { 
+  setNotifications,
+  markAsRead as markAsReadAction,
+  markAllAsRead as markAllAsReadAction,
+  markAsUnread as markAsUnreadAction,
+  deleteNotification as deleteNotificationAction,
+  addSentNotification,
+  selectNotifications,
+  selectUnreadCount,
+  selectReadNotifications,
+  selectDeletedNotifications,
+  selectSentNotifications
+} from '../store/notificationsSlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { 
@@ -12,58 +25,47 @@ import {
   selectClientServices as selectServices
 } from '../store/client/servicesSlice';
 import { 
-  selectOrders
+  selectOrders,
+  fetchUserOrders
 } from '../store/ordersSlice';
 
 // Clés de stockage
 const NOTIFICATIONS_STORAGE_KEY = '@dream_market_notifications';
 const READ_NOTIFICATIONS_KEY = '@dream_market_read_notifications';
 const DELETED_NOTIFICATIONS_KEY = '@dream_market_deleted_notifications';
+const SENT_NOTIFICATIONS_KEY = '@dream_market_sent_notifications';
 
 export const useNotifications = () => {
+  const dispatch = useDispatch();
   const products = useSelector(selectProducts);
   const farms = useSelector(selectFarms);
   const services = useSelector(selectServices);
   const orders = useSelector(selectOrders);
   
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [readNotifications, setReadNotifications] = useState(new Set());
-  const [deletedNotifications, setDeletedNotifications] = useState(new Set());
+  // Utiliser le store Redux pour les notifications
+  const notifications = useSelector(selectNotifications);
+  const unreadCount = useSelector(selectUnreadCount);
+  const readNotificationsArray = useSelector(selectReadNotifications);
+  const deletedNotificationsArray = useSelector(selectDeletedNotifications);
+  const sentNotificationsArray = useSelector(selectSentNotifications);
+  
+  // Créer des Sets seulement quand nécessaire, avec useMemo pour éviter les re-renders
+  const readNotifications = useMemo(() => new Set(readNotificationsArray), [readNotificationsArray]);
+  const deletedNotifications = useMemo(() => new Set(deletedNotificationsArray), [deletedNotificationsArray]);
+  const sentNotifications = useMemo(() => new Set(sentNotificationsArray), [sentNotificationsArray]);
+  
   const [isInitialized, setIsInitialized] = useState(false);
   const [previousNotifications, setPreviousNotifications] = useState([]);
   const previousOrderStatusesRef = useRef(new Map());
 
-  // Fonctions de persistance
-  const saveToStorage = async (key, data) => {
-    try {
-      await AsyncStorage.setItem(key, JSON.stringify(Array.from(data)));
-    } catch (error) {
-      console.error(`Erreur lors de la sauvegarde de ${key}:`, error);
-    }
-  };
-
-  const loadFromStorage = async (key) => {
-    try {
-      const data = await AsyncStorage.getItem(key);
-      return data ? new Set(JSON.parse(data)) : new Set();
-    } catch (error) {
-      console.error(`Erreur lors du chargement de ${key}:`, error);
-      return new Set();
-    }
-  };
+  // Les fonctions de persistance sont maintenant gérées par le slice Redux
 
   // Charger les données persistées au montage
   useEffect(() => {
     const loadPersistedData = async () => {
       try {
-        const [readData, deletedData] = await Promise.all([
-          loadFromStorage(READ_NOTIFICATIONS_KEY),
-          loadFromStorage(DELETED_NOTIFICATIONS_KEY)
-        ]);
-        
-        setReadNotifications(readData);
-        setDeletedNotifications(deletedData);
+        // Les données persistées sont maintenant gérées par le slice Redux
+        // Pas besoin de les charger ici car elles sont chargées par NotificationManager
         setIsInitialized(true);
       } catch (error) {
         console.error('Erreur lors du chargement des données persistées:', error);
@@ -74,21 +76,42 @@ export const useNotifications = () => {
     loadPersistedData();
   }, []);
 
+  // Récupérer les commandes automatiquement pour détecter les changements de statut
+  useEffect(() => {
+    const fetchOrdersForNotifications = async () => {
+      try {
+        // Récupérer l'ID utilisateur depuis AsyncStorage
+        const storedUserId = await AsyncStorage.getItem('user_id');
+        if (storedUserId) {
+          await dispatch(fetchUserOrders(storedUserId));
+        }
+      } catch (error) {
+        console.error('❌ [Notifications] Erreur lors de la récupération des commandes:', error);
+      }
+    };
+
+    if (isInitialized) {
+      fetchOrdersForNotifications();
+      
+      // Récupérer les commandes toutes les 5 minutes pour détecter les changements (réduit de 30s à 5min)
+      const interval = setInterval(fetchOrdersForNotifications, 300000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isInitialized, dispatch]);
+
   // Gérer les notifications reçues (clics sur les notifications push)
   useEffect(() => {
     const subscription = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notification reçue:', notification);
+      // Notification reçue - pas besoin de log
     });
 
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Réponse à la notification:', response);
       const data = response.notification.request.content.data;
       
       // Marquer la notification comme lue si elle a un ID
       if (data.notificationId) {
-        const newReadNotifications = new Set([...readNotifications, data.notificationId]);
-        setReadNotifications(newReadNotifications);
-        saveToStorage(READ_NOTIFICATIONS_KEY, newReadNotifications);
+        dispatch(markAsReadAction(data.notificationId));
       }
     });
 
@@ -102,9 +125,10 @@ export const useNotifications = () => {
     if (isInitialized) {
       generateNotifications();
     }
-  }, [isInitialized, products, farms, services, orders, readNotifications, deletedNotifications]);
+  }, [isInitialized, readNotifications, deletedNotifications]); // ✅ Suppression des données qui causaient des re-générations constantes
 
   const generateNotifications = () => {
+    
     const generatedNotifications = [];
 
     // Notifications pour les promotions (produits avec old_price)
@@ -190,6 +214,7 @@ export const useNotifications = () => {
       
       // Si c'est un changement de statut (pas la première fois)
       if (previousStatus && previousStatus !== currentStatus) {
+        
         const statusMessages = {
           confirmed: 'Votre commande a été confirmée',
           preparing: 'Votre commande est en préparation',
@@ -197,17 +222,25 @@ export const useNotifications = () => {
           delivered: 'Votre commande a été livrée'
         };
         
-        generatedNotifications.push({
-          id: `order_status_${order.id}_${currentStatus}`,
-          type: 'order',
-          title: '📦 Mise à jour de commande',
-          message: `${statusMessages[currentStatus]} #${order.order_number}`,
-          time: getTimeAgo(order.last_updated || order.created_at),
-          isRead: false,
-          action: 'Suivre ma commande',
-          image: null,
-          data: { orderId: order.id, order }
-        });
+        // Créer un ID unique basé sur l'ordre et le statut pour éviter les doublons
+        const uniqueId = `order_status_${order.id}_${currentStatus}`;
+        
+        // Vérifier si cette notification de changement de statut a déjà été créée
+        const alreadyExists = generatedNotifications.some(n => n.id === uniqueId);
+        
+        if (!alreadyExists) {
+          generatedNotifications.push({
+            id: uniqueId,
+            type: 'order',
+            title: '📦 Mise à jour de commande',
+            message: `${statusMessages[currentStatus]} #${order.order_number}`,
+            time: getTimeAgo(order.last_updated || order.created_at),
+            isRead: false,
+            action: 'Suivre ma commande',
+            image: null,
+            data: { orderId: order.id, order }
+          });
+        }
       }
     });
 
@@ -229,8 +262,7 @@ export const useNotifications = () => {
       isRead: readNotifications.has(notification.id)
     }));
 
-    setNotifications(notificationsWithReadStatus);
-    setUnreadCount(notificationsWithReadStatus.filter(n => !n.isRead).length);
+    dispatch(setNotifications(notificationsWithReadStatus));
 
     // Détecter et notifier les nouvelles notifications
     detectAndNotifyNewNotifications(notificationsWithReadStatus);
@@ -248,17 +280,24 @@ export const useNotifications = () => {
 
   // Fonction pour détecter les nouvelles notifications et envoyer des notifications push
   const detectAndNotifyNewNotifications = async (currentNotifications) => {
+    // Si c'est la première génération, on sauvegarde juste les IDs pour éviter les doublons
     if (previousNotifications.length === 0) {
-      // Première génération, pas de notification
+      // Les IDs sont maintenant gérés par le slice Redux
       return;
     }
 
+    // Créer un Set des IDs des notifications précédentes
     const previousIds = new Set(previousNotifications.map(n => n.id));
-    const newNotifications = currentNotifications.filter(
-      notification => !previousIds.has(notification.id)
-    );
+    
+    // Filtrer les nouvelles notifications (pas dans les précédentes ET pas déjà envoyées)
+    const newNotifications = currentNotifications.filter(notification => {
+      const isNew = !previousIds.has(notification.id);
+      const notAlreadySent = !sentNotifications.has(notification.id);
+      return isNew && notAlreadySent;
+    });
 
     // Envoyer une notification push pour chaque nouvelle notification
+    const newSentIds = new Set(sentNotifications);
     for (const notification of newNotifications) {
       try {
         await sendTestNotification(
@@ -270,9 +309,19 @@ export const useNotifications = () => {
             ...notification.data
           }
         );
+        
+        // Marquer comme envoyée
+        newSentIds.add(notification.id);
+        dispatch(addSentNotification(notification.id));
       } catch (error) {
-        console.error('Erreur lors de l\'envoi de la notification push:', error);
+        console.error('❌ Erreur lors de l\'envoi de la notification push:', error);
       }
+    }
+
+    // Nettoyer les anciennes notifications envoyées (garder seulement les 100 plus récentes)
+    if (newSentIds.size > 100) {
+      const currentIds = new Set(currentNotifications.map(n => n.id));
+      const cleanedSentIds = new Set([...newSentIds].filter(id => currentIds.has(id)));
     }
   };
 
@@ -290,29 +339,19 @@ export const useNotifications = () => {
   };
 
   const markAsRead = (notificationId) => {
-    const newReadNotifications = new Set([...readNotifications, notificationId]);
-    setReadNotifications(newReadNotifications);
-    saveToStorage(READ_NOTIFICATIONS_KEY, newReadNotifications);
+    dispatch(markAsReadAction(notificationId));
   };
 
   const markAllAsRead = () => {
-    const allIds = notifications.map(n => n.id);
-    const newReadNotifications = new Set([...readNotifications, ...allIds]);
-    setReadNotifications(newReadNotifications);
-    saveToStorage(READ_NOTIFICATIONS_KEY, newReadNotifications);
+    dispatch(markAllAsReadAction());
   };
 
   const markAsUnread = (notificationId) => {
-    const newReadNotifications = new Set(readNotifications);
-    newReadNotifications.delete(notificationId);
-    setReadNotifications(newReadNotifications);
-    saveToStorage(READ_NOTIFICATIONS_KEY, newReadNotifications);
+    dispatch(markAsUnreadAction(notificationId));
   };
 
   const deleteNotification = (notificationId) => {
-    const newDeletedNotifications = new Set([...deletedNotifications, notificationId]);
-    setDeletedNotifications(newDeletedNotifications);
-    saveToStorage(DELETED_NOTIFICATIONS_KEY, newDeletedNotifications);
+    dispatch(deleteNotificationAction(notificationId));
   };
 
   // Configuration des notifications push
@@ -327,7 +366,6 @@ export const useNotifications = () => {
       }
       
       if (finalStatus !== 'granted') {
-        console.log('Permission de notification refusée');
         return false;
       }
 
@@ -379,6 +417,14 @@ export const useNotifications = () => {
     }
   };
 
+  const resetSentNotifications = () => {
+    // La réinitialisation est maintenant gérée par le slice Redux
+  };
+
+  const forceGenerateNotifications = () => {
+    generateNotifications();
+  };
+
   return {
     notifications,
     unreadCount,
@@ -389,6 +435,11 @@ export const useNotifications = () => {
     generateNotifications,
     configurePushNotifications,
     sendTestNotification,
-    scheduleNotification
+    scheduleNotification,
+    resetSentNotifications,
+    forceGenerateNotifications,
+    // Fonctions pour les autres composants
+    getNotifications: () => notifications,
+    getUnreadCount: () => unreadCount
   };
 };

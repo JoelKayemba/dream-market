@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, FlatList } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Badge, Button, SearchBar, FarmCard } from '../components/ui';
+import { Container, Badge, Button, SearchBar, FarmCard , ScreenWrapper } from '../components/ui';
 import { farms } from '../data/farms';
 import { farmCategories } from '../data/categories';
 
@@ -143,7 +143,7 @@ export default function AllFarmsScreen({ navigation, route }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -261,7 +261,7 @@ export default function AllFarmsScreen({ navigation, route }) {
           </View>
         }
       />
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

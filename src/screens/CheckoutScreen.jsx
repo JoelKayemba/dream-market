@@ -12,7 +12,7 @@ import {
   Text,
   Modal
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
@@ -20,7 +20,7 @@ import {
   Button, 
   Divider,
   SectionHeader
-} from '../components/ui';
+, ScreenWrapper } from '../components/ui';
 import { 
   selectCartItems, 
   selectCartTotals, 
@@ -118,10 +118,10 @@ export default function CheckoutScreen({ navigation }) {
         estimated_delivery: estimatedDelivery.toISOString()
       };
       
-      console.log('🛒 [Checkout] Placing order:', orderData);
+      
       
       const result = await dispatch(createOrder(orderData)).unwrap();
-      console.log('✅ [Checkout] Order placed successfully:', result);
+   
       
       // Vider le panier après commande réussie
       dispatch(clearCart());
@@ -130,7 +130,7 @@ export default function CheckoutScreen({ navigation }) {
       setShowSuccessModal(true);
       
     } catch (error) {
-      console.error('❌ [Checkout] Error placing order:', error);
+      
       Alert.alert(
         'Erreur de commande', 
         error || 'Une erreur est survenue lors de la création de votre commande.'
@@ -153,7 +153,7 @@ export default function CheckoutScreen({ navigation }) {
   const totalsByCurrency = cartTotals;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
@@ -380,7 +380,7 @@ export default function CheckoutScreen({ navigation }) {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

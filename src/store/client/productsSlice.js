@@ -9,8 +9,10 @@ const initialState = {
   newProducts: [],
   promotionProducts: [],
   loading: false,
+  initialLoading: false, // Nouveau: loading pour le premier chargement
   error: null,
   lastUpdated: null,
+  hasInitialized: false, // Nouveau: flag pour savoir si les données ont été chargées
 };
 
 // Actions asynchrones
@@ -102,76 +104,72 @@ const clientProductsSlice = createSlice({
     // Fetch Products
     builder
       .addCase(fetchProducts.pending, (state) => {
-        state.loading = true;
+        // Loading seulement si pas encore initialisé
+        if (!state.hasInitialized) {
+          state.initialLoading = true;
+        }
         state.error = null;
       })
       .addCase(fetchProducts.fulfilled, (state, action) => {
-        state.loading = false;
+        state.initialLoading = false;
         state.products = action.payload;
+        state.hasInitialized = true;
         state.lastUpdated = new Date().toISOString();
       })
       .addCase(fetchProducts.rejected, (state, action) => {
-        state.loading = false;
+        state.initialLoading = false;
         state.error = action.payload;
       })
       
       // Fetch Categories
       .addCase(fetchCategories.pending, (state) => {
-        state.loading = true;
+        // Pas de loading pour les catégories (chargement silencieux)
         state.error = null;
       })
       .addCase(fetchCategories.fulfilled, (state, action) => {
-        state.loading = false;
         state.categories = action.payload.filter(cat => cat.type === 'product');
         state.lastUpdated = new Date().toISOString();
       })
       .addCase(fetchCategories.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload;
       })
       
       // Fetch Popular Products
       .addCase(fetchPopularProducts.pending, (state) => {
-        state.loading = true;
+        // Pas de loading pour les produits populaires (chargement silencieux)
         state.error = null;
       })
       .addCase(fetchPopularProducts.fulfilled, (state, action) => {
-        state.loading = false;
         state.popularProducts = action.payload;
         state.lastUpdated = new Date().toISOString();
       })
       .addCase(fetchPopularProducts.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload;
       })
       
       // Fetch New Products
       .addCase(fetchNewProducts.pending, (state) => {
-        state.loading = true;
+        // Pas de loading pour les nouveaux produits (chargement silencieux)
         state.error = null;
       })
       .addCase(fetchNewProducts.fulfilled, (state, action) => {
-        state.loading = false;
         state.newProducts = action.payload;
         state.lastUpdated = new Date().toISOString();
       })
       .addCase(fetchNewProducts.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload;
       })
       
       // Fetch Promotion Products
       .addCase(fetchPromotionProducts.pending, (state) => {
-        state.loading = true;
+        // Pas de loading pour les produits en promotion (chargement silencieux)
         state.error = null;
       })
       .addCase(fetchPromotionProducts.fulfilled, (state, action) => {
-        state.loading = false;
         state.promotionProducts = action.payload;
         state.lastUpdated = new Date().toISOString();
       })
       .addCase(fetchPromotionProducts.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload;
       });
   },
@@ -185,7 +183,7 @@ export const selectClientCategories = (state) => state.client?.products?.categor
 export const selectPopularProducts = (state) => state.client?.products?.popularProducts || [];
 export const selectNewProducts = (state) => state.client?.products?.newProducts || [];
 export const selectPromotionProducts = (state) => state.client?.products?.promotionProducts || [];
-export const selectClientProductsLoading = (state) => state.client?.products?.loading || false;
+export const selectClientProductsLoading = (state) => state.client?.products?.initialLoading || false;
 export const selectClientProductsError = (state) => state.client?.products?.error || null;
 export const selectClientProductsLastUpdated = (state) => state.client?.products?.lastUpdated || null;
 

@@ -1,69 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Badge, Button } from '../components/ui';
+import { Container, Badge, Button , ScreenWrapper } from '../components/ui';
+// Les données sont maintenant chargées au niveau global par NotificationManager
 import { 
-  selectClientProducts as selectProducts,
-  fetchProducts
-} from '../store/client/productsSlice';
-import { 
-  selectClientFarms as selectFarms,
-  fetchFarms
-} from '../store/client/farmsSlice';
-import { 
-  selectClientServices as selectServices,
-  fetchServices
-} from '../store/client/servicesSlice';
-import { 
-  selectOrders,
-  fetchUserOrders
-} from '../store/ordersSlice';
-import { useAuth } from '../hooks/useAuth';
-import { useNotifications } from '../hooks/useNotifications';
+  selectNotifications,
+  selectUnreadCount,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification,
+  loadPersistedNotificationsData
+} from '../store/notificationsSlice';
 
 export default function NotificationsScreen({ navigation }) {
   const dispatch = useDispatch();
-  const { user } = useAuth();
-  const products = useSelector(selectProducts);
-  const farms = useSelector(selectFarms);
-  const services = useSelector(selectServices);
-  const orders = useSelector(selectOrders);
   
-  // Utiliser le hook personnalisé pour les notifications
-  const { 
-    notifications, 
-    unreadCount, 
-    markAsRead, 
-    markAllAsRead, 
-    deleteNotification
-  } = useNotifications();
+  // Utiliser le store Redux pour les notifications
+  const notifications = useSelector(selectNotifications);
+  const unreadCount = useSelector(selectUnreadCount);
+  
+ 
   
   const [activeFilter, setActiveFilter] = useState('all');
   const [loading, setLoading] = useState(true);
 
+  // Les données sont maintenant chargées au niveau global par NotificationManager
   useEffect(() => {
-    loadData();
+    setLoading(false);
   }, []);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      
-      // Charger les données nécessaires
-      await Promise.all([
-        dispatch(fetchProducts()),
-        dispatch(fetchFarms()),
-        dispatch(fetchServices()),
-        user?.id && dispatch(fetchUserOrders(user.id))
-      ]);
-    } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -85,16 +51,21 @@ export default function NotificationsScreen({ navigation }) {
   };
 
   const getFilteredNotifications = () => {
-    if (activeFilter === 'all') return notifications;
-    if (activeFilter === 'unread') return notifications.filter(n => !n.isRead);
-    return notifications.filter(n => n.type === activeFilter);
+    let filtered;
+    if (activeFilter === 'all') filtered = notifications;
+    else if (activeFilter === 'unread') filtered = notifications.filter(n => !n.isRead);
+    else filtered = notifications.filter(n => n.type === activeFilter);
+    
+    
+    
+    return filtered;
   };
 
 
 
 
   const handleNotificationAction = (notification) => {
-    markAsRead(notification.id);
+    dispatch(markAsRead(notification.id));
     
     try {
       switch (notification.type) {
@@ -229,7 +200,7 @@ export default function NotificationsScreen({ navigation }) {
         {/* Bouton de suppression */}
         <TouchableOpacity
           style={styles.deleteButton}
-          onPress={() => deleteNotification(notification.id)}
+          onPress={() => dispatch(deleteNotification(notification.id))}
         >
           <Ionicons name="close" size={16} color="#777E5C" />
         </TouchableOpacity>
@@ -240,7 +211,7 @@ export default function NotificationsScreen({ navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
         <View style={styles.loadingContainer}>
           <Ionicons name="hourglass-outline" size={64} color="#4CAF50" />
           <Text style={styles.loadingTitle}>Chargement...</Text>
@@ -248,12 +219,12 @@ export default function NotificationsScreen({ navigation }) {
             Récupération de vos notifications
           </Text>
         </View>
-      </SafeAreaView>
-    );
+      </ScreenWrapper>
+  );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -278,7 +249,7 @@ export default function NotificationsScreen({ navigation }) {
         {notifications.length > 0 && (
           <TouchableOpacity
             style={styles.markAllReadButton}
-            onPress={markAllAsRead}
+            onPress={() => dispatch(markAllAsRead())}
           >
             <Text style={styles.markAllReadText}>Tout marquer</Text>
           </TouchableOpacity>
@@ -349,7 +320,7 @@ export default function NotificationsScreen({ navigation }) {
           )}
         </Container>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

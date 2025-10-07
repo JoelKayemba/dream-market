@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Dimensions, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Badge, Button } from '../components/ui';
+import { Container, Badge, Button , ScreenWrapper } from '../components/ui';
 import { toggleCartItem, selectIsInCart, selectCartItemQuantity, selectCartItemsCount } from '../store/cartSlice';
 import { useFavorites } from '../hooks/useFavorites';
 import { formatPrice } from '../utils/currency';
@@ -104,7 +104,7 @@ export default function ProductDetailScreen({ route, navigation }) {
   const images = product.images || [product.image];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Images du produit avec boutons superposés */}
       <View style={styles.imageSection}>
         <ScrollView
@@ -331,7 +331,7 @@ export default function ProductDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

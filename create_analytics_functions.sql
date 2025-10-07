@@ -320,3 +320,4 @@ GRANT EXECUTE ON FUNCTION get_top_products(INTEGER) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_top_farms(INTEGER) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_active_users(INTEGER) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_growth_metrics() TO authenticated;
+

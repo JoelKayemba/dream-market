@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Image, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Button } from '../../../components/ui';
+import { Container, Button , ScreenWrapper } from '../../../components/ui';
 import { addProduct, updateProduct, selectAdminProductsLoading, selectAdminProducts, selectAdminCategories, fetchCategories } from '../../../store/admin/productSlice';
 import { selectAllFarms, fetchFarms } from '../../../store/admin/farmSlice';
 import { useImagePicker } from '../../../hooks/useImagePicker';
@@ -131,7 +131,7 @@ export default function ProductForm({ route, navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -570,7 +570,7 @@ export default function ProductForm({ route, navigation }) {
           </View>
         </View>
       )}
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

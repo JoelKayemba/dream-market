@@ -9,11 +9,11 @@ import {
   Alert,
   FlatList
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Container, Badge } from '../components/ui';
+import { Container, Badge , ScreenWrapper } from '../components/ui';
 import { 
   fetchUserOrders,
   selectOrders,
@@ -38,25 +38,17 @@ export default function OrderScreen({ navigation }) {
 
   // Charger les commandes au montage
   useEffect(() => {
-    console.log('🔄 [OrderScreen] User:', user);
-    console.log('🔄 [OrderScreen] User ID:', user?.id);
-    console.log('🔄 [OrderScreen] User type:', typeof user?.id);
-    
     if (user?.id) {
-      console.log('🔄 [OrderScreen] Fetching orders for user ID:', user.id);
       dispatch(fetchUserOrders(user.id));
     } else {
-      console.log('❌ [OrderScreen] No user ID available');
       // Essayer de récupérer l'ID depuis AsyncStorage
       const checkStoredUser = async () => {
         try {
           const storedUserId = await AsyncStorage.getItem('user_id');
           if (storedUserId) {
-            console.log('🔄 [OrderScreen] Found stored user ID:', storedUserId);
+            
             dispatch(fetchUserOrders(storedUserId));
-          } else {
-            console.log('❌ [OrderScreen] No stored user ID found');
-          }
+          } 
         } catch (error) {
           console.error('❌ [OrderScreen] Error checking stored user:', error);
         }
@@ -256,7 +248,7 @@ export default function OrderScreen({ navigation }) {
   const filteredOrders = getFilteredOrders();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -297,7 +289,7 @@ export default function OrderScreen({ navigation }) {
         ListEmptyComponent={renderEmptyState}
         showsVerticalScrollIndicator={false}
       />
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

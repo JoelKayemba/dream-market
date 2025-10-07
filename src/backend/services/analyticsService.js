@@ -4,8 +4,6 @@ class AnalyticsService {
   // Récupérer toutes les statistiques du dashboard
   async getDashboardStats() {
     try {
-      console.log('🔍 Récupération des statistiques du dashboard...');
-      
       // Récupérer les données directement depuis les tables
       const [
         { count: totalUsers },
@@ -73,7 +71,6 @@ class AnalyticsService {
         }
       };
 
-      console.log('✅ Statistiques dashboard calculées:', stats);
       return stats;
     } catch (error) {
       console.error('Erreur lors de la récupération des statistiques dashboard:', error);
@@ -84,8 +81,6 @@ class AnalyticsService {
   // Récupérer les analytiques de revenus
   async getRevenueAnalytics(periodDays = 30) {
     try {
-      console.log(`🔍 Récupération des revenus des commandes livrées (${periodDays} jours)...`);
-      
       // Récupérer les commandes livrées des derniers jours
       const { data: orders, error } = await supabase
         .from('orders')
@@ -140,7 +135,6 @@ class AnalyticsService {
         daily_data: dailyData
       };
 
-      console.log('✅ Revenus calculés:', result);
       return result;
     } catch (error) {
       console.error('Erreur lors de la récupération des revenus:', error);
@@ -151,8 +145,6 @@ class AnalyticsService {
   // Récupérer les analytiques de commandes
   async getOrdersAnalytics(periodDays = 30) {
     try {
-      console.log(`🔍 Récupération des commandes (${periodDays} jours)...`);
-      
       // Récupérer les commandes des derniers jours
       const { data: orders, error } = await supabase
         .from('orders')
@@ -230,7 +222,6 @@ class AnalyticsService {
         daily_data: dailyData
       };
 
-      console.log('✅ Commandes calculées:', result);
       return result;
     } catch (error) {
       console.error('Erreur lors de la récupération des commandes:', error);
@@ -242,8 +233,6 @@ class AnalyticsService {
   // Récupérer les métriques de croissance
   async getGrowthMetrics() {
     try {
-      console.log('🔍 Récupération des métriques de croissance...');
-      
       // Pour simplifier, retourner des métriques basiques
       // TODO: Implémenter un calcul de croissance réel si nécessaire
       const growthMetrics = {
@@ -269,7 +258,6 @@ class AnalyticsService {
         }
       };
 
-      console.log('✅ Métriques de croissance (simplifiées):', growthMetrics);
       return growthMetrics;
     } catch (error) {
       console.error('Erreur lors de la récupération des métriques de croissance:', error);
@@ -280,8 +268,6 @@ class AnalyticsService {
   // Récupérer toutes les analytiques en une seule fois (revenus et commandes seulement)
   async getAllAnalytics() {
     try {
-      console.log('🔍 Récupération des analytiques (revenus et commandes)...');
-      
       const [
         dashboardStats,
         revenueAnalytics,
@@ -302,7 +288,6 @@ class AnalyticsService {
         lastUpdated: new Date().toISOString()
       };
 
-      console.log('✅ Analytiques récupérées:', allAnalytics);
       return allAnalytics;
     } catch (error) {
       console.error('Erreur lors de la récupération des analytiques:', error);

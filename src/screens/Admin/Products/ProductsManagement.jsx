@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Button } from '../../../components/ui';
+import { Container, Button , ScreenWrapper } from '../../../components/ui';
 import { 
   fetchProducts, 
   deleteProduct,
@@ -189,7 +189,7 @@ export default function ProductsManagement({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -321,7 +321,7 @@ export default function ProductsManagement({ navigation, route }) {
           )}
         </Container>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

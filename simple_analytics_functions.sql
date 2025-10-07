@@ -106,3 +106,4 @@ FROM get_delivered_revenue(7)
 UNION ALL
 SELECT 'Test get_orders_by_status(7):' as test_name, json_build_object('total_orders', total_orders, 'delivered', delivered) as result
 FROM get_orders_by_status(7);
+

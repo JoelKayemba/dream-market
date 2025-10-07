@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, ScrollView, FlatList, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button, Badge, ProductCard, FarmCard, ServiceCard } from '../components/ui';
+import { Container, Button, Badge, ProductCard, FarmCard, ServiceCard , ScreenWrapper } from '../components/ui';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   selectClientProducts,
@@ -288,7 +288,7 @@ export default function SearchScreen({ navigation, route }) {
           <Ionicons name="search" size={48} color="#777E5C" />
           <Text style={styles.loadingText}>Chargement des données...</Text>
         </View>
-      );
+  );
     }
 
     // Affichage des suggestions si on tape mais qu'on n'a pas encore recherché
@@ -545,7 +545,7 @@ export default function SearchScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header avec barre de recherche */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -578,7 +578,7 @@ export default function SearchScreen({ navigation, route }) {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {renderResults()}
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

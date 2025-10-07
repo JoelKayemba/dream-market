@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, StyleSheet, Text, Image, TouchableOpacity } from 'react-native';
-import { Container, Button } from '../components/ui';
+import { Container, Button  , ScreenWrapper } from '../components/ui';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function WelcomeScreen({ navigation }) {
   return (
-    <View style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header avec logo */}
       <View style={styles.header}>
         <View style={styles.logoContainer}>
@@ -70,7 +70,7 @@ export default function WelcomeScreen({ navigation }) {
           </View>
         </View>
       </Container>
-    </View>
+    </ScreenWrapper>
   );
 }
 

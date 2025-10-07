@@ -31,14 +31,14 @@ export const useAuth = () => {
   // Écouter les changements d'auth Supabase
   useEffect(() => {
     const unsubscribe = authListenerService.addListener((event, session) => {
-      console.log('Auth event in useAuth:', event);
+      
       
       if (event === 'SIGNED_OUT') {
         // Déconnexion automatique
         dispatch(logout());
       } else if (event === 'TOKEN_REFRESHED' && session) {
         // Token rafraîchi, mettre à jour l'état
-        console.log('Token refreshed, updating auth state');
+       
         // Pas besoin de faire quoi que ce soit, Supabase gère automatiquement
       }
     });

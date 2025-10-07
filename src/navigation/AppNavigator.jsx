@@ -37,11 +37,10 @@ export default function AppNavigator({ navigation }) {
           tabBarInactiveTintColor: '#777E5C',
           tabBarStyle: {
             backgroundColor: '#f5f5f5',
-            borderTopWidth: 1,
-            borderTopColor: '#E0E0E0',
-            paddingBottom: 5,
+            paddingBottom: 0,
             paddingTop: 5,
-            height: 60,
+            height: 80,
+            
           },
           headerShown: false,
         })}

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, FlatList, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Badge, Button, SearchBar, ProductCard } from '../components/ui';
+import { Container, Badge, Button, SearchBar, ProductCard , ScreenWrapper } from '../components/ui';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   selectClientProducts, 
@@ -26,6 +25,7 @@ export default function AllProductsScreen({ navigation, route }) {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedFarms, setSelectedFarms] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   // Fonction pour obtenir le titre selon le filtre
   const getTitle = () => {
@@ -45,24 +45,28 @@ export default function AllProductsScreen({ navigation, route }) {
   useEffect(() => {
     const loadData = async () => {
       try {
-        await Promise.all([
-          dispatch(fetchProducts()),
-          dispatch(fetchCategories())
-        ]);
+        if (!hasLoaded) {
+          await Promise.all([
+            dispatch(fetchProducts()),
+            dispatch(fetchCategories())
+          ]);
+          setHasLoaded(true);
+        }
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
+        setHasLoaded(false);
       }
     };
     
     loadData();
-  }, [dispatch]);
+  }, [dispatch, hasLoaded]); // ✅ CORRECTION : Ajout de 'hasLoaded' pour éviter les rechargements
 
   // Initialiser les produits au chargement avec le filtre reçu
   useEffect(() => {
     if (products && products.length > 0) {
       applyInitialFilter();
     }
-  }, [filter, farmId, products]);
+  }, [filter, farmId]); // ✅ CORRECTION : Suppression de 'products' des dépendances
 
   useEffect(() => {
     if (products && products.length > 0) {
@@ -348,7 +352,7 @@ export default function AllProductsScreen({ navigation, route }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -421,7 +425,7 @@ export default function AllProductsScreen({ navigation, route }) {
           </View>
         }
       />
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

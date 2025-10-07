@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
-import { Container, Button, Badge } from '../components/ui';
+import { Container, Button, Badge , ScreenWrapper } from '../components/ui';
 import { 
   removeFromCart, 
   updateCartItemQuantity, 
@@ -87,7 +87,7 @@ export default function CartScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -213,7 +213,7 @@ export default function CartScreen({ navigation }) {
           />
         </View>
       )}
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

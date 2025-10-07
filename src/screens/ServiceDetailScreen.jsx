@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Dimensions, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button, Badge } from '../components/ui';
+import { Container, Button, Badge , ScreenWrapper } from '../components/ui';
 import { useFavorites } from '../hooks/useFavorites';
 
 const { width } = Dimensions.get('window');
@@ -16,7 +16,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
   // Vérification de sécurité
   if (!service) {
     return (
-      <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Service non trouvé</Text>
           <Button 
@@ -25,8 +25,8 @@ export default function ServiceDetailScreen({ route, navigation }) {
             style={styles.errorButton}
           />
         </View>
-      </SafeAreaView>
-    );
+      </ScreenWrapper>
+  );
   }
 
   const handleContact = () => {
@@ -56,7 +56,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -213,7 +213,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
           disabled={isContactPressed}
         />
       </View>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

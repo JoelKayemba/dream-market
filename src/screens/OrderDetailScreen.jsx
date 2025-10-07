@@ -8,7 +8,7 @@ import {
   Alert,
   Text
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
@@ -16,7 +16,7 @@ import {
   Button, 
   Divider,
   SectionHeader
-} from '../components/ui';
+, ScreenWrapper } from '../components/ui';
 import { 
   fetchOrderById,
   selectCurrentOrder,
@@ -35,31 +35,11 @@ export default function OrderDetailScreen({ navigation, route }) {
 
   // Charger la commande au montage
   useEffect(() => {
-    console.log('🔄 [OrderDetailScreen] Loading order with ID:', orderId);
     if (orderId) {
       dispatch(fetchOrderById(orderId));
-    } else {
-      console.log('❌ [OrderDetailScreen] No order ID provided');
     }
   }, [dispatch, orderId]);
 
-  // Log des changements d'état
-  useEffect(() => {
-    console.log('🔄 [OrderDetailScreen] Order state changed:', {
-      loading,
-      error,
-      order: order ? {
-        id: order.id,
-        order_number: order.order_number,
-        status: order.status,
-        items: order.items,
-        totals: order.totals,
-        user_id: order.user_id,
-        delivery_address: order.delivery_address,
-        phone_number: order.phone_number
-      } : null
-    });
-  }, [loading, error, order]);
   
 
   // Gérer les erreurs
@@ -73,7 +53,7 @@ export default function OrderDetailScreen({ navigation, route }) {
   // État de chargement
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <Ionicons name="hourglass-outline" size={80} color="#4CAF50" />
           <Text style={styles.loadingTitle}>Chargement...</Text>
@@ -81,14 +61,14 @@ export default function OrderDetailScreen({ navigation, route }) {
             Récupération des détails de la commande
           </Text>
         </View>
-      </SafeAreaView>
-    );
+      </View>
+  );
   }
 
   // Commande introuvable
   if (!order) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={80} color="#F44336" />
           <Text style={styles.errorTitle}>Commande introuvable</Text>
@@ -101,7 +81,7 @@ export default function OrderDetailScreen({ navigation, route }) {
             style={styles.errorButton}
           />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -165,7 +145,7 @@ export default function OrderDetailScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -336,7 +316,7 @@ export default function OrderDetailScreen({ navigation, route }) {
         {/* Espacement */}
         <View style={{ height: 20 }} />
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

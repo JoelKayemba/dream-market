@@ -24,7 +24,7 @@ export const useFarms = () => {
     if (farms.length === 0) {
       dispatch(fetchFarms());
     }
-  }, [dispatch, farms.length]);
+  }, [dispatch]); // ✅ CORRECTION : Suppression de 'farms.length' des dépendances
 
   // Actions
   const reloadFarms = () => {
@@ -43,3 +43,4 @@ export const useFarms = () => {
     reloadFarms,
   };
 };
+

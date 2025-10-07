@@ -7,7 +7,9 @@ const initialState = {
   popularFarms: [],
   newFarms: [],
   loading: false,
+  initialLoading: false, // Nouveau: loading pour le premier chargement
   error: null,
+  hasInitialized: false, // Nouveau: flag pour savoir si les données ont été chargées
 };
 
 // Async Thunks
@@ -67,54 +69,52 @@ const clientFarmsSlice = createSlice({
     builder
       // Fetch Farms
       .addCase(fetchFarms.pending, (state) => {
-        state.loading = true;
+        // Loading seulement si pas encore initialisé
+        if (!state.hasInitialized) {
+          state.initialLoading = true;
+        }
         state.error = null;
       })
       .addCase(fetchFarms.fulfilled, (state, action) => {
-        state.loading = false;
+        state.initialLoading = false;
         state.farms = action.payload;
+        state.hasInitialized = true;
       })
       .addCase(fetchFarms.rejected, (state, action) => {
-        state.loading = false;
+        state.initialLoading = false;
         state.error = action.payload;
       })
       // Fetch Categories
       .addCase(fetchFarmCategories.pending, (state) => {
-        state.loading = true;
+        // Pas de loading pour les catégories (chargement silencieux)
         state.error = null;
       })
       .addCase(fetchFarmCategories.fulfilled, (state, action) => {
-        state.loading = false;
         state.categories = action.payload;
       })
       .addCase(fetchFarmCategories.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload;
       })
       // Fetch Popular Farms
       .addCase(fetchPopularFarms.pending, (state) => {
-        state.loading = true;
+        // Pas de loading pour les fermes populaires (chargement silencieux)
         state.error = null;
       })
       .addCase(fetchPopularFarms.fulfilled, (state, action) => {
-        state.loading = false;
         state.popularFarms = action.payload;
       })
       .addCase(fetchPopularFarms.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload;
       })
       // Fetch New Farms
       .addCase(fetchNewFarms.pending, (state) => {
-        state.loading = true;
+        // Pas de loading pour les nouvelles fermes (chargement silencieux)
         state.error = null;
       })
       .addCase(fetchNewFarms.fulfilled, (state, action) => {
-        state.loading = false;
         state.newFarms = action.payload;
       })
       .addCase(fetchNewFarms.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload;
       });
   },
@@ -127,7 +127,8 @@ export const selectClientFarms = (state) => state.client?.farms?.farms || [];
 export const selectClientFarmCategories = (state) => state.client?.farms?.categories || [];
 export const selectPopularFarms = (state) => state.client?.farms?.popularFarms || [];
 export const selectNewFarms = (state) => state.client?.farms?.newFarms || [];
-export const selectClientFarmsLoading = (state) => state.client?.farms?.loading || false;
+export const selectClientFarmsLoading = (state) => state.client?.farms?.initialLoading || false;
 export const selectClientFarmsError = (state) => state.client?.farms?.error || null;
 
 export default clientFarmsSlice.reducer;
+
