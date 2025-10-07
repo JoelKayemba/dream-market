@@ -20,7 +20,7 @@ import AdminServiceDetail from './Services/ServiceDetail';
 import OrdersManagement from './Orders/OrdersManagement';
 import OrderDetail from './Orders/OrderDetail';
 import OrderStatus from './Orders/OrderStatus';
-import DashboardAnalytics from './Analytics/DashboardAnalytics';
+import AnalyticsDashboard from './Analytics/AnalyticsDashboard';
 import SalesAnalytics from './Analytics/SalesAnalytics';
 import UserAnalytics from './Analytics/UserAnalytics';
 
@@ -60,12 +60,7 @@ function AdminDrawerContent({ navigation }) {
       icon: 'receipt-outline',
       screen: 'OrdersManagement'
     },
-    {
-      id: 'analytics',
-      title: 'Analytics',
-      icon: 'analytics-outline',
-      screen: 'DashboardAnalytics'
-    },
+   
   ];
 
   return (
@@ -117,7 +112,7 @@ function getScreenComponent(screenName) {
     OrdersManagement,
     OrderDetail,
     OrderStatus,
-    DashboardAnalytics,
+    AnalyticsDashboard,
     SalesAnalytics,
     UserAnalytics,
   };
@@ -255,13 +250,7 @@ export default function AdminNavigator() {
       />
       
       {/* Écrans d'analytics */}
-      <Stack.Screen
-        name="DashboardAnalytics"
-        component={DashboardAnalytics}
-        options={{
-          title: 'Analytics Dashboard'
-        }}
-      />
+     
       <Stack.Screen
         name="SalesAnalytics"
         component={SalesAnalytics}
@@ -274,6 +263,13 @@ export default function AdminNavigator() {
         component={UserAnalytics}
         options={{
           title: 'Analytics Utilisateurs'
+        }}
+      />
+      <Stack.Screen
+        name="AnalyticsDashboard"
+        component={AnalyticsDashboard}
+        options={{
+          title: 'Analytics Dashboard'
         }}
       />
       

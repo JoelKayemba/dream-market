@@ -14,7 +14,7 @@ export default function ServiceDetail({ route, navigation }) {
   const dispatch = useDispatch();
   
   // Récupérer le service mis à jour depuis le store
-  const service = useSelector(selectServiceById(initialService.id)) || initialService;
+  const service = useSelector((state) => selectServiceById(state, initialService.id)) || initialService;
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -28,7 +28,7 @@ export default function ServiceDetail({ route, navigation }) {
   };
 
   const handleToggleStatus = () => {
-    const action = service.isActive ? 'désactiver' : 'activer';
+    const action = service.is_active ? 'désactiver' : 'activer';
     Alert.alert(
       `${action.charAt(0).toUpperCase() + action.slice(1)} le service`,
       `Voulez-vous ${action} le service "${service.name}" ?`,
@@ -37,7 +37,10 @@ export default function ServiceDetail({ route, navigation }) {
         { 
           text: action.charAt(0).toUpperCase() + action.slice(1), 
           onPress: () => {
-            dispatch(toggleServiceStatus(service.id));
+            dispatch(toggleServiceStatus({ 
+              serviceId: service.id, 
+              isActive: !service.is_active 
+            }));
             Alert.alert('Succès', `Service ${action === 'activer' ? 'activé' : 'désactivé'} avec succès`);
           }
         }
@@ -110,10 +113,10 @@ export default function ServiceDetail({ route, navigation }) {
           <View style={styles.statusOverlay}>
             <View style={[
               styles.statusBadge,
-              { backgroundColor: service.isActive ? '#4CAF50' : '#F44336' }
+              { backgroundColor: service.is_active ? '#4CAF50' : '#F44336' }
             ]}>
               <Text style={styles.statusBadgeText}>
-                {service.isActive ? 'Actif' : 'Inactif'}
+                {service.is_active ? 'Actif' : 'Inactif'}
               </Text>
             </View>
           </View>
@@ -216,17 +219,17 @@ export default function ServiceDetail({ route, navigation }) {
               style={[
                 styles.actionButton, 
                 styles.toggleButton,
-                { backgroundColor: service.isActive ? '#F44336' : '#4CAF50' }
+                { backgroundColor: service.is_active ? '#F44336' : '#4CAF50' }
               ]}
               onPress={handleToggleStatus}
             >
               <Ionicons 
-                name={service.isActive ? 'pause' : 'play'} 
+                name={service.is_active ? 'pause' : 'play'} 
                 size={20} 
                 color="#FFFFFF" 
               />
               <Text style={[styles.actionButtonText, { color: '#FFFFFF' }]}>
-                {service.isActive ? 'Désactiver' : 'Activer'}
+                {service.is_active ? 'Désactiver' : 'Activer'}
               </Text>
             </TouchableOpacity>
           </View>

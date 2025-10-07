@@ -2,12 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, ScrollView, FlatList, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button, Badge, ProductCard, FarmCard } from '../components/ui';
-import { products } from '../data/products';
-import { farms } from '../data/farms';
-import { services } from '../data/services';
+import { Container, Button, Badge, ProductCard, FarmCard, ServiceCard } from '../components/ui';
+import { useDispatch, useSelector } from 'react-redux';
+import { 
+  selectClientProducts,
+  selectClientFarms,
+  selectClientServices,
+  selectClientProductsLoading,
+  selectClientFarmsLoading,
+  selectClientServicesLoading,
+  fetchProducts,
+  fetchFarms,
+  fetchServices
+} from '../store/client';
 
 export default function SearchScreen({ navigation, route }) {
+  const dispatch = useDispatch();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'products', 'farms', 'services'
   const [searchResults, setSearchResults] = useState({
@@ -16,6 +26,125 @@ export default function SearchScreen({ navigation, route }) {
     services: []
   });
   const [isSearching, setIsSearching] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+
+  // Redux selectors
+  const products = useSelector(selectClientProducts);
+  const farms = useSelector(selectClientFarms);
+  const services = useSelector(selectClientServices);
+  const productsLoading = useSelector(selectClientProductsLoading);
+  const farmsLoading = useSelector(selectClientFarmsLoading);
+  const servicesLoading = useSelector(selectClientServicesLoading);
+
+  // Charger les données au montage du composant
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await Promise.all([
+          dispatch(fetchProducts()),
+          dispatch(fetchFarms()),
+          dispatch(fetchServices())
+        ]);
+      } catch (error) {
+        console.error('Erreur lors du chargement des données de recherche:', error);
+      }
+    };
+    
+    loadData();
+  }, [dispatch]);
+
+  // État de chargement global
+  const isLoading = productsLoading || farmsLoading || servicesLoading;
+
+  // Générer les suggestions basées sur la requête
+  const generateSuggestions = (query) => {
+    if (!query.trim() || query.length < 1) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const lowerQuery = query.toLowerCase();
+    const suggestionsList = [];
+
+    // Suggestions de produits
+    (products || []).forEach(product => {
+      if (product.name.toLowerCase().includes(lowerQuery)) {
+        suggestionsList.push({
+          id: `product-${product.id}`,
+          text: product.name,
+          type: 'product',
+          data: product,
+          icon: '🥕'
+        });
+      }
+      if (product.categories?.name && product.categories.name.toLowerCase().includes(lowerQuery)) {
+        suggestionsList.push({
+          id: `category-${product.categories.id}`,
+          text: product.categories.name,
+          type: 'category',
+          data: product.categories,
+          icon: '🏷️'
+        });
+      }
+    });
+
+    // Suggestions de fermes
+    (farms || []).forEach(farm => {
+      if (farm.name.toLowerCase().includes(lowerQuery)) {
+        suggestionsList.push({
+          id: `farm-${farm.id}`,
+          text: farm.name,
+          type: 'farm',
+          data: farm,
+          icon: '🚜'
+        });
+      }
+      if (farm.specialty && farm.specialty.toLowerCase().includes(lowerQuery)) {
+        suggestionsList.push({
+          id: `specialty-${farm.id}`,
+          text: farm.specialty,
+          type: 'specialty',
+          data: farm,
+          icon: '🌱'
+        });
+      }
+    });
+
+    // Suggestions de services
+    (services || []).forEach(service => {
+      if (service.name.toLowerCase().includes(lowerQuery)) {
+        suggestionsList.push({
+          id: `service-${service.id}`,
+          text: service.name,
+          type: 'service',
+          data: service,
+          icon: '🔧'
+        });
+      }
+      if (service.category && service.category.toLowerCase().includes(lowerQuery)) {
+        suggestionsList.push({
+          id: `service-category-${service.id}`,
+          text: service.category,
+          type: 'service-category',
+          data: service,
+          icon: '📋'
+        });
+      }
+    });
+
+    // Supprimer les doublons et limiter à 8 suggestions
+    const uniqueSuggestions = suggestionsList
+      .filter((suggestion, index, self) => 
+        index === self.findIndex(s => s.text === suggestion.text)
+      )
+      .slice(0, 8);
+
+    setSuggestions(uniqueSuggestions);
+    setShowSuggestions(uniqueSuggestions.length > 0);
+  };
 
   // Récupérer la requête initiale depuis la route si elle existe
   useEffect(() => {
@@ -28,38 +157,46 @@ export default function SearchScreen({ navigation, route }) {
   const handleSearch = (query) => {
     if (!query.trim()) {
       setSearchResults({ products: [], farms: [], services: [] });
+      setHasSearched(false);
+      setShowSuggestions(false);
       return;
     }
 
     setIsSearching(true);
+    setHasSearched(true);
+    setShowSuggestions(false); // Masquer les suggestions lors de la recherche
+
     const lowerQuery = query.toLowerCase();
 
-    // Recherche dans les produits
-    const filteredProducts = products.filter(product =>
+    // Recherche dans les produits avec données backend
+    const filteredProducts = (products || []).filter(product =>
       product.name.toLowerCase().includes(lowerQuery) ||
-      product.description.toLowerCase().includes(lowerQuery) ||
-      product.farm.toLowerCase().includes(lowerQuery) ||
-      product.category.toLowerCase().includes(lowerQuery)
+      (product.description && product.description.toLowerCase().includes(lowerQuery)) ||
+      (product.short_description && product.short_description.toLowerCase().includes(lowerQuery)) ||
+      (product.farms?.name && product.farms.name.toLowerCase().includes(lowerQuery)) ||
+      (product.categories?.name && product.categories.name.toLowerCase().includes(lowerQuery)) ||
+      (product.tags && product.tags.some(tag => tag.toLowerCase().includes(lowerQuery)))
     );
 
-    // Recherche dans les fermes
-    const filteredFarms = farms.filter(farm =>
+    // Recherche dans les fermes avec données backend
+    const filteredFarms = (farms || []).filter(farm =>
       farm.name.toLowerCase().includes(lowerQuery) ||
-      farm.description.toLowerCase().includes(lowerQuery) ||
-      farm.specialty.toLowerCase().includes(lowerQuery) ||
-      farm.location.toLowerCase().includes(lowerQuery) ||
-      farm.region.toLowerCase().includes(lowerQuery) ||
-      (farm.products && farm.products.some(product => product.toLowerCase().includes(lowerQuery))) ||
-      (farm.certifications && farm.certifications.some(cert => cert.toLowerCase().includes(lowerQuery)))
+      (farm.description && farm.description.toLowerCase().includes(lowerQuery)) ||
+      (farm.specialty && farm.specialty.toLowerCase().includes(lowerQuery)) ||
+      (farm.location && farm.location.toLowerCase().includes(lowerQuery)) ||
+      (farm.region && farm.region.toLowerCase().includes(lowerQuery)) ||
+      (farm.story && farm.story.toLowerCase().includes(lowerQuery)) ||
+      (farm.certifications && farm.certifications.some(cert => cert.toLowerCase().includes(lowerQuery))) ||
+      (farm.sustainable_practices && farm.sustainable_practices.some(practice => practice.toLowerCase().includes(lowerQuery)))
     );
 
-    // Recherche dans les services
-    const filteredServices = services.filter(service =>
+    // Recherche dans les services avec données backend
+    const filteredServices = (services || []).filter(service =>
       service.name.toLowerCase().includes(lowerQuery) ||
-      service.description.toLowerCase().includes(lowerQuery) ||
-      service.shortDescription.toLowerCase().includes(lowerQuery) ||
-      service.category.toLowerCase().includes(lowerQuery) ||
-      service.coverage.toLowerCase().includes(lowerQuery) ||
+      (service.description && service.description.toLowerCase().includes(lowerQuery)) ||
+      (service.short_description && service.short_description.toLowerCase().includes(lowerQuery)) ||
+      (service.category && service.category.toLowerCase().includes(lowerQuery)) ||
+      (service.coverage && service.coverage.toLowerCase().includes(lowerQuery)) ||
       (service.features && service.features.some(feature => feature.toLowerCase().includes(lowerQuery)))
     );
 
@@ -75,9 +212,39 @@ export default function SearchScreen({ navigation, route }) {
     handleSearch(searchQuery);
   };
 
+  const handleTextChange = (text) => {
+    setSearchQuery(text);
+    generateSuggestions(text);
+    
+    // Si on efface le texte, masquer les suggestions et réinitialiser
+    if (!text.trim()) {
+      setShowSuggestions(false);
+      setHasSearched(false);
+      setSearchResults({ products: [], farms: [], services: [] });
+    }
+  };
+
+  const handleSuggestionPress = (suggestion) => {
+    setSearchQuery(suggestion.text);
+    setShowSuggestions(false);
+    handleSearch(suggestion.text);
+    
+    // Navigation directe vers l'élément si c'est un élément spécifique
+    if (suggestion.type === 'product') {
+      navigation.navigate('ProductDetail', { product: suggestion.data });
+    } else if (suggestion.type === 'farm') {
+      navigation.navigate('FarmDetail', { farm: suggestion.data });
+    } else if (suggestion.type === 'service') {
+      navigation.navigate('ServiceDetail', { service: suggestion.data });
+    }
+  };
+
   const clearSearch = () => {
     setSearchQuery('');
     setSearchResults({ products: [], farms: [], services: [] });
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setHasSearched(false);
   };
 
   const getTotalResults = () => {
@@ -105,20 +272,56 @@ export default function SearchScreen({ navigation, route }) {
   );
 
   const renderServiceItem = ({ item }) => (
-    <TouchableOpacity style={styles.resultItem} onPress={() => navigation.navigate('ServiceDetail', { service: item })}>
-      <Image source={{ uri: item.image }} style={styles.itemImage} />
-      <View style={styles.itemContent}>
-        <Text style={styles.itemTitle} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.itemSubtitle}>{item.description}</Text>
-        <View style={styles.itemFooter}>
-          <Badge text={item.category} variant="secondary" size="small" />
-          <Text style={styles.itemPrice}>{item.price}€</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+    <ServiceCard
+      service={item}
+      navigation={navigation}
+      variant="default"
+      style={styles.serviceCard}
+    />
   );
 
   const renderResults = () => {
+    // État de chargement initial des données
+    if (isLoading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <Ionicons name="search" size={48} color="#777E5C" />
+          <Text style={styles.loadingText}>Chargement des données...</Text>
+        </View>
+      );
+    }
+
+    // Affichage des suggestions si on tape mais qu'on n'a pas encore recherché
+    if (showSuggestions && !hasSearched && searchQuery.trim().length >= 1) {
+      return (
+        <View style={styles.suggestionsContainer}>
+          <Text style={styles.suggestionsTitle}>Suggestions</Text>
+          {suggestions.map((suggestion) => (
+            <TouchableOpacity
+              key={suggestion.id}
+              style={styles.suggestionItem}
+              onPress={() => handleSuggestionPress(suggestion)}
+            >
+              <Text style={styles.suggestionIcon}>{suggestion.icon}</Text>
+              <View style={styles.suggestionContent}>
+                <Text style={styles.suggestionText}>{suggestion.text}</Text>
+                <Text style={styles.suggestionType}>
+                  {suggestion.type === 'product' && 'Produit'}
+                  {suggestion.type === 'farm' && 'Ferme'}
+                  {suggestion.type === 'service' && 'Service'}
+                  {suggestion.type === 'category' && 'Catégorie'}
+                  {suggestion.type === 'specialty' && 'Spécialité'}
+                  {suggestion.type === 'service-category' && 'Catégorie de service'}
+                </Text>
+              </View>
+              <Ionicons name="arrow-forward" size={16} color="#777E5C" />
+            </TouchableOpacity>
+          ))}
+        </View>
+      );
+    }
+
+    // État de recherche en cours
     if (isSearching) {
       return (
         <View style={styles.loadingContainer}>
@@ -128,6 +331,7 @@ export default function SearchScreen({ navigation, route }) {
       );
     }
 
+    // État initial sans recherche
     if (!searchQuery.trim()) {
       return (
         <View style={styles.emptyContainer}>
@@ -262,21 +466,13 @@ export default function SearchScreen({ navigation, route }) {
                 <Text style={styles.sectionTitle}>Services ({searchResults.services.length})</Text>
                 <View style={styles.cardsGrid}>
                   {searchResults.services.slice(0, 6).map((service) => (
-                    <TouchableOpacity 
+                    <ServiceCard
                       key={service.id}
-                      style={styles.resultItem} 
-                      onPress={() => navigation.navigate('ServiceDetail', { service })}
-                    >
-                      <Image source={{ uri: service.image }} style={styles.itemImage} />
-                      <View style={styles.itemContent}>
-                        <Text style={styles.itemTitle} numberOfLines={2}>{service.name}</Text>
-                        <Text style={styles.itemSubtitle}>{service.description}</Text>
-                        <View style={styles.itemFooter}>
-                          <Badge text={service.category} variant="secondary" size="small" />
-                          <Text style={styles.itemPrice}>{service.price}€</Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
+                      service={service}
+                      navigation={navigation}
+                      variant="default"
+                      style={styles.serviceCard}
+                    />
                   ))}
                 </View>
                 {searchResults.services.length > 6 && (
@@ -365,7 +561,7 @@ export default function SearchScreen({ navigation, route }) {
             style={styles.searchInput}
             placeholder="Rechercher produits, fermes, services..."
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={handleTextChange}
             onSubmitEditing={handleSearchSubmit}
             returnKeyType="search"
             autoFocus
@@ -594,5 +790,57 @@ const styles = StyleSheet.create({
   farmCard: {
     width: '100%',
     marginBottom: 16,
+  },
+  serviceCard: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  singleCategoryContainer: {
+    padding: 16,
+  },
+  categoryTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2C3E50',
+    marginBottom: 16,
+  },
+  suggestionsContainer: {
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  suggestionsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 12,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  suggestionIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  suggestionContent: {
+    flex: 1,
+  },
+  suggestionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#2C3E50',
+    marginBottom: 2,
+  },
+  suggestionType: {
+    fontSize: 12,
+    color: '#777E5C',
+    textTransform: 'capitalize',
   },
 });

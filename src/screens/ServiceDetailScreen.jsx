@@ -101,8 +101,8 @@ export default function ServiceDetailScreen({ route, navigation }) {
             <View style={styles.priceContainer}>
               <Text style={styles.priceLabel}>Tarif :</Text>
               <Text style={styles.priceValue}>{service.price}</Text>
-              {service.priceDetails && (
-                <Text style={styles.priceDetails}>{service.priceDetails}</Text>
+              {(service.price_details || service.priceDetails) && (
+                <Text style={styles.priceDetails}>{service.price_details || service.priceDetails}</Text>
               )}
             </View>
 
@@ -142,18 +142,18 @@ export default function ServiceDetailScreen({ route, navigation }) {
           <View style={styles.orderInfoSection}>
             <Text style={styles.sectionTitle}>Informations de commande</Text>
             <View style={styles.orderInfoGrid}>
-              {service.minOrder && (
+              {(service.min_order || service.minOrder) && (
                 <View style={styles.orderInfoItem}>
                   <Ionicons name="cart-outline" size={20} color="#4CAF50" />
                   <Text style={styles.orderInfoLabel}>Commande minimum</Text>
-                  <Text style={styles.orderInfoValue}>{service.minOrder} $</Text>
+                  <Text style={styles.orderInfoValue}>{service.min_order || service.minOrder}</Text>
                 </View>
               )}
-              {service.deliveryTime && (
+              {(service.delivery_time || service.deliveryTime) && (
                 <View style={styles.orderInfoItem}>
                   <Ionicons name="time-outline" size={20} color="#4CAF50" />
                   <Text style={styles.orderInfoLabel}>Délai de livraison</Text>
-                  <Text style={styles.orderInfoValue}>{service.deliveryTime}</Text>
+                  <Text style={styles.orderInfoValue}>{service.delivery_time || service.deliveryTime}</Text>
                 </View>
               )}
             </View>
@@ -196,7 +196,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
                   ))}
                 </View>
                 <Text style={styles.ratingValue}>{service.rating}/5</Text>
-                <Text style={styles.ratingCount}>({service.reviewCount} avis)</Text>
+                <Text style={styles.ratingCount}>({service.review_count || service.reviewCount || 0} avis)</Text>
               </View>
             </View>
           )}

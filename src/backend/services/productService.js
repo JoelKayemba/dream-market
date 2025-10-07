@@ -2,7 +2,7 @@ import { supabase, STORAGE_BUCKETS } from '../config/supabase';
 
 export const productService = {
   // Récupérer tous les produits
-  getAllProducts: async () => {
+  getProducts: async () => {
     try {
       const { data, error } = await supabase
         .from('products')
@@ -61,7 +61,7 @@ export const productService = {
   },
 
   // Créer un nouveau produit
-  createProduct: async (productData) => {
+  addProduct: async (productData) => {
     try {
       const { data, error } = await supabase
         .from('products')
@@ -138,14 +138,40 @@ export const productService = {
   // Activer/Désactiver un produit
   toggleProductStatus: async (productId, isActive) => {
     try {
+      // Si isActive n'est pas fourni, on récupère le statut actuel et on le bascule
+      let newStatus = isActive;
+      
+      if (newStatus === undefined) {
+        const { data: currentProduct, error: fetchError } = await supabase
+          .from('products')
+          .select('is_active')
+          .eq('id', productId)
+          .single();
+
+        if (fetchError) throw fetchError;
+        newStatus = !currentProduct.is_active;
+      }
+      
       const { data, error } = await supabase
         .from('products')
         .update({ 
-          is_active: isActive,
+          is_active: newStatus,
           updated_at: new Date().toISOString(),
         })
         .eq('id', productId)
-        .select()
+        .select(`
+          *,
+          farms (
+            id,
+            name,
+            location
+          ),
+          categories (
+            id,
+            name,
+            emoji
+          )
+        `)
         .single();
 
       if (error) throw error;

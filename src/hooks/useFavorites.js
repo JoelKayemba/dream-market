@@ -8,11 +8,17 @@ import {
   selectIsFavorite,
   selectFavoriteProducts,
   selectFavoriteFarms,
-  selectFavoriteServices
+  selectFavoriteServices,
+  // Actions backend
+  addToFavoritesBackend,
+  removeFromFavoritesBackend,
+  toggleFavoriteBackend
 } from '../store/favoritesSlice';
+import { useAuth } from './useAuth';
 
 export const useFavorites = () => {
   const dispatch = useDispatch();
+  const { user } = useAuth();
   
   // Selectors
   const favorites = useSelector(selectFavorites);
@@ -56,41 +62,156 @@ export const useFavorites = () => {
       .map(item => item.data);
   };
 
-  // Fonctions spécifiques par type
+  // Fonctions spécifiques par type avec backend
   const addProductToFavorites = (product) => {
-    addFavorite(product.id, 'product', product);
+    console.log('🔄 Adding product to favorites:', { productId: product.id, userId: user?.id });
+    if (user?.id) {
+      dispatch(addToFavoritesBackend({ userId: user.id, itemType: 'product', itemId: product.id }));
+    } else {
+      console.error('❌ No user ID available for adding product to favorites');
+    }
   };
 
   const addFarmToFavorites = (farm) => {
-    addFavorite(farm.id, 'farm', farm);
+    console.log('🔄 Adding farm to favorites:', { farmId: farm.id, userId: user?.id });
+    if (user?.id) {
+      dispatch(addToFavoritesBackend({ userId: user.id, itemType: 'farm', itemId: farm.id }));
+    } else {
+      console.error('❌ No user ID available for adding farm to favorites');
+    }
   };
 
   const addServiceToFavorites = (service) => {
-    addFavorite(service.id, 'service', service);
+    console.log('🔄 Adding service to favorites:', { serviceId: service.id, userId: user?.id });
+    if (user?.id) {
+      dispatch(addToFavoritesBackend({ userId: user.id, itemType: 'service', itemId: service.id }));
+    } else {
+      console.error('❌ No user ID available for adding service to favorites');
+    }
   };
 
   const removeProductFromFavorites = (productId) => {
-    removeFavorite(productId, 'product');
+    console.log('🔄 Removing product from favorites:', { productId, userId: user?.id });
+    if (user?.id) {
+      dispatch(removeFromFavoritesBackend({ userId: user.id, itemType: 'product', itemId: productId }));
+    } else {
+      console.error('❌ No user ID available for removing product from favorites');
+    }
   };
 
   const removeFarmFromFavorites = (farmId) => {
-    removeFavorite(farmId, 'farm');
+    console.log('🔄 Removing farm from favorites:', { farmId, userId: user?.id });
+    if (user?.id) {
+      dispatch(removeFromFavoritesBackend({ userId: user.id, itemType: 'farm', itemId: farmId }));
+    } else {
+      console.error('❌ No user ID available for removing farm from favorites');
+    }
   };
 
   const removeServiceFromFavorites = (serviceId) => {
-    removeFavorite(serviceId, 'service');
+    console.log('🔄 Removing service from favorites:', { serviceId, userId: user?.id });
+    if (user?.id) {
+      dispatch(removeFromFavoritesBackend({ userId: user.id, itemType: 'service', itemId: serviceId }));
+    } else {
+      console.error('❌ No user ID available for removing service from favorites');
+    }
   };
 
   const toggleProductFavorite = (product) => {
-    toggleFavoriteItem(product.id, 'product', product);
+    console.log('🔄 Toggling product favorite:', { productId: product.id, userId: user?.id });
+    if (user?.id) {
+      // 1. Mise à jour optimiste de l'UI (immédiate)
+      const isCurrentlyFavorite = isFavorite(product.id, 'product');
+      if (isCurrentlyFavorite) {
+        dispatch(removeFromFavorites({ id: product.id, type: 'product' }));
+      } else {
+        dispatch(addToFavorites({ id: product.id, type: 'product', data: product }));
+      }
+      
+      // 2. Synchronisation avec le backend (en arrière-plan)
+      dispatch(toggleFavoriteBackend({ userId: user.id, itemType: 'product', itemId: product.id }))
+        .unwrap()
+        .then((result) => {
+          console.log('✅ Backend sync success:', result);
+          // Si le backend confirme, on garde l'état local
+        })
+        .catch((error) => {
+          console.error('❌ Backend sync failed, rolling back:', error);
+          // En cas d'erreur, on annule le changement local
+          const wasFavorite = isFavorite(product.id, 'product');
+          if (wasFavorite) {
+            dispatch(addToFavorites({ id: product.id, type: 'product', data: product }));
+          } else {
+            dispatch(removeFromFavorites({ id: product.id, type: 'product' }));
+          }
+        });
+    } else {
+      console.error('❌ No user ID available for toggling product favorite');
+    }
   };
 
   const toggleFarmFavorite = (farm) => {
-    toggleFavoriteItem(farm.id, 'farm', farm);
+    console.log('🔄 Toggling farm favorite:', { farmId: farm.id, userId: user?.id });
+    if (user?.id) {
+      // 1. Mise à jour optimiste de l'UI (immédiate)
+      const isCurrentlyFavorite = isFavorite(farm.id, 'farm');
+      if (isCurrentlyFavorite) {
+        dispatch(removeFromFavorites({ id: farm.id, type: 'farm' }));
+      } else {
+        dispatch(addToFavorites({ id: farm.id, type: 'farm', data: farm }));
+      }
+      
+      // 2. Synchronisation avec le backend (en arrière-plan)
+      dispatch(toggleFavoriteBackend({ userId: user.id, itemType: 'farm', itemId: farm.id }))
+        .unwrap()
+        .then((result) => {
+          console.log('✅ Backend sync success:', result);
+        })
+        .catch((error) => {
+          console.error('❌ Backend sync failed, rolling back:', error);
+          // Rollback en cas d'erreur
+          const wasFavorite = isFavorite(farm.id, 'farm');
+          if (wasFavorite) {
+            dispatch(addToFavorites({ id: farm.id, type: 'farm', data: farm }));
+          } else {
+            dispatch(removeFromFavorites({ id: farm.id, type: 'farm' }));
+          }
+        });
+    } else {
+      console.error('❌ No user ID available for toggling farm favorite');
+    }
   };
 
   const toggleServiceFavorite = (service) => {
-    toggleFavoriteItem(service.id, 'service', service);
+    console.log('🔄 Toggling service favorite:', { serviceId: service.id, userId: user?.id });
+    if (user?.id) {
+      // 1. Mise à jour optimiste de l'UI (immédiate)
+      const isCurrentlyFavorite = isFavorite(service.id, 'service');
+      if (isCurrentlyFavorite) {
+        dispatch(removeFromFavorites({ id: service.id, type: 'service' }));
+      } else {
+        dispatch(addToFavorites({ id: service.id, type: 'service', data: service }));
+      }
+      
+      // 2. Synchronisation avec le backend (en arrière-plan)
+      dispatch(toggleFavoriteBackend({ userId: user.id, itemType: 'service', itemId: service.id }))
+        .unwrap()
+        .then((result) => {
+          console.log('✅ Backend sync success:', result);
+        })
+        .catch((error) => {
+          console.error('❌ Backend sync failed, rolling back:', error);
+          // Rollback en cas d'erreur
+          const wasFavorite = isFavorite(service.id, 'service');
+          if (wasFavorite) {
+            dispatch(addToFavorites({ id: service.id, type: 'service', data: service }));
+          } else {
+            dispatch(removeFromFavorites({ id: service.id, type: 'service' }));
+          }
+        });
+    } else {
+      console.error('❌ No user ID available for toggling service favorite');
+    }
   };
 
   const isProductFavorite = (productId) => {

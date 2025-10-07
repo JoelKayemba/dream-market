@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { serviceService, categoryService } from '../../backend';
 
 // État initial pour les services admin
 const initialState = {
@@ -23,180 +24,43 @@ const initialState = {
   },
   // État de l'édition
   editingService: null,
-  isEditing: false
+  isEditing: false,
+  // Catégories disponibles
+  categories: []
 };
 
 // Actions asynchrones pour les services
 export const fetchServices = createAsyncThunk(
   'adminServices/fetchServices',
-  async (params = {}, { rejectWithValue }) => {
+  async (_, { rejectWithValue }) => {
     try {
-      // Simulation d'un appel API
-      const { page = 1, limit = 20, category, status, search, sortBy, sortOrder } = params;
-      
-      // Simuler un délai d'API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Données simulées basées sur les données existantes
-      const mockServices = [
-        {
-          id: 1,
-          name: 'Livraison à domicile',
-          description: 'Service de livraison à domicile pour tous vos produits agricoles. Livraison gratuite pour les commandes supérieures à 50€.',
-          shortDescription: 'Livraison gratuite pour commandes > 50€',
-          image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500',
-          icon: '🚚',
-          price: 'Gratuit > 50€',
-          priceDetails: '5€ pour commandes < 50€',
-          isActive: true,
-          category: 'Logistique',
-          categoryId: 1,
-          features: [
-            'Livraison sous 24-48h',
-            'Suivi en temps réel',
-            'Livraison en point relais possible',
-            'Emballages écologiques',
-            'Horaires de livraison flexibles'
-          ],
-          coverage: 'Pays de la Loire et Bretagne',
-          minOrder: 20,
-          deliveryTime: '24-48h',
-          contact: {
-            phone: '02 40 12 34 56',
-            email: 'livraison@dreammarket.fr'
-          },
-          rating: 4.7,
-          reviewCount: 89,
-          createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-15T10:00:00Z'
-        },
-        {
-          id: 2,
-          name: 'Conseils agricoles',
-          description: 'Équipe d\'experts agronomes à votre service pour optimiser vos cultures, améliorer vos rendements et adopter des pratiques durables.',
-          shortDescription: 'Experts à votre service',
-          image: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=500',
-          icon: '👨‍🌾',
-          price: 'À partir de 80€',
-          priceDetails: '80€/heure de consultation',
-          isActive: true,
-          category: 'Conseil',
-          categoryId: 2,
-          features: [
-            'Audit de vos parcelles',
-            'Plan de fertilisation personnalisé',
-            'Conseils en irrigation',
-            'Gestion des maladies et ravageurs',
-            'Formation de vos équipes',
-            'Suivi régulier'
-          ],
-          coverage: 'Toute la France',
-          minOrder: 1,
-          deliveryTime: 'Sous 7 jours',
-          contact: {
-            phone: '02 40 12 34 57',
-            email: 'conseils@dreammarket.fr'
-          },
-          rating: 4.9,
-          reviewCount: 156,
-          createdAt: '2024-01-02T00:00:00Z',
-          updatedAt: '2024-01-14T15:30:00Z'
-        },
-        {
-          id: 3,
-          name: 'Formation en agriculture',
-          description: 'Formations pratiques pour améliorer vos techniques agricoles, de la plantation à la récolte.',
-          shortDescription: 'Formations pratiques',
-          image: 'https://images.unsplash.com/photo-1574944985070-8f3ebc6b79d2?w=500',
-          icon: '📚',
-          price: 'À partir de 120€',
-          priceDetails: '120€/jour de formation',
-          isActive: true,
-          category: 'Formation',
-          categoryId: 3,
-          features: [
-            'Formations sur site',
-            'Techniques modernes',
-            'Certification incluse',
-            'Matériel fourni',
-            'Suivi post-formation'
-          ],
-          coverage: 'Région Ouest',
-          minOrder: 5,
-          deliveryTime: 'Sous 15 jours',
-          contact: {
-            phone: '02 40 12 34 58',
-            email: 'formation@dreammarket.fr'
-          },
-          rating: 4.8,
-          reviewCount: 67,
-          createdAt: '2024-01-03T00:00:00Z',
-          updatedAt: '2024-01-13T09:15:00Z'
-        },
-        {
-          id: 4,
-          name: 'Maintenance d\'équipements',
-          description: 'Service de maintenance et réparation pour tous vos équipements agricoles.',
-          shortDescription: 'Maintenance équipements',
-          image: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=500',
-          icon: '🔧',
-          price: 'À partir de 60€',
-          priceDetails: '60€/heure + pièces',
-          isActive: false,
-          category: 'Maintenance',
-          categoryId: 4,
-          features: [
-            'Réparation sur site',
-            'Pièces détachées',
-            'Maintenance préventive',
-            'Garantie travaux',
-            'Urgences 24h/24'
-          ],
-          coverage: 'Département 44',
-          minOrder: 1,
-          deliveryTime: 'Sous 48h',
-          contact: {
-            phone: '02 40 12 34 59',
-            email: 'maintenance@dreammarket.fr'
-          },
-          rating: 4.6,
-          reviewCount: 34,
-          createdAt: '2024-01-04T00:00:00Z',
-          updatedAt: '2024-01-12T14:20:00Z'
-        }
-      ];
-      
-      return {
-        services: mockServices,
-        pagination: {
-          currentPage: page,
-          itemsPerPage: limit,
-          totalItems: mockServices.length,
-          totalPages: Math.ceil(mockServices.length / limit)
-        }
-      };
+      const services = await serviceService.getServices();
+      return services;
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
 
+// Action pour récupérer les catégories de services
+export const fetchCategories = createAsyncThunk(
+  'adminServices/fetchCategories',
+  async (_, { rejectWithValue }) => {
+    try {
+      const categories = await categoryService.getCategoriesByType('service');
+      return categories;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Action pour ajouter un service
 export const addService = createAsyncThunk(
   'adminServices/addService',
   async (serviceData, { rejectWithValue }) => {
     try {
-      // Simulation d'un appel API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newService = {
-        id: Date.now(),
-        ...serviceData,
-        rating: 0,
-        reviewCount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
+      const newService = await serviceService.addService(serviceData);
       return newService;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -204,19 +68,12 @@ export const addService = createAsyncThunk(
   }
 );
 
+// Action pour mettre à jour un service
 export const updateService = createAsyncThunk(
   'adminServices/updateService',
   async ({ id, serviceData }, { rejectWithValue }) => {
     try {
-      // Simulation d'un appel API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const updatedService = {
-        id,
-        ...serviceData,
-        updatedAt: new Date().toISOString()
-      };
-      
+      const updatedService = await serviceService.updateService(id, serviceData);
       return updatedService;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -224,13 +81,12 @@ export const updateService = createAsyncThunk(
   }
 );
 
+// Action pour supprimer un service
 export const deleteService = createAsyncThunk(
   'adminServices/deleteService',
   async (serviceId, { rejectWithValue }) => {
     try {
-      // Simulation d'un appel API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await serviceService.deleteService(serviceId);
       return serviceId;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -238,21 +94,20 @@ export const deleteService = createAsyncThunk(
   }
 );
 
+// Action pour basculer le statut d'un service
 export const toggleServiceStatus = createAsyncThunk(
   'adminServices/toggleServiceStatus',
-  async (serviceId, { rejectWithValue, getState }) => {
+  async ({ serviceId, isActive }, { rejectWithValue, getState }) => {
     try {
-      // Simulation d'un appel API
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Si isActive n'est pas fourni, on le récupère depuis le state
+      if (isActive === undefined) {
+        const state = getState();
+        const service = state.admin.services.services.find(s => s.id === serviceId);
+        isActive = !service?.is_active;
+      }
       
-      const state = getState();
-      const service = state.admin.services.services.find(s => s.id === serviceId);
-      
-      return {
-        id: serviceId,
-        isActive: !service.isActive,
-        updatedAt: new Date().toISOString()
-      };
+      const updatedService = await serviceService.toggleServiceStatus(serviceId, isActive);
+      return updatedService;
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -264,15 +119,20 @@ const servicesSlice = createSlice({
   name: 'adminServices',
   initialState,
   reducers: {
-    // Filtres et recherche
+    setFilters: (state, action) => {
+      state.filters = { ...state.filters, ...action.payload };
+    },
+    setSearch: (state, action) => {
+      state.filters.search = action.payload;
+    },
+    setSearchQuery: (state, action) => {
+      state.filters.search = action.payload;
+    },
     setCategoryFilter: (state, action) => {
       state.filters.category = action.payload;
     },
     setStatusFilter: (state, action) => {
       state.filters.status = action.payload;
-    },
-    setSearchQuery: (state, action) => {
-      state.filters.search = action.payload;
     },
     setSortBy: (state, action) => {
       state.filters.sortBy = action.payload;
@@ -280,13 +140,6 @@ const servicesSlice = createSlice({
     setSortOrder: (state, action) => {
       state.filters.sortOrder = action.payload;
     },
-    
-    // Pagination
-    setCurrentPage: (state, action) => {
-      state.pagination.currentPage = action.payload;
-    },
-    
-    // État d'édition
     setEditingService: (state, action) => {
       state.editingService = action.payload;
       state.isEditing = !!action.payload;
@@ -295,10 +148,17 @@ const servicesSlice = createSlice({
       state.editingService = null;
       state.isEditing = false;
     },
-    
-    // Gestion d'erreurs
     clearError: (state) => {
       state.error = null;
+    },
+    resetFilters: (state) => {
+      state.filters = {
+        category: 'all',
+        status: 'all',
+        search: '',
+        sortBy: 'name',
+        sortOrder: 'asc'
+      };
     }
   },
   extraReducers: (builder) => {
@@ -310,15 +170,26 @@ const servicesSlice = createSlice({
       })
       .addCase(fetchServices.fulfilled, (state, action) => {
         state.loading = false;
-        state.services = action.payload.services;
-        state.pagination = action.payload.pagination;
+        state.services = action.payload;
         state.lastUpdated = new Date().toISOString();
       })
       .addCase(fetchServices.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-      
+      // Fetch Categories
+      .addCase(fetchCategories.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchCategories.fulfilled, (state, action) => {
+        state.loading = false;
+        state.categories = action.payload;
+      })
+      .addCase(fetchCategories.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
       // Add Service
       .addCase(addService.pending, (state) => {
         state.loading = true;
@@ -326,14 +197,13 @@ const servicesSlice = createSlice({
       })
       .addCase(addService.fulfilled, (state, action) => {
         state.loading = false;
-        state.services.unshift(action.payload);
-        state.pagination.totalItems += 1;
+        state.services = [action.payload, ...state.services];
+        state.lastUpdated = new Date().toISOString();
       })
       .addCase(addService.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-      
       // Update Service
       .addCase(updateService.pending, (state) => {
         state.loading = true;
@@ -343,14 +213,18 @@ const servicesSlice = createSlice({
         state.loading = false;
         const index = state.services.findIndex(service => service.id === action.payload.id);
         if (index !== -1) {
-          state.services[index] = action.payload;
+          state.services = [
+            ...state.services.slice(0, index),
+            action.payload,
+            ...state.services.slice(index + 1)
+          ];
         }
+        state.lastUpdated = new Date().toISOString();
       })
       .addCase(updateService.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-      
       // Delete Service
       .addCase(deleteService.pending, (state) => {
         state.loading = true;
@@ -359,13 +233,12 @@ const servicesSlice = createSlice({
       .addCase(deleteService.fulfilled, (state, action) => {
         state.loading = false;
         state.services = state.services.filter(service => service.id !== action.payload);
-        state.pagination.totalItems -= 1;
+        state.lastUpdated = new Date().toISOString();
       })
       .addCase(deleteService.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-      
       // Toggle Service Status
       .addCase(toggleServiceStatus.pending, (state) => {
         state.loading = true;
@@ -375,9 +248,13 @@ const servicesSlice = createSlice({
         state.loading = false;
         const index = state.services.findIndex(service => service.id === action.payload.id);
         if (index !== -1) {
-          state.services[index].isActive = action.payload.isActive;
-          state.services[index].updatedAt = action.payload.updatedAt;
+          state.services = [
+            ...state.services.slice(0, index),
+            action.payload,
+            ...state.services.slice(index + 1)
+          ];
         }
+        state.lastUpdated = new Date().toISOString();
       })
       .addCase(toggleServiceStatus.rejected, (state, action) => {
         state.loading = false;
@@ -388,49 +265,57 @@ const servicesSlice = createSlice({
 
 // Export des actions
 export const {
+  setFilters,
+  setSearch,
+  setSearchQuery,
   setCategoryFilter,
   setStatusFilter,
-  setSearchQuery,
   setSortBy,
   setSortOrder,
-  setCurrentPage,
   setEditingService,
   clearEditingService,
-  clearError
+  clearError,
+  resetFilters
 } = servicesSlice.actions;
 
-// Sélecteurs
+// Selectors
 export const selectAdminServices = (state) => state.admin.services.services;
 export const selectAdminServicesLoading = (state) => state.admin.services.loading;
 export const selectAdminServicesError = (state) => state.admin.services.error;
 export const selectAdminServicesFilters = (state) => state.admin.services.filters;
 export const selectAdminServicesPagination = (state) => state.admin.services.pagination;
+export const selectEditingService = (state) => state.admin.services.editingService;
+export const selectIsEditingService = (state) => state.admin.services.isEditing;
+export const selectAdminCategories = (state) => state.admin.services.categories;
 
-// Sélecteurs dérivés
+// Selectors dérivés
 export const selectFilteredServices = (state) => {
-  const { services, filters } = state.admin.services;
+  const { services } = state.admin.services;
+  const { filters } = state.admin.services;
+  
   let filtered = [...services];
-  
-  // Filtre par catégorie
-  if (filters.category !== 'all') {
-    filtered = filtered.filter(service => service.category === filters.category);
-  }
-  
-  // Filtre par statut
-  if (filters.status !== 'all') {
-    filtered = filtered.filter(service => 
-      filters.status === 'active' ? service.isActive : !service.isActive
-    );
-  }
   
   // Filtre par recherche
   if (filters.search) {
     const searchLower = filters.search.toLowerCase();
     filtered = filtered.filter(service => 
-      service.name.toLowerCase().includes(searchLower) ||
-      service.description.toLowerCase().includes(searchLower) ||
-      service.category.toLowerCase().includes(searchLower)
+      (service.name || '').toLowerCase().includes(searchLower) ||
+      (service.description || '').toLowerCase().includes(searchLower) ||
+      (service.short_description || '').toLowerCase().includes(searchLower) ||
+      (service.price || '').toLowerCase().includes(searchLower)
     );
+  }
+  
+  // Filtre par catégorie
+  if (filters.category && filters.category !== 'all') {
+    filtered = filtered.filter(service => service.category_id === filters.category);
+  }
+  
+  // Filtre par statut
+  if (filters.status === 'active') {
+    filtered = filtered.filter(service => service.is_active);
+  } else if (filters.status === 'inactive') {
+    filtered = filtered.filter(service => !service.is_active);
   }
   
   // Tri
@@ -439,50 +324,55 @@ export const selectFilteredServices = (state) => {
     
     switch (filters.sortBy) {
       case 'name':
-        aValue = a.name;
-        bValue = b.name;
+        aValue = (a.name || '').toLowerCase();
+        bValue = (b.name || '').toLowerCase();
         break;
       case 'price':
-        aValue = a.price;
-        bValue = b.price;
+        // Pour les services, on peut trier par prix si c'est numérique
+        aValue = parseFloat(a.price) || 0;
+        bValue = parseFloat(b.price) || 0;
         break;
       case 'date':
-        aValue = new Date(a.createdAt);
-        bValue = new Date(b.createdAt);
+        aValue = new Date(a.created_at || 0);
+        bValue = new Date(b.created_at || 0);
         break;
       case 'rating':
         aValue = a.rating || 0;
         bValue = b.rating || 0;
         break;
       default:
-        aValue = a.name;
-        bValue = b.name;
+        aValue = (a.name || '').toLowerCase();
+        bValue = (b.name || '').toLowerCase();
     }
     
-    if (filters.sortOrder === 'asc') {
-      return aValue > bValue ? 1 : -1;
+    if (filters.sortOrder === 'desc') {
+      return bValue > aValue ? 1 : -1;
     } else {
-      return aValue < bValue ? 1 : -1;
+      return aValue > bValue ? 1 : -1;
     }
   });
   
   return filtered;
 };
 
-export const selectServiceById = (serviceId) => (state) => 
-  state.admin.services.services.find(service => service.id === serviceId);
-
 export const selectServiceStats = (state) => {
   const services = state.admin.services.services;
-  const stats = {
-    total: services.length,
-    active: services.filter(s => s.isActive).length,
-    inactive: services.filter(s => !s.isActive).length,
-    categories: [...new Set(services.map(s => s.category))].length,
-    avgRating: services.reduce((sum, s) => sum + (s.rating || 0), 0) / services.length || 0
-  };
   
-  return stats;
+  const avgRating = services.length > 0 
+    ? services.reduce((acc, service) => acc + (service.rating || 0), 0) / services.length
+    : 0;
+  
+  return {
+    total: services.length,
+    active: services.filter(s => s.is_active).length,
+    inactive: services.filter(s => !s.is_active).length,
+    categories: state.admin.services.categories.length,
+    avgRating: avgRating
+  };
+};
+
+export const selectServiceById = (state, serviceId) => {
+  return state.admin.services.services.find(service => service.id === serviceId);
 };
 
 export default servicesSlice.reducer;

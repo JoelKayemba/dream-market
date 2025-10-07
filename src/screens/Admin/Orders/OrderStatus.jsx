@@ -2,44 +2,52 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useDispatch, useSelector } from 'react-redux';
 import { Container, Button } from '../../../components/ui';
+import { 
+  selectOrderStats,
+  setStatusFilter
+} from '../../../store/admin/ordersSlice';
 
 export default function OrderStatus({ navigation }) {
-  const [statusStats, setStatusStats] = useState({});
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const orderStats = useSelector(selectOrderStats);
 
-  useEffect(() => {
-    loadStatusStats();
-  }, []);
-
-  const loadStatusStats = () => {
-    // TODO: Remplacer par un appel API réel
-    setStatusStats({
-      pending: { count: 15, percentage: 25 },
-      confirmed: { count: 20, percentage: 33 },
-      shipped: { count: 12, percentage: 20 },
-      delivered: { count: 10, percentage: 17 },
-      cancelled: { count: 3, percentage: 5 }
-    });
-    setLoading(false);
+  const getStatusPercentage = (count, total) => {
+    if (total === 0) return 0;
+    return Math.round((count / total) * 100);
   };
 
-  const handleUpdateStatus = (status) => {
-    Alert.alert(
-      'Mettre à jour le statut',
-      `Voulez-vous mettre à jour le statut "${status}" ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { 
-          text: 'Confirmer', 
-          onPress: () => {
-            // TODO: Implémenter la mise à jour du statut
-            console.log('Mise à jour du statut:', status);
-            Alert.alert('Succès', 'Statut mis à jour avec succès');
-          }
-        }
-      ]
-    );
+  const statusStats = {
+    pending: { 
+      count: orderStats.pending, 
+      percentage: getStatusPercentage(orderStats.pending, orderStats.total) 
+    },
+    confirmed: { 
+      count: orderStats.confirmed, 
+      percentage: getStatusPercentage(orderStats.confirmed, orderStats.total) 
+    },
+    preparing: { 
+      count: orderStats.preparing, 
+      percentage: getStatusPercentage(orderStats.preparing, orderStats.total) 
+    },
+    shipped: { 
+      count: orderStats.shipped, 
+      percentage: getStatusPercentage(orderStats.shipped, orderStats.total) 
+    },
+    delivered: { 
+      count: orderStats.delivered, 
+      percentage: getStatusPercentage(orderStats.delivered, orderStats.total) 
+    },
+    cancelled: { 
+      count: orderStats.cancelled, 
+      percentage: getStatusPercentage(orderStats.cancelled, orderStats.total) 
+    }
+  };
+
+  const handleViewOrders = (status) => {
+    dispatch(setStatusFilter(status));
+    navigation.navigate('OrdersManagement');
   };
 
   const getStatusColor = (status) => {
@@ -105,7 +113,7 @@ export default function OrderStatus({ navigation }) {
       <View style={styles.statusActions}>
         <Button
           title="Voir les commandes"
-          onPress={() => handleUpdateStatus(status)}
+          onPress={() => handleViewOrders(status)}
           variant="secondary"
           style={styles.actionButton}
         />
@@ -131,17 +139,11 @@ export default function OrderStatus({ navigation }) {
         <Container style={styles.statusSection}>
           <Text style={styles.sectionTitle}>Répartition par Statut</Text>
           
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <Text>Chargement des statistiques...</Text>
-            </View>
-          ) : (
-            <View style={styles.statusList}>
-              {Object.entries(statusStats).map(([status, stats]) => (
-                <StatusCard key={status} status={status} stats={stats} />
-              ))}
-            </View>
-          )}
+          <View style={styles.statusList}>
+            {Object.entries(statusStats).map(([status, stats]) => (
+              <StatusCard key={status} status={status} stats={stats} />
+            ))}
+          </View>
         </Container>
       </ScrollView>
     </SafeAreaView>

@@ -4,13 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { Container, Button } from '../../../components/ui';
-import { addFarm, updateFarm, selectFarmsLoading } from '../../../store/admin/farmSlice';
+import { addFarm, updateFarm, selectFarmsLoading, selectFarmsUploading, selectFarmsError } from '../../../store/admin/farmSlice';
 import { useImagePicker } from '../../../hooks/useImagePicker';
 
 export default function FarmForm({ route, navigation }) {
   const { mode = 'add', farm } = route.params || {};
   const dispatch = useDispatch();
   const loading = useSelector(selectFarmsLoading);
+  const uploading = useSelector(selectFarmsUploading);
+  const error = useSelector(selectFarmsError);
   const { showImagePickerOptions, selectedImages, setSelectedImages } = useImagePicker();
   
   const [formData, setFormData] = useState({
@@ -20,11 +22,13 @@ export default function FarmForm({ route, navigation }) {
     description: farm?.description || '',
     specialty: farm?.specialty || '',
     established: farm?.established?.toString() || new Date().getFullYear().toString(),
+    size: farm?.size?.toString() || '',
+    family_members: farm?.family_members?.toString() || farm?.familyMembers?.toString() || '',
     delivery: farm?.delivery || false,
     pickup: farm?.pickup || false,
-    farmShop: farm?.farmShop || false,
+    farm_shop: farm?.farm_shop || farm?.farmShop || false,
     certifications: farm?.certifications || [],
-    sustainablePractices: farm?.sustainablePractices || [],
+    sustainable_practices: farm?.sustainable_practices || farm?.sustainablePractices || [],
     story: farm?.story || '',
     contact: {
       phone: farm?.contact?.phone || '',
@@ -40,8 +44,8 @@ export default function FarmForm({ route, navigation }) {
   React.useEffect(() => {
     if (mode === 'edit' && farm) {
       const images = [];
-      if (farm.image) images.push({ uri: farm.image });
-      if (farm.coverImage && farm.coverImage !== farm.image) images.push({ uri: farm.coverImage });
+      if (farm.main_image) images.push({ uri: farm.main_image });
+      if (farm.cover_image) images.push({ uri: farm.cover_image });
       setSelectedImages(images);
     }
   }, [farm, mode]);
@@ -57,36 +61,6 @@ export default function FarmForm({ route, navigation }) {
     'Réduction des intrants', 'Vendanges manuelles', 'Élevage en fûts', 'Biodynamie'
   ];
 
-  const handleSave = () => {
-    // Validation
-    if (!formData.name || !formData.location) {
-      Alert.alert('Erreur', 'Veuillez remplir le nom et la localisation');
-      return;
-    }
-
-    const farmData = {
-      ...formData,
-      established: parseInt(formData.established) || new Date().getFullYear(),
-      familyMembers: farm?.familyMembers || 1,
-      size: farm?.size || '',
-      image: selectedImages[0]?.uri || farm?.image || '',
-      coverImage: selectedImages[1]?.uri || farm?.coverImage || selectedImages[0]?.uri || '',
-      products: farm?.products || [],
-      rating: farm?.rating || 0,
-      reviewCount: farm?.reviewCount || 0,
-      verified: farm?.verified || false,
-    };
-
-    if (mode === 'add') {
-      dispatch(addFarm(farmData));
-      Alert.alert('Succès', 'Ferme ajoutée avec succès');
-    } else {
-      dispatch(updateFarm({ id: farm.id, farmData }));
-      Alert.alert('Succès', 'Ferme modifiée avec succès');
-    }
-    
-    navigation.goBack();
-  };
 
   const handleImageSelection = (image) => {
     setSelectedImages([image]);
@@ -101,15 +75,57 @@ export default function FarmForm({ route, navigation }) {
   };
 
   const togglePractice = (practice) => {
-    const updatedPractices = formData.sustainablePractices.includes(practice)
-      ? formData.sustainablePractices.filter(p => p !== practice)
-      : [...formData.sustainablePractices, practice];
+    const updatedPractices = formData.sustainable_practices.includes(practice)
+      ? formData.sustainable_practices.filter(p => p !== practice)
+      : [...formData.sustainable_practices, practice];
     
-    setFormData({ ...formData, sustainablePractices: updatedPractices });
+    setFormData({ ...formData, sustainable_practices: updatedPractices });
   };
 
   const toggleBooleanField = (field) => {
     setFormData({ ...formData, [field]: !formData[field] });
+  };
+
+  const handleSave = async () => {
+    try {
+      // Validation basique
+      if (!formData.name.trim()) {
+        Alert.alert('Erreur', 'Le nom de la ferme est obligatoire');
+        return;
+      }
+
+      // Préparer les données avec conversion des types
+      const farmData = {
+        name: formData.name,
+        location: formData.location,
+        region: formData.region,
+        description: formData.description,
+        specialty: formData.specialty,
+        established: formData.established ? new Date(formData.established).toISOString() : null,
+        size: formData.size ? parseInt(formData.size) : null,
+        family_members: formData.family_members ? parseInt(formData.family_members) : null,
+        story: formData.story,
+        delivery: formData.delivery,
+        pickup: formData.pickup,
+        farm_shop: formData.farm_shop,
+        certifications: formData.certifications,
+        sustainable_practices: formData.sustainable_practices,
+        contact: formData.contact,
+        images: selectedImages.map(img => img.uri) // Ce champ sera traité par le slice
+      };
+
+      if (mode === 'edit') {
+        await dispatch(updateFarm({ id: farm.id, farmData })).unwrap();
+        Alert.alert('Succès', 'Ferme mise à jour avec succès');
+      } else {
+        await dispatch(addFarm(farmData)).unwrap();
+        Alert.alert('Succès', 'Ferme créée avec succès');
+      }
+      
+      navigation.goBack();
+    } catch (error) {
+      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+    }
   };
 
   return (
@@ -229,7 +245,29 @@ export default function FarmForm({ route, navigation }) {
                 placeholderTextColor="#999"
               />
             </View>
-           
+            <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+              <Text style={styles.label}>Taille (hectares)</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.size}
+                onChangeText={(text) => setFormData({ ...formData, size: text })}
+                placeholder="10"
+                keyboardType="numeric"
+                placeholderTextColor="#999"
+              />
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Nombre de membres de famille</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.family_members}
+              onChangeText={(text) => setFormData({ ...formData, family_members: text })}
+              placeholder="5"
+              keyboardType="numeric"
+              placeholderTextColor="#999"
+            />
           </View>
 
          
@@ -366,7 +404,7 @@ export default function FarmForm({ route, navigation }) {
           onPress={handleSave}
           variant="primary"
           style={styles.saveButton}
-          loading={loading}
+          loading={uploading || loading}
         />
       </View>
     </SafeAreaView>

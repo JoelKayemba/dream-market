@@ -1,15 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   StyleSheet, 
   ScrollView, 
   Animated, 
   Dimensions,
-  TouchableOpacity ,
-  Image
+  TouchableOpacity,
+  Image,
+  RefreshControl
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import {
   Container,
   Text,
@@ -21,48 +22,109 @@ import {
   ProductCard,
   SectionHeader
 } from '../components/ui';
-import { productCategories } from '../data/categories';
-import { products, getPopularProducts, getNewProducts, getDiscountedProducts } from '../data/products';
 import { selectCartItemsCount } from '../store/cartSlice';
+import { 
+  selectClientCategories,
+  selectPopularProducts,
+  selectNewProducts,
+  selectPromotionProducts,
+  selectClientProductsLoading,
+  fetchCategories,
+  fetchPopularProducts,
+  fetchNewProducts,
+  fetchPromotionProducts
+} from '../store/client';
+import { useNotifications } from '../hooks/useNotifications';
 
 const { width, height } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
+  const dispatch = useDispatch();
   const [scrollY] = useState(new Animated.Value(0));
+  const [refreshing, setRefreshing] = useState(false);
   const cartItemsCount = useSelector(selectCartItemsCount);
   const [searchFocused, setSearchFocused] = useState(false);
   const scrollViewRef = useRef(null);
 
-  // Données pour les sections
-  const popularProducts = getPopularProducts();
-  const newProducts = getNewProducts();
-  const discountedProducts = getDiscountedProducts();
+  // Notifications
+  const { unreadCount, configurePushNotifications } = useNotifications();
 
-  // Debug: Vérifier les données des catégories
-  console.log('📊 All productCategories:', productCategories);
-  console.log('📊 Categories slice(1, 6):', productCategories.slice(1, 6));
+  // Données du backend via Redux
+  const categories = useSelector(selectClientCategories);
+  const popularProducts = useSelector(selectPopularProducts);
+  const newProducts = useSelector(selectNewProducts);
+  const promotionProducts = useSelector(selectPromotionProducts);
+  const loading = useSelector(selectClientProductsLoading);
+
+  // Demander les permissions de notifications au montage
+  useEffect(() => {
+    const requestNotificationPermissions = async () => {
+      try {
+        await configurePushNotifications();
+      } catch (error) {
+        console.error('Erreur lors de la demande de permissions:', error);
+      }
+    };
+
+    requestNotificationPermissions();
+  }, []);
+
+  // Charger les données au montage
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      await Promise.all([
+        dispatch(fetchCategories()),
+        dispatch(fetchPopularProducts()),
+        dispatch(fetchNewProducts()),
+        dispatch(fetchPromotionProducts())
+      ]);
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
+
+  // Debug: Vérifier les données
+  console.log('📊 Categories from backend:', categories);
+  console.log('📊 Popular products:', popularProducts);
+  console.log('📊 New products:', newProducts);
+  console.log('📊 Promotion products:', promotionProducts);
+  console.log('📊 Loading state:', loading);
+  console.log('📊 Categories length:', categories?.length || 0);
+  
+  // Debug: Vérifier les données de ferme dans les produits
+  if (popularProducts && popularProducts.length > 0) {
+    console.log('🏡 First popular product farm data:', popularProducts[0]?.farms);
+  }
 
   // Gestionnaires d'événements
   const handleSearch = (query) => {
-    console.log('Recherche:', query);
     navigation.navigate('Produits', { searchQuery: query });
   };
 
   const handleCategoryPress = (category) => {
-    console.log('Catégorie sélectionnée:', category.name);
     navigation.navigate('Produits', { categoryName: category.name });
   };
 
   const handleProductPress = (product) => {
-    console.log('Produit sélectionné:', product.name);
+    // Navigation handled by ProductCard
   };
 
   const handleAddToCart = (product) => {
-    console.log('Ajout au panier:', product.name);
+    // Handled by ProductCard
   };
 
   const handleAddToFavorites = (product, isFavorite) => {
-    console.log(`${isFavorite ? 'Ajouté aux' : 'Retiré des'} favoris:`, product.name);
+    // Handled by ProductCard
   };
 
   const handleViewAllCategories = () => {
@@ -94,13 +156,6 @@ export default function HomeScreen({ navigation }) {
     extrapolate: 'clamp',
   });
 
-  // Debug: Vérifier les styles au moment du rendu
-  console.log('🎨 Styles object:', {
-    categoryButton: styles.categoryButton,
-    categoryEmoji: styles.categoryEmoji,
-    categoryName: styles.categoryName,
-    categoryFilter: styles.categoryFilter
-  });
 
   return (
     <View style={styles.container}>
@@ -136,7 +191,9 @@ export default function HomeScreen({ navigation }) {
               onPress={() => navigation.navigate('Notifications')}
             >
               <Ionicons name="notifications-outline" size={20} color="#283106" />
-              <Badge text="3" style={styles.notificationBadge} />
+              {unreadCount > 0 && (
+                <Badge text={unreadCount.toString()} style={styles.notificationBadge} />
+              )}
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -165,6 +222,14 @@ export default function HomeScreen({ navigation }) {
         ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#4CAF50']}
+            tintColor="#4CAF50"
+          />
+        }
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -209,15 +274,7 @@ export default function HomeScreen({ navigation }) {
           />
           
           <View style={styles.categoriesGrid}>
-            {productCategories.slice(1, 4).map((category) => {
-              console.log('🔍 Category data:', {
-                id: category.id,
-                name: category.name,
-                emoji: category.emoji,
-                color: category.color
-              });
-              
-              return (
+            {(categories && categories.length > 0) ? categories.slice(0, 4).map((category) => (
                 <TouchableOpacity
                   key={category.id}
                   style={styles.categoryCard}
@@ -232,8 +289,11 @@ export default function HomeScreen({ navigation }) {
                     {category.name}
                   </Text>
                 </TouchableOpacity>
-              );
-            })}
+            )) : (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Chargement des catégories...</Text>
+              </View>
+            )}
           </View>
         </Container>
 
@@ -253,7 +313,7 @@ export default function HomeScreen({ navigation }) {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.productsContainer}
           >
-            {popularProducts.map((product) => (
+            {(popularProducts || []).map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
@@ -282,7 +342,7 @@ export default function HomeScreen({ navigation }) {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.productsContainer}
           >
-            {newProducts.slice(0, 6).map((product) => (
+            {(newProducts || []).slice(0, 6).map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
@@ -311,7 +371,7 @@ export default function HomeScreen({ navigation }) {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.productsContainer}
           >
-            {discountedProducts.map((product) => (
+            {(promotionProducts || []).map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
@@ -551,10 +611,21 @@ const styles = StyleSheet.create({
     color: '#283106',
     lineHeight: 14,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#777E5C',
+    fontStyle: 'italic',
+  },
   productsContainer: {
-    paddingHorizontal: 0,
-    paddingRight: 8,
-    
+    paddingLeft: 16,
+    paddingRight: 16,
+    paddingVertical: 8,
   },
   featuredProductCard: {
     marginRight: 0,

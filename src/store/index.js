@@ -4,6 +4,7 @@ import cartReducer from './cartSlice';
 import ordersReducer from './ordersSlice';
 import favoritesReducer from './favoritesSlice';
 import adminReducer from './admin';
+import clientReducer from './client';
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     orders: ordersReducer,
     favorites: favoritesReducer,
     admin: adminReducer,
+    client: clientReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

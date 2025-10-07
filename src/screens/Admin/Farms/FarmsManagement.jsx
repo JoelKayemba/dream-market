@@ -9,6 +9,7 @@ import {
   deleteFarm,
   selectAllFarms,
   selectFarmsLoading,
+  selectFarmsUploading,
   selectFarmsError,
   setSearchQuery,
   selectSearchQuery
@@ -21,6 +22,7 @@ export default function FarmsManagement({ navigation }) {
   // Selectors Redux
   const farms = useSelector(selectAllFarms);
   const loading = useSelector(selectFarmsLoading);
+  const uploading = useSelector(selectFarmsUploading);
   const error = useSelector(selectFarmsError);
 
   useEffect(() => {
@@ -175,6 +177,10 @@ export default function FarmsManagement({ navigation }) {
             <View style={styles.loadingContainer}>
               <Text>Chargement des fermes...</Text>
             </View>
+          ) : uploading ? (
+            <View style={styles.loadingContainer}>
+              <Text>Téléchargement en cours...</Text>
+            </View>
           ) : filteredFarms.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="leaf-outline" size={64} color="#E0E0E0" />
@@ -237,7 +243,7 @@ const styles = StyleSheet.create({
     padding: 8,
     borderWidth: 1,
     borderColor: '#4CAF50',
-    borderRadius: 8,
+    borderRadius: 50,
   
   },
   searchSection: {

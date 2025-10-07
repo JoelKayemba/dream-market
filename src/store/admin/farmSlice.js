@@ -1,15 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { farms } from '../../data/farms';
+import { farmService } from '../../backend';
 
-// Actions asynchrones pour simuler les appels API
+// Actions asynchrones avec backend Supabase
 export const fetchFarms = createAsyncThunk(
   'farms/fetchFarms',
   async (_, { rejectWithValue }) => {
     try {
-      // Simulation d'un appel API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // Créer une copie profonde pour éviter les mutations
-      return JSON.parse(JSON.stringify(farms));
+      const farms = await farmService.getFarms();
+      return farms;
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -20,19 +18,27 @@ export const addFarm = createAsyncThunk(
   'farms/addFarm',
   async (farmData, { rejectWithValue }) => {
     try {
-      // Simulation d'un appel API
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const newFarm = {
-        id: Date.now(), // ID temporaire
+      // Préparer les données de la ferme
+      const farmToCreate = {
         ...farmData,
-        rating: 0,
-        reviewCount: 0,
         verified: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        rating: 0,
+        review_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
-      
+
+      // Assigner les images directement (comme pour les services)
+      if (farmData.images && farmData.images.length > 0) {
+        farmToCreate.main_image = farmData.images[0] || null;
+        farmToCreate.cover_image = farmData.images[1] || null;
+      }
+
+      // Supprimer le champ images qui n'existe pas dans le schéma
+      delete farmToCreate.images;
+
+      // Créer la ferme avec les images
+      const newFarm = await farmService.addFarm(farmToCreate);
       return newFarm;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -42,17 +48,38 @@ export const addFarm = createAsyncThunk(
 
 export const updateFarm = createAsyncThunk(
   'farms/updateFarm',
-  async ({ id, farmData }, { rejectWithValue }) => {
+  async ({ id, farmData }, { rejectWithValue, getState }) => {
     try {
-      // Simulation d'un appel API
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const state = getState();
+      const existingFarm = state.admin.farms.farms.find(farm => farm.id === id);
       
-      const updatedFarm = {
+      if (!existingFarm) {
+        throw new Error('Ferme non trouvée');
+      }
+
+      // Créer l'objet ferme mis à jour (sans les images d'abord)
+      const updatedFarmData = {
         ...farmData,
-        id,
-        updatedAt: new Date().toISOString()
+        updated_at: new Date().toISOString()
       };
-      
+
+      // Supprimer les propriétés liées aux images
+      delete updatedFarmData.images;
+      delete updatedFarmData.newImages;
+      delete updatedFarmData.imagesToDelete;
+
+      const updatedFarm = await farmService.updateFarm(id, updatedFarmData);
+
+      // Si il y a de nouvelles images, les assigner directement
+      if (farmData.images && farmData.images.length > 0) {
+        const finalUpdatedFarm = await farmService.updateFarm(id, {
+          main_image: farmData.images[0] || null,
+          cover_image: farmData.images[1] || null,
+          updated_at: new Date().toISOString()
+        });
+        return finalUpdatedFarm;
+      }
+
       return updatedFarm;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -62,10 +89,25 @@ export const updateFarm = createAsyncThunk(
 
 export const deleteFarm = createAsyncThunk(
   'farms/deleteFarm',
-  async (farmId, { rejectWithValue }) => {
+  async (farmId, { rejectWithValue, getState }) => {
     try {
-      // Simulation d'un appel API
-      await new Promise(resolve => setTimeout(resolve, 600));
+      const state = getState();
+      const farm = state.admin.farms.farms.find(f => f.id === farmId);
+      
+      if (!farm) {
+        throw new Error('Ferme non trouvée');
+      }
+
+      // Supprimer les images de la ferme
+      if (farm.images && farm.images.length > 0) {
+        const deletePromises = farm.images.map(imageUrl => 
+          storageService.deleteImage(imageUrl)
+        );
+        await Promise.all(deletePromises);
+      }
+
+      // Supprimer la ferme
+      await farmService.deleteFarm(farmId);
       return farmId;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -77,9 +119,8 @@ export const verifyFarm = createAsyncThunk(
   'farms/verifyFarm',
   async (farmId, { rejectWithValue }) => {
     try {
-      // Simulation d'un appel API
-      await new Promise(resolve => setTimeout(resolve, 600));
-      return farmId;
+      const verifiedFarm = await farmService.verifyFarm(farmId);
+      return verifiedFarm;
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -89,6 +130,7 @@ export const verifyFarm = createAsyncThunk(
 const initialState = {
   farms: [],
   loading: false,
+  uploading: false, // Pour les uploads d'images
   error: null,
   searchQuery: '',
   filter: 'all', // 'all', 'verified', 'pending'
@@ -134,25 +176,25 @@ const farmSlice = createSlice({
       
       // Add farm
       .addCase(addFarm.pending, (state) => {
-        state.loading = true;
+        state.uploading = true;
         state.error = null;
       })
       .addCase(addFarm.fulfilled, (state, action) => {
-        state.loading = false;
+        state.uploading = false;
         state.farms = [...state.farms, action.payload];
       })
       .addCase(addFarm.rejected, (state, action) => {
-        state.loading = false;
+        state.uploading = false;
         state.error = action.payload;
       })
       
       // Update farm
       .addCase(updateFarm.pending, (state) => {
-        state.loading = true;
+        state.uploading = true;
         state.error = null;
       })
       .addCase(updateFarm.fulfilled, (state, action) => {
-        state.loading = false;
+        state.uploading = false;
         const index = state.farms.findIndex(farm => farm.id === action.payload.id);
         if (index !== -1) {
           state.farms = state.farms.map((farm, i) => 
@@ -161,7 +203,7 @@ const farmSlice = createSlice({
         }
       })
       .addCase(updateFarm.rejected, (state, action) => {
-        state.loading = false;
+        state.uploading = false;
         state.error = action.payload;
       })
       
@@ -202,6 +244,7 @@ export const { setSearchQuery, setFilter, setSortBy, setSortOrder, clearError } 
 // Selectors
 export const selectAllFarms = (state) => state.admin.farms.farms;
 export const selectFarmsLoading = (state) => state.admin.farms.loading;
+export const selectFarmsUploading = (state) => state.admin.farms.uploading;
 export const selectFarmsError = (state) => state.admin.farms.error;
 export const selectSearchQuery = (state) => state.admin.farms.searchQuery;
 export const selectFilter = (state) => state.admin.farms.filter;

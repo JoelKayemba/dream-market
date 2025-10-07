@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Text } from 'react-native';
 import { 
   Container, 
@@ -7,23 +7,34 @@ import {
   Divider,
   FarmCard
 } from '../components/ui';
+import { useDispatch, useSelector } from 'react-redux';
 import { 
-  farms, 
-  getFarmsBySpecialty, 
-  getPopularFarms, 
-  getNewFarms,
-  searchFarms 
-} from '../data/farms';
-import { farmCategories } from '../data/categories';
+  selectClientFarms, 
+  selectClientFarmsLoading,
+  fetchFarms
+} from '../store/client';
 
 const { width } = Dimensions.get('window');
 
 export default function FarmsScreen({ navigation }) {
+  const dispatch = useDispatch();
+  const farms = useSelector(selectClientFarms);
+  const loading = useSelector(selectClientFarmsLoading);
+  
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSpecialty, setSelectedSpecialty] = useState(null);
 
-  // Utiliser les catégories centralisées
-  const specialties = farmCategories;
+  // Charger les données au montage du composant
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await dispatch(fetchFarms());
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+      }
+    };
+    
+    loadData();
+  }, [dispatch]);
 
   const handleSearch = () => {
     navigation.navigate('Search', { searchQuery: searchQuery });
@@ -35,8 +46,7 @@ export default function FarmsScreen({ navigation }) {
   };
 
   const handleViewProducts = (farm) => {
-    console.log('Voir produits de:', farm.name);
-    // Navigation vers les produits de la ferme
+    navigation.navigate('AllProducts', { farmId: farm.id });
   };
 
   const handleContact = (farm) => {
@@ -44,17 +54,10 @@ export default function FarmsScreen({ navigation }) {
     // Navigation vers la page de contact
   };
 
-  const handleSpecialtyFilter = (specialty) => {
-    setSelectedSpecialty(specialty);
-  };
 
   const getFilteredFarms = () => {
+    if (!farms || !Array.isArray(farms)) return [];
     let filtered = farms;
-    
-    // Filtre par spécialité
-    if (selectedSpecialty) {
-      filtered = filtered.filter(farm => farm.specialty === selectedSpecialty.name);
-    }
     
     // Filtre par recherche
     if (searchQuery.trim()) {
@@ -74,8 +77,15 @@ export default function FarmsScreen({ navigation }) {
   };
 
   const filteredFarms = getFilteredFarms();
-  const popularFarms = getPopularFarms();
-  const newFarms = getNewFarms();
+
+  // Afficher un état de chargement si les données ne sont pas encore chargées
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Chargement des fermes...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -99,115 +109,18 @@ export default function FarmsScreen({ navigation }) {
 
       <Divider />
 
-      {/* Section Catégories */}
-      <Container style={styles.section}>
-        <SectionHeader
-          title="Spécialités"
-          subtitle="Parcourez nos différentes spécialités de fermes"
-        />
-        
-        <View style={styles.categoriesGrid}>
-          {specialties.map((specialty) => (
-            <TouchableOpacity
-              key={specialty.id}
-              style={[
-                styles.categoryCard,
-                selectedSpecialty?.id === specialty.id && styles.selectedCategoryCard
-              ]}
-              onPress={() => handleSpecialtyFilter(specialty)}
-            >
-              <View style={[styles.categoryIconContainer, { backgroundColor: specialty.color + '20' }]}>
-                <Text style={[styles.categoryIcon, { fontSize: 28, color: specialty.color }]}>
-                  {specialty.emoji || '❓'}
-                </Text>
-              </View>
-              <Text style={styles.categoryLabel}>
-                {specialty.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </Container>
 
-      <Divider />
-
-      {/* Affichage conditionnel : soit les sections normales, soit les fermes de la spécialité */}
-      {!selectedSpecialty || selectedSpecialty.id === 0 ? (
-        // Affichage normal avec toutes les sections
-        <>
-          {/* Section Fermes populaires */}
-          <Container style={styles.section}>
-            <SectionHeader
-              title="Fermes populaires"
-              subtitle="Les fermes les plus appréciées par nos clients"
-              onActionPress={() => navigation.navigate('AllFarms', { filter: 'popular' })}
-              style={styles.fullWidthHeader}
-            />
-            
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.farmsContainer}
-            >
-              {popularFarms.map((farm) => (
-                <FarmCard
-                  key={farm.id}
-                  farm={farm}
-                  navigation={navigation}
-                  onPress={handleFarmPress}
-                  onViewProducts={handleViewProducts}
-                  onContact={handleContact}
-                  variant="featured"
-                  style={styles.farmCard}
-                />
-              ))}
-            </ScrollView>
-          </Container>
-
-          <Divider />
-
-          {/* Section Nouvelles fermes */}
-          <Container style={styles.section}>
-            <SectionHeader
-              title="Nouvelles fermes"
-              subtitle="Découvrez nos nouveaux partenaires"
-              onActionPress={() => navigation.navigate('AllFarms', { filter: 'new' })}
-              style={styles.fullWidthHeader}
-            />
-            
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.farmsContainer}
-            >
-              {newFarms.map((farm) => (
-                <FarmCard
-                  key={farm.id}
-                  farm={farm}
-                  navigation={navigation}
-                  onPress={handleFarmPress}
-                  onViewProducts={handleViewProducts}
-                  onContact={handleContact}
-                  variant="default"
-                  style={styles.farmCard}
-                />
-              ))}
-            </ScrollView>
-          </Container>
-
-          <Divider />
-
-          {/* Section Toutes les fermes */}
+      {/* Section Toutes les fermes */}
           <Container style={styles.section}>
             <SectionHeader
               title="Toutes nos fermes"
               subtitle="Explorez notre réseau de fermes partenaires"
-              onActionPress={() => navigation.navigate('AllFarms', { filter: 'all' })}
+              
               style={styles.fullWidthHeader}
             />
             
             <View style={styles.allFarmsGrid}>
-              {farms.map((farm) => (
+              {(farms || []).map((farm) => (
                 <FarmCard
                   key={farm.id}
                   farm={farm}
@@ -221,33 +134,6 @@ export default function FarmsScreen({ navigation }) {
               ))}
             </View>
           </Container>
-        </>
-      ) : (
-        // Affichage des fermes de la spécialité sélectionnée en pleine largeur
-        <Container style={styles.section}>
-          <SectionHeader
-            title={`${selectedSpecialty.name}`}
-            subtitle={`Fermes spécialisées en ${selectedSpecialty.name.toLowerCase()}`}
-            onActionPress={() => navigation.navigate('AllFarms', { filter: selectedSpecialty.name })}
-            style={styles.fullWidthHeader}
-          />
-          
-          <View style={styles.categoryFarmsGrid}>
-            {filteredFarms.map((farm) => (
-              <FarmCard
-                key={farm.id}
-                farm={farm}
-                navigation={navigation}
-                onPress={handleFarmPress}
-                onViewProducts={handleViewProducts}
-                onContact={handleContact}
-                variant="default"
-                style={styles.categoryFarmCard}
-              />
-            ))}
-          </View>
-        </Container>
-      )}
 
       <Divider />
 
@@ -259,7 +145,7 @@ export default function FarmsScreen({ navigation }) {
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>
-              {farms.length}
+              {(farms || []).length}
             </Text>
             <Text style={styles.statLabel}>
               Fermes partenaires
@@ -267,7 +153,7 @@ export default function FarmsScreen({ navigation }) {
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>
-              {farms.filter(f => f.certifications.includes('Bio')).length}
+              {(farms || []).filter(f => f.certifications && f.certifications.includes('Bio')).length}
             </Text>
             <Text style={styles.statLabel}>
               Fermes bio
@@ -275,7 +161,7 @@ export default function FarmsScreen({ navigation }) {
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>
-              {farms.reduce((acc, farm) => acc + farm.products.length, 0)}
+              {(farms || []).reduce((acc, farm) => acc + (farm.products ? farm.products.length : 0), 0)}
             </Text>
             <Text style={styles.statLabel}>
               Produits différents
@@ -411,6 +297,17 @@ const styles = StyleSheet.create({
   },
   section: {
     paddingVertical: 24,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#777E5C',
+    fontStyle: 'italic',
   },
   farmsContainer: {
     paddingHorizontal: 4,

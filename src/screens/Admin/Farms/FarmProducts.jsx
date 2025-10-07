@@ -5,41 +5,37 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import { Container, Button } from '../../../components/ui';
 import { selectAllFarms } from '../../../store/admin/farmSlice';
-import { products } from '../../../data/products';
+import { 
+  selectAdminProducts, 
+  selectAdminProductsLoading,
+  selectAdminCategories 
+} from '../../../store/admin/productSlice';
 
 export default function FarmProducts({ route, navigation }) {
   const { farm: initialFarm } = route.params;
   const farms = useSelector(selectAllFarms);
-  const [farmProducts, setFarmProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const allProducts = useSelector(selectAdminProducts);
+  const productsLoading = useSelector(selectAdminProductsLoading);
+  const categories = useSelector(selectAdminCategories);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Récupérer la ferme mise à jour depuis le store
   const farm = farms.find(f => f.id === initialFarm.id) || initialFarm;
 
-  useEffect(() => {
-    loadFarmProducts();
-  }, [farm]);
+  // Filtrer les produits de cette ferme
+  const farmProducts = allProducts.filter(product => product.farm_id === farm.id);
 
-  const loadFarmProducts = () => {
-    // Simuler un chargement
-    setLoading(true);
+  const filteredProducts = farmProducts.filter(product => {
+    const searchLower = searchQuery.toLowerCase();
+    const categoryName = categories.find(cat => cat.id === product.category_id)?.name || '';
     
-    // Filtrer les produits par farmId et créer une copie profonde
-    const productsByFarm = products
-      .filter(product => product.farmId === farm.id)
-      .map(product => ({ ...product }));
-    
-    setTimeout(() => {
-      setFarmProducts(productsByFarm);
-      setLoading(false);
-    }, 1000);
-  };
-
-  const filteredProducts = farmProducts.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    return (
+      (product.name || '').toLowerCase().includes(searchLower) ||
+      (product.description || '').toLowerCase().includes(searchLower) ||
+      (product.short_description || '').toLowerCase().includes(searchLower) ||
+      categoryName.toLowerCase().includes(searchLower)
+    );
+  });
 
   const handleAddProduct = () => {
     navigation.navigate('ProductForm', { 
@@ -62,37 +58,44 @@ export default function FarmProducts({ route, navigation }) {
     navigation.navigate('ProductDetail', { product });
   };
 
-  const ProductCard = ({ product }) => (
-    <View style={styles.productCard}>
-      <View style={styles.productImageContainer}>
-        <Image
-          source={{ uri: product.images?.[0] || product.image }}
-          style={styles.productImage}
-          resizeMode="cover"
-        />
-        {product.isOrganic && (
-          <View style={styles.organicBadge}>
-            <Text style={styles.organicText}>Bio</Text>
-          </View>
-        )}
-        {product.discount && (
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>-{product.discount}%</Text>
-          </View>
-        )}
-      </View>
-      
-      <View style={styles.productInfo}>
-        <Text style={styles.productName}>{product.name}</Text>
-        <Text style={styles.productCategory}>{product.category}</Text>
+  const ProductCard = ({ product }) => {
+    const categoryName = categories.find(cat => cat.id === product.category_id)?.name || 'Non catégorisé';
+    
+    return (
+      <View style={styles.productCard}>
+        <View style={styles.productImageContainer}>
+          <Image
+            source={{ uri: product.images?.[0] || product.image }}
+            style={styles.productImage}
+            resizeMode="cover"
+          />
+          {product.is_organic && (
+            <View style={styles.organicBadge}>
+              <Text style={styles.organicText}>Bio</Text>
+            </View>
+          )}
+          {product.discount && (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>-{product.discount}%</Text>
+            </View>
+          )}
+        </View>
         
-        <View style={styles.productDetails}>
-          <View style={styles.priceContainer}>
-            {product.oldPrice && (
-              <Text style={styles.oldPrice}>{product.oldPrice}€</Text>
-            )}
-            <Text style={styles.productPrice}>{product.price}€</Text>
-          </View>
+        <View style={styles.productInfo}>
+          <Text style={styles.productName}>{product.name}</Text>
+          <Text style={styles.productCategory}>📦 {categoryName}</Text>
+          
+          <View style={styles.productDetails}>
+            <View style={styles.priceContainer}>
+              {product.old_price && (
+                <Text style={styles.oldPrice}>
+                  {product.currency === 'USD' ? '$' : 'FC'} {product.old_price}
+                </Text>
+              )}
+              <Text style={styles.productPrice}>
+                {product.currency === 'USD' ? '$' : 'FC'} {product.price || 0}
+              </Text>
+            </View>
           
           <View style={styles.ratingContainer}>
             <View style={styles.stars}>
@@ -105,8 +108,8 @@ export default function FarmProducts({ route, navigation }) {
                 />
               ))}
             </View>
-            {product.reviewCount && (
-              <Text style={styles.reviewCount}>({product.reviewCount})</Text>
+            {product.review_count && (
+              <Text style={styles.reviewCount}>({product.review_count})</Text>
             )}
           </View>
         </View>
@@ -114,10 +117,10 @@ export default function FarmProducts({ route, navigation }) {
         <View style={styles.statusContainer}>
           <View style={[
             styles.statusBadge,
-            { backgroundColor: product.status === 'active' ? '#4CAF50' : '#FF9800' }
+            { backgroundColor: product.is_active ? '#4CAF50' : '#FF9800' }
           ]}>
             <Text style={styles.statusText}>
-              {product.status === 'active' ? 'Actif' : 'Inactif'}
+              {product.is_active ? 'Actif' : 'Inactif'}
             </Text>
           </View>
           
@@ -148,7 +151,8 @@ export default function FarmProducts({ route, navigation }) {
         </TouchableOpacity>
       </View>
     </View>
-  );
+    );
+  };
 
   const handleDeleteProduct = (product) => {
     Alert.alert(
@@ -160,8 +164,7 @@ export default function FarmProducts({ route, navigation }) {
           text: 'Supprimer', 
           style: 'destructive',
           onPress: () => {
-            // TODO: Implémenter la suppression
-            setFarmProducts(prev => prev.filter(p => p.id !== product.id));
+            // TODO: Implémenter la suppression via Redux
             Alert.alert('Succès', 'Produit supprimé avec succès');
           }
         }
@@ -169,17 +172,6 @@ export default function FarmProducts({ route, navigation }) {
     );
   };
 
-  const toggleProductStatus = (product) => {
-    const newStatus = product.status === 'active' ? 'inactive' : 'active';
-    setFarmProducts(prev => 
-      prev.map(p => 
-        p.id === product.id 
-          ? { ...p, status: newStatus }
-          : p
-      )
-    );
-    Alert.alert('Succès', `Produit ${newStatus === 'active' ? 'activé' : 'désactivé'} avec succès`);
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -197,10 +189,11 @@ export default function FarmProducts({ route, navigation }) {
         </View>
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => navigation.navigate('ProductsManagement', { farmId: farm.id })}
+          onPress={handleAddProduct}
         >
-          <Ionicons name="list" size={24} color="#2196F3" />
+          <Ionicons name="add" size={24} color="#4CAF50" />
         </TouchableOpacity>
+      
       </View>
 
       {/* Informations de la ferme */}
@@ -246,7 +239,7 @@ export default function FarmProducts({ route, navigation }) {
             </Text>
           </View>
 
-          {loading ? (
+          {productsLoading ? (
             <View style={styles.loadingContainer}>
               <Text>Chargement des produits...</Text>
             </View>
@@ -295,7 +288,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
   },
@@ -318,6 +311,9 @@ const styles = StyleSheet.create({
   },
   addButton: {
     padding: 8,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+    borderRadius: 50,
   },
   farmInfoSection: {
     paddingHorizontal: 16,

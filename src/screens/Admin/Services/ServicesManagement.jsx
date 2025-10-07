@@ -14,11 +14,12 @@ import {
   selectAdminServicesFilters,
   selectFilteredServices,
   selectServiceStats,
+  selectAdminCategories,
   setCategoryFilter,
   setStatusFilter,
-  setSearchQuery
+  setSearchQuery,
+  fetchCategories
 } from '../../../store/admin/servicesSlice';
-import { serviceCategories } from '../../../data/categories';
 
 export default function ServicesManagement({ navigation }) {
   const dispatch = useDispatch();
@@ -31,10 +32,12 @@ export default function ServicesManagement({ navigation }) {
   const filters = useSelector(selectAdminServicesFilters);
   const filteredServices = useSelector(selectFilteredServices);
   const stats = useSelector(selectServiceStats);
+  const categories = useSelector(selectAdminCategories);
 
-  // Charger les services au montage du composant
+  // Charger les services et catégories au montage du composant
   useEffect(() => {
     dispatch(fetchServices());
+    dispatch(fetchCategories());
   }, [dispatch]);
 
   // Gestion de la recherche
@@ -47,12 +50,13 @@ export default function ServicesManagement({ navigation }) {
 
   const categoryOptions = [
     { id: 'all', label: 'Toutes', icon: 'list-outline', count: stats.total },
-    { id: 'Logistique', label: 'Logistique', icon: 'car-outline', count: services.filter(s => s.category === 'Logistique').length },
-    { id: 'Conseil', label: 'Conseil', icon: 'bulb-outline', count: services.filter(s => s.category === 'Conseil').length },
-    { id: 'Formation', label: 'Formation', icon: 'school-outline', count: services.filter(s => s.category === 'Formation').length },
-    { id: 'Maintenance', label: 'Maintenance', icon: 'construct-outline', count: services.filter(s => s.category === 'Maintenance').length },
-    { id: 'Marketing', label: 'Marketing', icon: 'megaphone-outline', count: services.filter(s => s.category === 'Marketing').length },
-    { id: 'Certification', label: 'Certification', icon: 'shield-checkmark-outline', count: services.filter(s => s.category === 'Certification').length }
+    ...categories.map(category => ({
+      id: category.id,
+      label: category.name,
+      icon: 'folder-outline',
+      emoji: category.emoji,
+      count: services.filter(s => s.category_id === category.id).length
+    }))
   ];
 
   const statusOptions = [
@@ -97,7 +101,7 @@ export default function ServicesManagement({ navigation }) {
   };
 
   const handleToggleStatus = (service) => {
-    const action = service.isActive ? 'désactiver' : 'activer';
+    const action = service.is_active ? 'désactiver' : 'activer';
     Alert.alert(
       `${action.charAt(0).toUpperCase() + action.slice(1)} le service`,
       `Voulez-vous ${action} le service "${service.name}" ?`,
@@ -106,7 +110,10 @@ export default function ServicesManagement({ navigation }) {
         { 
           text: action.charAt(0).toUpperCase() + action.slice(1), 
           onPress: () => {
-            dispatch(toggleServiceStatus(service.id));
+            dispatch(toggleServiceStatus({ 
+              serviceId: service.id, 
+              isActive: !service.is_active 
+            }));
             Alert.alert('Succès', `Service ${action === 'activer' ? 'activé' : 'désactivé'} avec succès`);
           }
         }
@@ -130,19 +137,19 @@ export default function ServicesManagement({ navigation }) {
             <Text style={styles.serviceName}>{service.name}</Text>
             <View style={[
               styles.statusBadge, 
-              { backgroundColor: service.isActive ? '#4CAF50' + '20' : '#F44336' + '20' }
+              { backgroundColor: service.is_active ? '#4CAF50' + '20' : '#F44336' + '20' }
             ]}>
               <Text style={[
                 styles.statusText, 
-                { color: service.isActive ? '#4CAF50' : '#F44336' }
+                { color: service.is_active ? '#4CAF50' : '#F44336' }
               ]}>
-                {service.isActive ? 'Actif' : 'Inactif'}
+                {service.is_active ? 'Actif' : 'Inactif'}
               </Text>
             </View>
           </View>
-          <Text style={styles.serviceCategory}>{service.category}</Text>
+          <Text style={styles.serviceCategory}>{service.categories?.name || 'Non catégorisé'}</Text>
           <Text style={styles.serviceDescription} numberOfLines={2}>
-            {service.shortDescription}
+            {service.short_description || service.description}
           </Text>
         </View>
       </View>
@@ -155,12 +162,12 @@ export default function ServicesManagement({ navigation }) {
         <View style={styles.serviceDetail}>
           <Ionicons name="star-outline" size={16} color="#777E5C" />
           <Text style={styles.serviceDetailText}>
-            {service.rating ? `${service.rating.toFixed(1)} (${service.reviewCount})` : 'Pas d\'avis'}
+            {service.rating ? `${(service.rating || 0).toFixed(1)} (${service.review_count || 0})` : 'Pas d\'avis'}
           </Text>
         </View>
         <View style={styles.serviceDetail}>
           <Ionicons name="time-outline" size={16} color="#777E5C" />
-          <Text style={styles.serviceDetailText}>{service.deliveryTime}</Text>
+          <Text style={styles.serviceDetailText}>{service.delivery_time || 'Non spécifié'}</Text>
         </View>
       </View>
 
@@ -186,19 +193,19 @@ export default function ServicesManagement({ navigation }) {
         <View style={styles.serviceActionsRow}>
         
           <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: service.isActive ? '#FFEBEE' : '#E8F5E8' }]}
+            style={[styles.actionButton, { backgroundColor: service.is_active ? '#FFEBEE' : '#E8F5E8' }]}
             onPress={() => handleToggleStatus(service)}
           >
             <Ionicons 
-              name={service.isActive ? 'pause-outline' : 'play-outline'} 
+              name={service.is_active ? 'pause-outline' : 'play-outline'} 
               size={16} 
-              color={service.isActive ? '#F44336' : '#4CAF50'} 
+              color={service.is_active ? '#F44336' : '#4CAF50'} 
             />
             <Text style={[
               styles.actionButtonText, 
-              { color: service.isActive ? '#F44336' : '#4CAF50' }
+              { color: service.is_active ? '#F44336' : '#4CAF50' }
             ]}>
-              {service.isActive ? 'Désactiver' : 'Activer'}
+              {service.is_active ? 'Désactiver' : 'Activer'}
             </Text>
           </TouchableOpacity>
           
@@ -259,7 +266,7 @@ export default function ServicesManagement({ navigation }) {
         </View>
         <TouchableOpacity 
           style={styles.addButton}
-          onPress={() => navigation.navigate('ServiceForm', { mode: 'add' })}
+          onPress={() => navigation.navigate('AdminServiceForm', { mode: 'add' })}
         >
           <Ionicons name="add" size={24} color="#FFFFFF" />
         </TouchableOpacity>
@@ -282,7 +289,7 @@ export default function ServicesManagement({ navigation }) {
               <Text style={styles.statLabel}>Catégories</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{stats.avgRating.toFixed(1)}</Text>
+              <Text style={styles.statNumber}>{(stats.avgRating || 0).toFixed(1)}</Text>
               <Text style={styles.statLabel}>Note moy.</Text>
             </View>
           </View>

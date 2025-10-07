@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
 import { 
   Container, 
@@ -9,29 +9,63 @@ import {
   SectionHeader,
   Divider
 } from '../components/ui';
-import { productCategories } from '../data/categories';
+import { useDispatch, useSelector } from 'react-redux';
 import { 
-  getProductsByCategory, 
-  getPopularProducts, 
-  getNewProducts, 
-  getDiscountedProducts 
-} from '../data/products';
+  selectClientProducts, 
+  selectClientCategories, 
+  selectPopularProducts,
+  selectNewProducts,
+  selectPromotionProducts,
+  selectClientProductsLoading,
+  fetchProducts,
+  fetchCategories,
+  fetchPopularProducts,
+  fetchNewProducts,
+  fetchPromotionProducts
+} from '../store/client';
 
 const { width } = Dimensions.get('window');
 
 export default function ProductsScreen({ navigation, route }) {
   const { categoryName } = route.params || {};
+  const dispatch = useDispatch();
+  const products = useSelector(selectClientProducts);
+  const categories = useSelector(selectClientCategories);
+  const popularProducts = useSelector(selectPopularProducts);
+  const newProducts = useSelector(selectNewProducts);
+  const promotionProducts = useSelector(selectPromotionProducts);
+  const loading = useSelector(selectClientProductsLoading);
+  
   const [selectedCategory, setSelectedCategory] = useState(null);
 
+  // Charger les données au montage du composant
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await Promise.all([
+          dispatch(fetchProducts()),
+          dispatch(fetchCategories()),
+          dispatch(fetchPopularProducts()),
+          dispatch(fetchNewProducts()),
+          dispatch(fetchPromotionProducts())
+        ]);
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+      }
+    };
+    
+    loadData();
+  }, [dispatch]);
+
   // Initialiser la catégorie sélectionnée si reçue via navigation
-  React.useEffect(() => {
-    if (categoryName) {
-      const category = productCategories.find(cat => cat.name === categoryName);
+  useEffect(() => {
+    if (categoryName && categories && categories.length > 0) {
+      const category = categories.find(cat => cat.name === categoryName);
       if (category) {
         setSelectedCategory(category);
       }
     }
-  }, [categoryName]);
+  }, [categoryName, categories]);
 
   // Gestionnaire de recherche
   const handleSearch = (query) => {
@@ -60,8 +94,8 @@ export default function ProductsScreen({ navigation, route }) {
 
   // Obtenir les produits de la catégorie sélectionnée
   const getCategoryProducts = () => {
-    if (!selectedCategory) return [];
-    return getProductsByCategory(selectedCategory.name);
+    if (!selectedCategory || !products) return [];
+    return products.filter(product => product.categories?.name === selectedCategory.name);
   };
 
   return (
@@ -91,7 +125,7 @@ export default function ProductsScreen({ navigation, route }) {
         />
         
         <View style={styles.categoriesGrid}>
-          {productCategories.map((category) => (
+          {(categories || []).map((category) => (
             <TouchableOpacity
               key={category.id}
               style={[
@@ -132,7 +166,7 @@ export default function ProductsScreen({ navigation, route }) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.productsContainer}
             >
-              {getNewProducts().map((product) => (
+              {(newProducts || []).map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
@@ -160,7 +194,7 @@ export default function ProductsScreen({ navigation, route }) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.productsContainer}
             >
-              {getDiscountedProducts().map((product) => (
+              {(promotionProducts || []).map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
@@ -188,7 +222,7 @@ export default function ProductsScreen({ navigation, route }) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.productsContainer}
             >
-              {getPopularProducts().map((product) => (
+              {(popularProducts || []).map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
@@ -212,7 +246,7 @@ export default function ProductsScreen({ navigation, route }) {
             />
             
             <View style={styles.productsGrid}>
-              {getPopularProducts().slice(0, 6).map((product) => (
+              {(popularProducts || []).slice(0, 6).map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
@@ -327,7 +361,9 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
   productsContainer: {
-    paddingHorizontal: 4,
+    paddingLeft: 16,
+    paddingRight: 16,
+    paddingVertical: 8,
   },
   productCard: {
     marginRight: 12,

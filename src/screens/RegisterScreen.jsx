@@ -31,7 +31,7 @@ export default function RegisterScreen({ navigation }) {
       clearError();
     });
     return unsubscribe;
-  }, [navigation, clearError]);
+  }, [navigation]); // Retirer clearError des dépendances
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -91,7 +91,7 @@ export default function RegisterScreen({ navigation }) {
       
       await register(userData);
     } catch (error) {
-      console.error('Erreur d\'inscription:', error);
+      console.error('RegisterScreen - Erreur d\'inscription:', error);
     }
   };
 

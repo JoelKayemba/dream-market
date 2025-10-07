@@ -4,35 +4,40 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { Container, Button } from '../../../components/ui';
-import { addService, updateService, selectAdminServicesLoading } from '../../../store/admin/servicesSlice';
+import { addService, updateService, selectAdminServicesLoading, selectAdminCategories, fetchCategories } from '../../../store/admin/servicesSlice';
 import { useImagePicker } from '../../../hooks/useImagePicker';
-import { serviceCategories } from '../../../data/categories';
 
 export default function ServiceForm({ route, navigation }) {
   const { mode = 'add', service } = route.params || {};
   const dispatch = useDispatch();
   const loading = useSelector(selectAdminServicesLoading);
+  const categories = useSelector(selectAdminCategories);
   const { showImagePickerOptions, selectedImages, setSelectedImages } = useImagePicker();
   
   const [formData, setFormData] = useState({
     name: service?.name || '',
     description: service?.description || '',
-    shortDescription: service?.shortDescription || '',
+    short_description: service?.short_description || '',
     price: service?.price || '',
-    priceDetails: service?.priceDetails || '',
-    category: service?.category || '',
+    price_details: service?.price_details || '',
+    category_id: service?.category_id || '',
     coverage: service?.coverage || '',
-    minOrder: service?.minOrder?.toString() || '',
-    deliveryTime: service?.deliveryTime || '',
+    min_order: service?.min_order?.toString() || '',
+    delivery_time: service?.delivery_time || '',
     contact: {
       phone: service?.contact?.phone || '',
       email: service?.contact?.email || ''
     },
     features: service?.features?.join('\n') || '',
-    isActive: service?.isActive ?? true,
+    is_active: service?.is_active ?? true,
   });
 
   const [showCategorySelector, setShowCategorySelector] = useState(false);
+
+  // Charger les catégories au montage
+  useEffect(() => {
+    dispatch(fetchCategories());
+  }, [dispatch]);
 
   // Initialiser les images en mode édition
   useEffect(() => {
@@ -43,7 +48,7 @@ export default function ServiceForm({ route, navigation }) {
 
   const handleSave = () => {
     // Validation
-    if (!formData.name || !formData.description || !formData.category) {
+    if (!formData.name || !formData.description || !formData.category_id) {
       Alert.alert('Erreur', 'Veuillez remplir le nom, la description et la catégorie');
       return;
     }
@@ -55,8 +60,8 @@ export default function ServiceForm({ route, navigation }) {
 
     const serviceData = {
       ...formData,
-      image: selectedImages[0].uri,
-      minOrder: formData.minOrder ? parseInt(formData.minOrder) : null,
+      image: selectedImages[0]?.uri || null,
+      min_order: formData.min_order ? parseInt(formData.min_order) : null,
       features: formData.features ? formData.features.split('\n').filter(f => f.trim()) : [],
       icon: '🔧', // Icône par défaut
     };
@@ -77,7 +82,7 @@ export default function ServiceForm({ route, navigation }) {
   };
 
   const selectCategory = (category) => {
-    setFormData({ ...formData, category });
+    setFormData({ ...formData, category_id: category.id });
     setShowCategorySelector(false);
   };
 
@@ -153,8 +158,8 @@ export default function ServiceForm({ route, navigation }) {
               <Text style={styles.label}>Description courte *</Text>
               <TextInput
                 style={styles.input}
-                value={formData.shortDescription}
-                onChangeText={(text) => setFormData({ ...formData, shortDescription: text })}
+                value={formData.short_description}
+                onChangeText={(text) => setFormData({ ...formData, short_description: text })}
                 placeholder="Description en quelques mots"
                 placeholderTextColor="#999"
               />
@@ -182,7 +187,10 @@ export default function ServiceForm({ route, navigation }) {
                   onPress={() => setShowCategorySelector(true)}
                 >
                   <Text style={styles.categorySelectorText}>
-                    {formData.category || 'Sélectionner une catégorie'}
+                    {formData.category_id 
+                      ? categories.find(cat => cat.id === formData.category_id)?.name || 'Sélectionner une catégorie'
+                      : 'Sélectionner une catégorie'
+                    }
                   </Text>
                   <Ionicons name="chevron-down" size={20} color="#777E5C" />
                 </TouchableOpacity>
@@ -203,8 +211,8 @@ export default function ServiceForm({ route, navigation }) {
               <Text style={styles.label}>Détails du prix</Text>
               <TextInput
                 style={styles.input}
-                value={formData.priceDetails}
-                onChangeText={(text) => setFormData({ ...formData, priceDetails: text })}
+                value={formData.price_details}
+                onChangeText={(text) => setFormData({ ...formData, price_details: text })}
                 placeholder="50€/heure de consultation"
                 placeholderTextColor="#999"
               />
@@ -218,8 +226,8 @@ export default function ServiceForm({ route, navigation }) {
                 <Text style={styles.label}>Délai de livraison</Text>
                 <TextInput
                   style={styles.input}
-                  value={formData.deliveryTime}
-                  onChangeText={(text) => setFormData({ ...formData, deliveryTime: text })}
+                  value={formData.delivery_time}
+                  onChangeText={(text) => setFormData({ ...formData, delivery_time: text })}
                   placeholder="24-48h"
                   placeholderTextColor="#999"
                 />
@@ -228,8 +236,8 @@ export default function ServiceForm({ route, navigation }) {
                 <Text style={styles.label}>Commande minimum</Text>
                 <TextInput
                   style={styles.input}
-                  value={formData.minOrder}
-                  onChangeText={(text) => setFormData({ ...formData, minOrder: text })}
+                  value={formData.min_order}
+                  onChangeText={(text) => setFormData({ ...formData, min_order: text })}
                   placeholder="1"
                   keyboardType="numeric"
                   placeholderTextColor="#999"
@@ -305,7 +313,7 @@ export default function ServiceForm({ route, navigation }) {
             <View style={styles.optionsContainer}>
               <TouchableOpacity
                 style={styles.optionItem}
-                onPress={() => toggleBooleanField('isActive')}
+                onPress={() => toggleBooleanField('is_active')}
               >
                 <View style={styles.optionInfo}>
                   <Text style={styles.optionLabel}>Service actif</Text>
@@ -313,11 +321,11 @@ export default function ServiceForm({ route, navigation }) {
                 </View>
                 <View style={[
                   styles.toggle,
-                  formData.isActive && styles.toggleActive
+                  formData.is_active && styles.toggleActive
                 ]}>
                   <View style={[
                     styles.toggleThumb,
-                    formData.isActive && styles.toggleThumbActive
+                    formData.is_active && styles.toggleThumbActive
                   ]} />
                 </View>
               </TouchableOpacity>
@@ -355,18 +363,24 @@ export default function ServiceForm({ route, navigation }) {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.categoryList}>
-              {serviceCategories.filter(cat => cat.id !== 0).map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={styles.categoryOption}
-                  onPress={() => selectCategory(category.name)}
-                >
-                  <View style={styles.categoryItem}>
-                    <Text style={styles.categoryEmoji}>{category.emoji}</Text>
-                    <Text style={styles.categoryOptionText}>{category.name}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+              {categories.length > 0 ? (
+                categories.map((category) => (
+                  <TouchableOpacity
+                    key={category.id}
+                    style={styles.categoryOption}
+                    onPress={() => selectCategory(category)}
+                  >
+                    <View style={styles.categoryItem}>
+                      <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                      <Text style={styles.categoryOptionText}>{category.name}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={styles.loadingContainer}>
+                  <Text style={styles.loadingText}>Chargement des catégories...</Text>
+                </View>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -617,5 +631,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#283106',
     fontWeight: '500',
+  },
+  categoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  categoryEmoji: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#777E5C',
+    fontStyle: 'italic',
   },
 });

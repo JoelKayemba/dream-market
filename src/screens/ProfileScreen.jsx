@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout } = useAuth();
   const [quickActions] = useState([
     {
       id: 1,
@@ -42,29 +42,29 @@ export default function ProfileScreen({ navigation }) {
       icon: 'person-outline',
       color: '#FF9800',
       route: 'PersonalInfo'
+    },
+    {
+      id: 5,
+      title: 'Paramètres',
+      subtitle: 'Notifications, email, mot de passe',
+      icon: 'cog-outline',
+      color: '#9C27B0',
+      route: 'Settings'
     }
   ]);
 
-  // Rediriger si pas connecté
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigation.replace('Welcome');
-    }
-  }, [isAuthenticated, navigation]);
-
   const handleQuickAction = (action) => {
-    console.log('Action rapide:', action.title);
     if (action.route === 'Orders') {
       navigation.navigate('Orders');
     } else if (action.route === 'Support') {
       navigation.navigate('Support');
     } else if (action.route === 'Favorites') {
       navigation.navigate('Favorites');
-    } else if (action.route === 'PersonalInfo') {
-      navigation.navigate('PersonalInfo');
-    } else {
-      console.log('Page non implémentée:', action.route);
-    }
+        } else if (action.route === 'PersonalInfo') {
+          navigation.navigate('PersonalInfo');
+        } else if (action.route === 'Settings') {
+          navigation.navigate('Settings');
+        }
   };
 
   const handleLogout = () => {
@@ -85,11 +85,23 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
-  // Afficher un loader si pas d'utilisateur
+  // Afficher un message si pas d'utilisateur (sans redirection)
   if (!user) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Chargement...</Text>
+        <Text style={{ fontSize: 18, marginBottom: 10 }}>Profil en cours de chargement...</Text>
+        <Text style={{ marginBottom: 20, color: '#777E5C', textAlign: 'center', paddingHorizontal: 20 }}>
+          Si le problème persiste, veuillez vous reconnecter.
+        </Text>
+        <Button
+          title="Se reconnecter"
+          onPress={() => {
+            logout();
+            navigation.replace('Welcome');
+          }}
+          variant="outline"
+          style={{ width: 200 }}
+        />
       </View>
     );
   }

@@ -16,14 +16,20 @@ export const CURRENCY_SYMBOLS = {
 
 // Formater un prix avec devise
 export const formatPrice = (price, currency = DEFAULT_CURRENCY) => {
+  if (price === null || price === undefined || isNaN(price)) {
+    return `0${CURRENCY_SYMBOLS[currency] || currency}`;
+  }
   const symbol = CURRENCY_SYMBOLS[currency] || currency;
-  return `${price.toFixed(2)}${symbol}`;
+  return `${parseFloat(price).toFixed(2)}${symbol}`;
 };
 
 // Formater un prix avec devise et unité
 export const formatPriceWithUnit = (price, unit, currency = DEFAULT_CURRENCY) => {
+  if (price === null || price === undefined || isNaN(price)) {
+    return `0${CURRENCY_SYMBOLS[currency] || currency}/${unit}`;
+  }
   const symbol = CURRENCY_SYMBOLS[currency] || currency;
-  return `${price.toFixed(2)}${symbol}/${unit}`;
+  return `${parseFloat(price).toFixed(2)}${symbol}/${unit}`;
 };
 
 // Obtenir le symbole de devise

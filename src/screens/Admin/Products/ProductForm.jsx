@@ -4,41 +4,49 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { Container, Button } from '../../../components/ui';
-import { addProduct, updateProduct, selectAdminProductsLoading, selectAdminProducts } from '../../../store/admin/productSlice';
+import { addProduct, updateProduct, selectAdminProductsLoading, selectAdminProducts, selectAdminCategories, fetchCategories } from '../../../store/admin/productSlice';
 import { selectAllFarms, fetchFarms } from '../../../store/admin/farmSlice';
 import { useImagePicker } from '../../../hooks/useImagePicker';
-import { productCategories, getCategoryById } from '../../../data/categories';
 
 export default function ProductForm({ route, navigation }) {
   const { mode = 'add', product, farmId } = route.params || {};
   const dispatch = useDispatch();
   const loading = useSelector(selectAdminProductsLoading);
   const farms = useSelector(selectAllFarms);
+  const categories = useSelector(selectAdminCategories);
   const { showImagePickerOptions, selectedImages, setSelectedImages } = useImagePicker();
   
   const [formData, setFormData] = useState({
     name: product?.name || '',
     description: product?.description || '',
+    short_description: product?.short_description || '',
     price: product?.price?.toString() || '',
-    oldPrice: product?.oldPrice?.toString() || '',
+    old_price: product?.old_price?.toString() || '',
     currency: product?.currency || 'CDF',
     unit: product?.unit || 'kg',
-    categoryId: product?.categoryId || '',
-    farmId: farmId || product?.farmId || '',
+    category_id: product?.category_id || '',
+    farm_id: farmId || product?.farm_id || '',
     stock: product?.stock?.toString() || '0',
-    isOrganic: product?.isOrganic || false,
-    isNew: product?.isNew || false,
-    isPopular: product?.isPopular || false,
+    is_organic: product?.is_organic || false,
+    is_new: product?.is_new || false,
+    is_popular: product?.is_popular || false,
+    discount: product?.discount?.toString() || '0',
     tags: product?.tags?.join(', ') || '',
   });
 
   const [showFarmSelector, setShowFarmSelector] = useState(false);
   const [showCategorySelector, setShowCategorySelector] = useState(false);
 
-  // Charger les fermes
+  // Charger les fermes et catégories
   React.useEffect(() => {
     dispatch(fetchFarms());
+    dispatch(fetchCategories());
   }, [dispatch]);
+
+  // Debug: vérifier les catégories
+  React.useEffect(() => {
+    console.log('📊 Categories loaded:', categories.length, categories);
+  }, [categories]);
 
   // Initialiser les images si on est en mode édition
   React.useEffect(() => {
@@ -52,28 +60,27 @@ export default function ProductForm({ route, navigation }) {
 
   const handleSave = () => {
     // Validation
-    if (!formData.name || !formData.price || !formData.categoryId) {
+    if (!formData.name || !formData.price || !formData.category_id) {
       Alert.alert('Erreur', 'Veuillez remplir le nom, le prix et la catégorie');
       return;
     }
 
-    const selectedCategory = getCategoryById(parseInt(formData.categoryId));
-    const selectedFarm = farms.find(f => f.id === formData.farmId);
+    const selectedCategory = categories.find(cat => cat.id === formData.category_id);
+    const selectedFarm = farms.find(f => f.id === formData.farm_id);
 
     const productData = {
       ...formData,
       price: parseFloat(formData.price) || 0,
-      oldPrice: formData.oldPrice ? parseFloat(formData.oldPrice) : null,
+      old_price: formData.old_price ? parseFloat(formData.old_price) : null,
       stock: parseInt(formData.stock) || 0,
-      categoryId: parseInt(formData.categoryId),
-      category: selectedCategory?.name || '',
+      discount: parseInt(formData.discount) || 0,
+      category_id: formData.category_id,
+      farm_id: formData.farm_id,
       tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
       images: selectedImages.map(img => img.uri),
-      farm: selectedFarm?.name || product?.farm || '',
+      is_active: true, // Toujours actif par défaut
       rating: product?.rating || 0,
-      reviewCount: product?.reviewCount || 0,
-      discount: product?.discount || null,
-      isFavorite: product?.isFavorite || false,
+      review_count: product?.review_count || 0,
     };
 
     if (mode === 'add') {
@@ -114,12 +121,12 @@ export default function ProductForm({ route, navigation }) {
   };
 
   const selectFarm = (farm) => {
-    setFormData({ ...formData, farmId: farm.id });
+    setFormData({ ...formData, farm_id: farm.id });
     setShowFarmSelector(false);
   };
 
   const selectCategory = (category) => {
-    setFormData({ ...formData, categoryId: category.id });
+    setFormData({ ...formData, category_id: category.id });
     setShowCategorySelector(false);
   };
 
@@ -215,11 +222,23 @@ export default function ProductForm({ route, navigation }) {
               style={[styles.input, styles.textArea]}
               value={formData.description}
               onChangeText={(text) => setFormData({ ...formData, description: text })}
-              placeholder="Description du produit"
+              placeholder="Description complète du produit"
               multiline
               numberOfLines={4}
               placeholderTextColor="#999"
               textAlignVertical="top"
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Description courte</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.short_description}
+              onChangeText={(text) => setFormData({ ...formData, short_description: text })}
+              placeholder="Description courte (max 100 caractères)"
+              maxLength={100}
+              placeholderTextColor="#999"
             />
           </View>
 
@@ -239,8 +258,8 @@ export default function ProductForm({ route, navigation }) {
               <Text style={styles.label}>Ancien prix</Text>
               <TextInput
                 style={styles.input}
-                value={formData.oldPrice}
-                onChangeText={(text) => setFormData({ ...formData, oldPrice: text })}
+                value={formData.old_price}
+                onChangeText={(text) => setFormData({ ...formData, old_price: text })}
                 placeholder="0.00"
                 keyboardType="decimal-pad"
                 placeholderTextColor="#999"
@@ -285,11 +304,17 @@ export default function ProductForm({ route, navigation }) {
               <Text style={styles.label}>Catégorie *</Text>
               <TouchableOpacity
                 style={styles.categorySelector}
-                onPress={() => setShowCategorySelector(true)}
+                onPress={() => {
+                  if (categories.length === 0) {
+                    Alert.alert('Chargement', 'Les catégories sont en cours de chargement...');
+                    return;
+                  }
+                  setShowCategorySelector(true);
+                }}
               >
                 <Text style={styles.categorySelectorText}>
-                  {formData.categoryId 
-                    ? getCategoryById(parseInt(formData.categoryId))?.name || 'Sélectionner une catégorie'
+                  {formData.category_id 
+                    ? categories.find(cat => cat.id === formData.category_id)?.name || 'Sélectionner une catégorie'
                     : 'Sélectionner une catégorie'
                   }
                 </Text>
@@ -309,6 +334,19 @@ export default function ProductForm({ route, navigation }) {
             </View>
           </View>
 
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Remise (%)</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.discount}
+              onChangeText={(text) => setFormData({ ...formData, discount: text })}
+              placeholder="0"
+              keyboardType="numeric"
+              maxLength={3}
+              placeholderTextColor="#999"
+            />
+          </View>
+
           {/* Sélection de ferme - seulement si pas de farmId */}
           {!farmId && (
             <View style={styles.formGroup}>
@@ -318,8 +356,8 @@ export default function ProductForm({ route, navigation }) {
                 onPress={() => setShowFarmSelector(true)}
               >
                 <Text style={styles.farmSelectorText}>
-                  {formData.farmId 
-                    ? farms.find(f => f.id === formData.farmId)?.name || 'Sélectionner une ferme'
+                  {formData.farm_id 
+                    ? farms.find(f => f.id === formData.farm_id)?.name || 'Sélectionner une ferme'
                     : 'Sélectionner une ferme'
                   }
                 </Text>
@@ -345,37 +383,37 @@ export default function ProductForm({ route, navigation }) {
           
           <View style={styles.optionsContainer}>
             <TouchableOpacity
-              style={[styles.optionItem, formData.isOrganic && styles.optionItemActive]}
-              onPress={() => toggleBooleanField('isOrganic')}
+              style={[styles.optionItem, formData.is_organic && styles.optionItemActive]}
+              onPress={() => toggleBooleanField('is_organic')}
             >
               <Ionicons 
-                name={formData.isOrganic ? "checkmark-circle" : "checkmark-circle-outline"} 
+                name={formData.is_organic ? "checkmark-circle" : "checkmark-circle-outline"} 
                 size={24} 
-                color={formData.isOrganic ? "#4CAF50" : "#E0E0E0"} 
+                color={formData.is_organic ? "#4CAF50" : "#E0E0E0"} 
               />
               <Text style={styles.optionText}>Produit biologique</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.optionItem, formData.isNew && styles.optionItemActive]}
-              onPress={() => toggleBooleanField('isNew')}
+              style={[styles.optionItem, formData.is_new && styles.optionItemActive]}
+              onPress={() => toggleBooleanField('is_new')}
             >
               <Ionicons 
-                name={formData.isNew ? "checkmark-circle" : "checkmark-circle-outline"} 
+                name={formData.is_new ? "checkmark-circle" : "checkmark-circle-outline"} 
                 size={24} 
-                color={formData.isNew ? "#4CAF50" : "#E0E0E0"} 
+                color={formData.is_new ? "#4CAF50" : "#E0E0E0"} 
               />
               <Text style={styles.optionText}>Nouveau produit</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.optionItem, formData.isPopular && styles.optionItemActive]}
-              onPress={() => toggleBooleanField('isPopular')}
+              style={[styles.optionItem, formData.is_popular && styles.optionItemActive]}
+              onPress={() => toggleBooleanField('is_popular')}
             >
               <Ionicons 
-                name={formData.isPopular ? "checkmark-circle" : "checkmark-circle-outline"} 
+                name={formData.is_popular ? "checkmark-circle" : "checkmark-circle-outline"} 
                 size={24} 
-                color={formData.isPopular ? "#4CAF50" : "#E0E0E0"} 
+                color={formData.is_popular ? "#4CAF50" : "#E0E0E0"} 
               />
               <Text style={styles.optionText}>Produit populaire</Text>
             </TouchableOpacity>
@@ -444,11 +482,83 @@ export default function ProductForm({ route, navigation }) {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.farmList}>
-              {productCategories.filter(cat => cat.id !== 0).map((category) => (
+              {categories.length > 0 ? (
+                categories.map((category) => (
+                  <TouchableOpacity
+                    key={category.id}
+                    style={styles.farmItem}
+                    onPress={() => selectCategory(category)}
+                  >
+                    <View style={styles.categoryItem}>
+                      <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                      <Text style={styles.farmItemName}>{category.name}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={styles.loadingContainer}>
+                  <Text style={styles.loadingText}>Chargement des catégories...</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* Modal de sélection de ferme */}
+      {showFarmSelector && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Sélectionner une ferme</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowFarmSelector(false)}
+              >
+                <Ionicons name="close" size={24} color="#283106" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.farmList}>
+              {farms.map((farm) => (
+                <TouchableOpacity
+                  key={farm.id}
+                  style={styles.farmItem}
+                  onPress={() => {
+                    setFormData({ ...formData, farm_id: farm.id });
+                    setShowFarmSelector(false);
+                  }}
+                >
+                  <Text style={styles.farmItemName}>{farm.name}</Text>
+                  <Text style={styles.farmItemLocation}>{farm.location}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* Modal de sélection de catégorie */}
+      {showCategorySelector && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Sélectionner une catégorie</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowCategorySelector(false)}
+              >
+                <Ionicons name="close" size={24} color="#283106" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.farmList}>
+              {categories.map((category) => (
                 <TouchableOpacity
                   key={category.id}
                   style={styles.farmItem}
-                  onPress={() => selectCategory(category)}
+                  onPress={() => {
+                    setFormData({ ...formData, category_id: category.id });
+                    setShowCategorySelector(false);
+                  }}
                 >
                   <View style={styles.categoryItem}>
                     <Text style={styles.categoryEmoji}>{category.emoji}</Text>
@@ -749,5 +859,22 @@ const styles = StyleSheet.create({
   farmItemLocation: {
     fontSize: 14,
     color: '#777E5C',
+  },
+  categoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  categoryEmoji: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#777E5C',
+    fontStyle: 'italic',
   },
 });

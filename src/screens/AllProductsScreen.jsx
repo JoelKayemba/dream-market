@@ -3,11 +3,22 @@ import { View, StyleSheet, Text, ScrollView, TouchableOpacity, FlatList, Image }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Container, Badge, Button, SearchBar, ProductCard } from '../components/ui';
-import { products } from '../data/products';
-import { productCategories } from '../data/categories';
+import { useDispatch, useSelector } from 'react-redux';
+import { 
+  selectClientProducts, 
+  selectClientCategories, 
+  selectClientProductsLoading,
+  fetchProducts,
+  fetchCategories 
+} from '../store/client';
 
 export default function AllProductsScreen({ navigation, route }) {
   const { filter, farmId } = route.params || {};
+  const dispatch = useDispatch();
+  const products = useSelector(selectClientProducts);
+  const categories = useSelector(selectClientCategories);
+  const loading = useSelector(selectClientProductsLoading);
+  
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('name'); // 'name', 'price', 'rating', 'newest'
@@ -16,12 +27,42 @@ export default function AllProductsScreen({ navigation, route }) {
   const [selectedFarms, setSelectedFarms] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Fonction pour obtenir le titre selon le filtre
+  const getTitle = () => {
+    switch (filter) {
+      case 'featured':
+        return 'Produits Vedettes';
+      case 'new':
+        return 'Nouveaux Produits';
+      case 'promotions':
+        return 'Produits en Promotion';
+      default:
+        return 'Tous les Produits';
+    }
+  };
+
+  // Charger les données au montage du composant
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await Promise.all([
+          dispatch(fetchProducts()),
+          dispatch(fetchCategories())
+        ]);
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+      }
+    };
+    
+    loadData();
+  }, [dispatch]);
+
   // Initialiser les produits au chargement avec le filtre reçu
   useEffect(() => {
     if (products && products.length > 0) {
       applyInitialFilter();
     }
-  }, [filter, farmId]);
+  }, [filter, farmId, products]);
 
   useEffect(() => {
     if (products && products.length > 0) {
@@ -43,10 +84,10 @@ export default function AllProductsScreen({ navigation, route }) {
         filtered = filtered.filter(product => product.rating >= 4);
         break;
       case 'new':
-        filtered = filtered.filter(product => product.isNew);
+        filtered = filtered.filter(product => product.is_new);
         break;
       case 'promotions':
-        filtered = filtered.filter(product => product.discount);
+        filtered = filtered.filter(product => product.discount > 0);
         break;
       case 'all':
       default:
@@ -76,10 +117,10 @@ export default function AllProductsScreen({ navigation, route }) {
         filtered = filtered.filter(product => product.rating >= 4);
         break;
       case 'new':
-        filtered = filtered.filter(product => product.isNew);
+        filtered = filtered.filter(product => product.is_new);
         break;
       case 'promotions':
-        filtered = filtered.filter(product => product.discount);
+        filtered = filtered.filter(product => product.discount > 0);
         break;
       case 'all':
       default:
@@ -99,7 +140,7 @@ export default function AllProductsScreen({ navigation, route }) {
     // Filtre par catégories
     if (selectedCategories.length > 0) {
       filtered = filtered.filter(product =>
-        selectedCategories.includes(product.category)
+        selectedCategories.includes(product.categories?.name)
       );
     }
 
@@ -137,12 +178,12 @@ export default function AllProductsScreen({ navigation, route }) {
 
   // Utiliser les catégories centralisées
   const getCategoriesList = () => {
-    return productCategories;
+    return categories || [];
   };
 
   const getFarmsList = () => {
     if (!products || !Array.isArray(products)) return [];
-    const farms = [...new Set(products.map(p => p.farm))];
+    const farms = [...new Set(products.map(p => p.farms?.name).filter(Boolean))];
     return farms;
   };
 
@@ -321,13 +362,11 @@ export default function AllProductsScreen({ navigation, route }) {
           <Text style={styles.headerTitle}>
             {farmId ? 
               (() => {
-                const farm = require('../data/farms').farms.find(f => f.id === farmId);
-                return farm ? `Produits de ${farm.name}` : 'Produits de la ferme';
+                // Trouver la ferme dans les produits
+                const productWithFarm = products.find(p => p.farm_id === farmId);
+                return productWithFarm ? `Produits de ${productWithFarm.farms?.name}` : 'Produits de la ferme';
               })() :
-             filter === 'featured' ? 'Produits Vedettes' :
-             filter === 'new' ? 'Nouveautés' :
-             filter === 'promotions' ? 'Promotions' :
-             'Tous nos produits'}
+             getTitle()}
           </Text>
           <Text style={styles.productCount}>
             {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''}

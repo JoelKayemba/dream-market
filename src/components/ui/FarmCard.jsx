@@ -157,7 +157,7 @@ export default function FarmCard({
         {/* Image de la ferme */}
         <View style={styles.imageContainer}>
           <Image
-            source={{ uri: farm.image }}
+            source={{ uri: farm.main_image }}
             style={[styles.image, getImageStyle()]}
             resizeMode="cover"
           />
@@ -177,7 +177,7 @@ export default function FarmCard({
           {/* Note et avis */}
           <View style={styles.ratingContainer}>
             <Rating value={farm.rating} size="small" />
-            <Text style={styles.reviewCount}>({farm.reviewCount})</Text>
+            <Text style={styles.reviewCount}>({farm.review_count || 0})</Text>
           </View>
 
           {/* Bouton Favori */}

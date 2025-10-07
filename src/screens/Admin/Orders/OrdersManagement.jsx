@@ -14,7 +14,7 @@ import {
   selectFilteredOrders,
   selectOrderStats,
   setStatusFilter,
-  setSearchQuery,
+  setSearch,
   setSortBy,
   setSortOrder
 } from '../../../store/admin/ordersSlice';
@@ -39,7 +39,7 @@ export default function OrdersManagement({ navigation }) {
   // Gestion de la recherche
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      dispatch(setSearchQuery(searchQuery));
+      dispatch(setSearch(searchQuery));
     }, 300);
     return () => clearTimeout(timeoutId);
   }, [searchQuery, dispatch]);
@@ -79,21 +79,30 @@ export default function OrdersManagement({ navigation }) {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!dateString) return 'Date inconnue';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Date invalide';
+      return date.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return 'Date invalide';
+    }
   };
 
   const formatPrice = (amount, currency = 'CDF') => {
-    if (currency === 'USD') {
-      return `$${amount.toFixed(2)}`;
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return currency === 'USD' ? '$0.00' : '0 FC';
     }
-    return `${amount.toFixed(0)} FC`;
+    if (currency === 'USD') {
+      return `$${parseFloat(amount).toFixed(2)}`;
+    }
+    return `${parseFloat(amount).toFixed(0)} FC`;
   };
 
   const handleViewOrder = (order) => {
@@ -103,7 +112,7 @@ export default function OrdersManagement({ navigation }) {
   const handleUpdateStatus = (order, newStatus) => {
     Alert.alert(
       'Changer le statut',
-      `Voulez-vous passer la commande ${order.orderNumber} au statut "${getStatusLabel(newStatus)}" ?`,
+      `Voulez-vous passer la commande ${order.orderNumber || order.order_number} au statut "${getStatusLabel(newStatus)}" ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         { 
@@ -123,28 +132,28 @@ export default function OrdersManagement({ navigation }) {
   const handleContactCustomer = (order) => {
     Alert.alert(
       'Contacter le client',
-      `Comment souhaitez-vous contacter ${order.customerName} ?`,
+      `Comment souhaitez-vous contacter ${order.customerName || 'le client'} ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         { 
           text: 'Appeler', 
           onPress: () => {
             // Ici on pourrait ouvrir l'appel téléphonique
-            Alert.alert('Appel', `Appel vers ${order.customerPhone}`);
+            Alert.alert('Appel', `Appel vers ${order.customerPhone || order.phone_number}`);
           }
         },
         { 
           text: 'WhatsApp', 
           onPress: () => {
             // Ici on pourrait ouvrir WhatsApp
-            Alert.alert('WhatsApp', `Ouverture WhatsApp vers ${order.customerPhone}`);
+            Alert.alert('WhatsApp', `Ouverture WhatsApp vers ${order.customerPhone || order.phone_number}`);
           }
         },
         { 
           text: 'Email', 
           onPress: () => {
             // Ici on pourrait ouvrir l'email
-            Alert.alert('Email', `Envoi d'email à ${order.customerEmail}`);
+            Alert.alert('Email', `Envoi d'email à ${order.customerEmail || order.profiles?.email}`);
           }
         }
       ]
@@ -158,9 +167,9 @@ export default function OrdersManagement({ navigation }) {
     >
       <View style={styles.orderHeader}>
         <View style={styles.orderInfo}>
-          <Text style={styles.orderNumber}>#{order.orderNumber}</Text>
-          <Text style={styles.customerName}>{order.customerName}</Text>
-          <Text style={styles.orderDate}>{formatDate(order.date)}</Text>
+          <Text style={styles.orderNumber}>#{order.orderNumber || order.order_number}</Text>
+          <Text style={styles.customerName}>{order.customerName || 'Client inconnu'}</Text>
+          <Text style={styles.orderDate}>{formatDate(order.date || order.created_at)}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + '20' }]}>
           <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
@@ -172,7 +181,7 @@ export default function OrdersManagement({ navigation }) {
       <View style={styles.orderDetails}>
         <View style={styles.orderItem}>
           <Ionicons name="call-outline" size={16} color="#777E5C" />
-          <Text style={styles.orderItemText}>{order.customerPhone}</Text>
+          <Text style={styles.orderItemText}>{order.customerPhone || order.phone_number}</Text>
         </View>
         <View style={styles.orderItem}>
           <Ionicons name="cube-outline" size={16} color="#777E5C" />
@@ -181,9 +190,12 @@ export default function OrdersManagement({ navigation }) {
         <View style={styles.orderItem}>
           <Ionicons name="cash-outline" size={16} color="#777E5C" />
           <Text style={styles.orderItemText}>
-            {Object.entries(order.totals).map(([currency, amount]) => 
-              formatPrice(amount, currency)
-            ).join(' + ')}
+            {order.totals && Object.keys(order.totals).length > 0 
+              ? Object.entries(order.totals).map(([currency, amount]) => 
+                  formatPrice(amount, currency)
+                ).join(' + ')
+              : '0 FC'
+            }
           </Text>
         </View>
       </View>

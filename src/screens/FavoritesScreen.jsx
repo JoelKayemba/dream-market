@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -18,27 +18,55 @@ import {
   ServiceCard,
   Button
 } from '../components/ui';
-import { useFavorites } from '../hooks/useFavorites';
+import { useDispatch, useSelector } from 'react-redux';
+import { 
+  selectFavorites,
+  selectFavoriteProducts,
+  selectFavoriteFarms,
+  selectFavoriteServices,
+  selectFavoritesLoading,
+  selectFavoritesError,
+  fetchUserFavorites,
+  removeFromFavorites,
+  clearFavorites,
+  clearError
+} from '../store/favoritesSlice';
+import { useAuth } from '../hooks/useAuth';
 
 export default function FavoritesScreen({ navigation }) {
+  const dispatch = useDispatch();
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'products', 'farms', 'services'
   
-  const { 
-    favorites,
-    favoriteProducts, 
-    favoriteFarms, 
-    favoriteServices,
-    getFavoriteCount,
-    clearAllFavorites 
-  } = useFavorites();
+  // Redux selectors
+  const favorites = useSelector(selectFavorites);
+  const favoriteProducts = useSelector(selectFavoriteProducts);
+  const favoriteFarms = useSelector(selectFavoriteFarms);
+  const favoriteServices = useSelector(selectFavoriteServices);
+  const loading = useSelector(selectFavoritesLoading);
+  const error = useSelector(selectFavoritesError);
+  
+  // Auth
+  const { user } = useAuth();
 
-  const handleRefresh = () => {
+  // Charger les favoris au montage du composant
+  useEffect(() => {
+    if (user?.id) {
+      dispatch(fetchUserFavorites(user.id));
+    }
+  }, [dispatch, user?.id]);
+
+  const handleRefresh = async () => {
     setRefreshing(true);
-    // Simuler un refresh
-    setTimeout(() => {
+    try {
+      if (user?.id) {
+        await dispatch(fetchUserFavorites(user.id)).unwrap();
+      }
+    } catch (error) {
+      console.error('Erreur lors du refresh des favoris:', error);
+    } finally {
       setRefreshing(false);
-    }, 1000);
+    }
   };
 
   const handleClearAll = () => {
@@ -51,7 +79,7 @@ export default function FavoritesScreen({ navigation }) {
           text: 'Vider', 
           style: 'destructive',
           onPress: () => {
-            clearAllFavorites();
+            dispatch(clearFavorites());
             Alert.alert('Favoris vidés', 'Tous vos favoris ont été supprimés.');
           }
         }
@@ -71,8 +99,26 @@ export default function FavoritesScreen({ navigation }) {
     navigation.navigate('ServiceDetail', { service });
   };
 
+  // Gérer les erreurs
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Erreur', error, [
+        { text: 'OK', onPress: () => dispatch(clearError()) }
+      ]);
+    }
+  }, [error, dispatch]);
+
+  // Afficher un état de chargement si les données ne sont pas encore chargées
+  if (loading && favorites.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Chargement de vos favoris...</Text>
+      </View>
+    );
+  }
+
   const tabs = [
-    { id: 'all', label: 'Tous', count: getFavoriteCount() },
+    { id: 'all', label: 'Tous', count: favorites.length },
     { id: 'products', label: 'Produits', count: favoriteProducts.length },
     { id: 'farms', label: 'Fermes', count: favoriteFarms.length },
     { id: 'services', label: 'Services', count: favoriteServices.length },
@@ -87,11 +133,7 @@ export default function FavoritesScreen({ navigation }) {
           <Text style={styles.emptySubtitle}>
             Ajoutez des produits, fermes ou services à vos favoris pour les retrouver facilement.
           </Text>
-          <Button
-            title="Découvrir nos produits"
-            onPress={() => navigation.navigate('Products')}
-            style={styles.exploreButton}
-          />
+          
         </View>
       );
     }
@@ -289,7 +331,7 @@ export default function FavoritesScreen({ navigation }) {
           <View style={styles.titleContainer}>
             <Text style={styles.title}>Mes Favoris</Text>
             <Text style={styles.subtitle}>
-              {getFavoriteCount()} élément{getFavoriteCount() > 1 ? 's' : ''} sauvegardé{getFavoriteCount() > 1 ? 's' : ''}
+              {favorites.length} élément{favorites.length > 1 ? 's' : ''} sauvegardé{favorites.length > 1 ? 's' : ''}
             </Text>
           </View>
           {favorites.length > 0 && (
@@ -453,6 +495,18 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingBottom: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#777E5C',
+    fontStyle: 'italic',
   },
   emptyContainer: {
     flex: 1,

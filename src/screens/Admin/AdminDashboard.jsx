@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -7,106 +7,198 @@ import Container from '../../components/ui/Container';
 import { useAuth } from '../../hooks/useAuth';
 import { fetchOrders, selectOrderStats } from '../../store/admin/ordersSlice';
 import { fetchServices, selectServiceStats } from '../../store/admin/servicesSlice';
+import { selectAdminProducts, fetchProducts } from '../../store/admin/productSlice';
+import { selectAllFarms, fetchFarms } from '../../store/admin/farmSlice';
+import { fetchUserStats, selectAdminUsersStats } from '../../store/admin/usersSlice';
+import { fetchAllAnalytics, selectDashboardStats } from '../../store/admin/analyticsSlice';
 
 export default function AdminDashboard({ navigation }) {
   const { user } = useAuth();
   const dispatch = useDispatch();
   const orderStats = useSelector(selectOrderStats);
   const serviceStats = useSelector(selectServiceStats);
+  const products = useSelector(selectAdminProducts);
+  const farms = useSelector(selectAllFarms);
+  const userStats = useSelector(selectAdminUsersStats);
+  const analyticsStats = useSelector(selectDashboardStats);
   
+  const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalProducts: 0,
     totalFarms: 0,
     totalOrders: 0,
-    totalRevenue: 0
+    totalRevenue: 0,
+    pendingOrders: 0,
+    pendingFarms: 0
   });
 
   const [recentActivities, setRecentActivities] = useState([]);
 
+  // Fonction pour formater le temps écoulé
+  const formatTimeAgo = (dateString) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'À l\'instant';
+    if (diffInMinutes < 60) return `${diffInMinutes} min`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} h`;
+    return `${Math.floor(diffInMinutes / 1440)} j`;
+  };
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    Promise.all([
+      dispatch(fetchOrders()),
+      dispatch(fetchServices()),
+      dispatch(fetchProducts()),
+      dispatch(fetchFarms()),
+      dispatch(fetchUserStats()),
+      dispatch(fetchAllAnalytics())
+    ]).finally(() => {
+      setRefreshing(false);
+    });
+  }, [dispatch]);
+
   useEffect(() => {
-    // Charger les commandes, services et statistiques
-    dispatch(fetchOrders());
-    dispatch(fetchServices());
-    loadDashboardData();
+    onRefresh();
   }, [dispatch]);
 
   const loadDashboardData = () => {
-    // TODO: Remplacer par des appels API réels
+    // Calculer les statistiques à partir des données réelles
+    const totalProducts = products.length;
+    const totalFarms = farms.length;
+    const activeProducts = products.filter(p => p.is_active).length;
+    const verifiedFarms = farms.filter(f => f.verified).length;
+    const pendingFarms = farms.filter(f => !f.verified).length;
+    const pendingOrders = orderStats.pending || 0;
+    
     setStats({
-      totalUsers: 1250,
-      totalProducts: 340,
-      totalFarms: 45,
-      totalOrders: orderStats.total || 890,
-      totalRevenue: orderStats.totalRevenue || 45600,
-      totalServices: serviceStats.total || 15
+      totalUsers: userStats.total || 0,
+      totalProducts: totalProducts,
+      totalFarms: totalFarms,
+      totalOrders: orderStats.total || 0,
+      totalRevenue: orderStats.totalRevenue || 0,
+      totalServices: serviceStats.total || 0,
+      activeProducts: activeProducts,
+      verifiedFarms: verifiedFarms,
+      pendingFarms: pendingFarms,
+      pendingOrders: pendingOrders
     });
 
-    setRecentActivities([
-      { id: 1, type: 'order', message: 'Nouvelle commande #1234', time: '2 min' },
-      { id: 2, type: 'user', message: 'Nouvel utilisateur inscrit', time: '5 min' },
-      { id: 3, type: 'farm', message: 'Ferme en attente de validation', time: '10 min' },
-      { id: 4, type: 'product', message: 'Produit ajouté par Ferme Bio', time: '15 min' }
-    ]);
+    // Générer des activités récentes basées sur les données réelles
+    const recentProducts = [...products]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 2);
+    
+    const recentFarms = [...farms]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 2);
+
+    const recentOrders = orderStats.recentOrders || [];
+
+    const activities = [
+      ...recentProducts.map((product) => ({
+        id: `product-${product.id}`,
+        type: 'product',
+        message: `Nouveau produit: "${product.name}"`,
+        time: formatTimeAgo(product.created_at),
+        priority: 1
+      })),
+      ...recentFarms.map((farm) => ({
+        id: `farm-${farm.id}`,
+        type: 'farm',
+        message: farm.verified ? `Ferme vérifiée: "${farm.name}"` : `Nouvelle ferme en attente: "${farm.name}"`,
+        time: formatTimeAgo(farm.created_at),
+        priority: farm.verified ? 2 : 0 // Priorité haute pour les fermes en attente
+      })),
+      ...recentOrders.map((order) => ({
+        id: `order-${order.id}`,
+        type: 'order',
+        message: `Nouvelle commande #${order.id}`,
+        time: formatTimeAgo(order.created_at),
+        priority: 1
+      }))
+    ];
+    
+    const sortedActivities = [...activities]
+      .sort((a, b) => {
+        // Priorité d'abord, puis temps
+        if (a.priority !== b.priority) return b.priority - a.priority;
+        return new Date(b.time) - new Date(a.time);
+      })
+      .slice(0, 5);
+
+    setRecentActivities(sortedActivities);
   };
 
   // Mettre à jour les stats quand les données changent
   useEffect(() => {
-    setStats(prevStats => ({
-      ...prevStats,
-      totalOrders: orderStats.total || prevStats.totalOrders,
-      totalRevenue: orderStats.totalRevenue || prevStats.totalRevenue,
-      totalServices: serviceStats.total || prevStats.totalServices
-    }));
-  }, [orderStats, serviceStats]);
+    loadDashboardData();
+  }, [products, farms, orderStats, serviceStats, userStats]);
 
+  // Actions rapides par ordre de priorité
   const quickActions = [
     {
       id: 1,
-      title: 'Gérer les Commandes',
-      subtitle: 'Suivi, statuts, contact',
-      icon: 'receipt-outline',
-      color: '#4CAF50',
-      route: 'OrdersManagement'
+      title: 'Commandes en Attente',
+      subtitle: `${stats.pendingOrders} en attente`,
+      icon: 'time-outline',
+      color: '#FF6B35',
+      route: 'OrdersManagement',
+      badge: stats.pendingOrders,
+      priority: 0 // Haute priorité
     },
     {
       id: 2,
-      title: 'Gérer les Produits',
-      subtitle: 'Ajouter, modifier, supprimer',
-      icon: 'leaf-outline',
-      color: '#2196F3',
-      route: 'ProductsManagement'
+      title: 'Fermes à Vérifier',
+      subtitle: `${stats.pendingFarms} en attente`,
+      icon: 'business-outline',
+      color: '#FF9800',
+      route: 'FarmsManagement',
+      badge: stats.pendingFarms,
+      priority: 1
     },
     {
       id: 3,
-      title: 'Gérer les Fermes',
-      subtitle: 'Validation et gestion',
-      icon: 'business-outline',
-      color: '#FF9800',
-      route: 'FarmsManagement'
+      title: 'Analytiques',
+      subtitle: 'Graphiques et métriques',
+      icon: 'bar-chart-outline',
+      color: '#9C27B0',
+      route: 'AnalyticsDashboard',
+      priority: 2
     },
     {
       id: 4,
-      title: 'Gérer les Services',
-      subtitle: 'Services et tarifs',
-      icon: 'construct-outline',
-      color: '#9C27B0',
-      route: 'AdminServicesManagement'
+      title: 'Gérer les Produits',
+      subtitle: `${stats.totalProducts} produits`,
+      icon: 'leaf-outline',
+      color: '#4CAF50',
+      route: 'ProductsManagement',
+      priority: 2
     },
     {
-      id: 6,
-      title: 'Analytics',
-      subtitle: 'Statistiques et rapports',
-      icon: 'analytics-outline',
-      color: '#607D8B',
-      route: 'DashboardAnalytics'
-    }
+      id: 5,
+      title: 'Gérer les Services',
+      subtitle: `${stats.totalServices} services`,
+      icon: 'construct-outline',
+      color: '#2196F3',
+      route: 'AdminServicesManagement',
+      priority: 3
+    },
+   
   ];
+  
+  const sortedQuickActions = [...quickActions].sort((a, b) => a.priority - b.priority); // Trier par priorité
 
   const handleQuickAction = (action) => {
     console.log('Action admin:', action.title);
     
     switch (action.route) {
+      case 'AnalyticsDashboard':
+        navigation.navigate('AnalyticsDashboard');
+        break;
       case 'ProductsManagement':
         navigation.navigate('ProductsManagement');
         break;
@@ -122,39 +214,76 @@ export default function AdminDashboard({ navigation }) {
       case 'OrdersManagement':
         navigation.navigate('OrdersManagement');
         break;
-      case 'DashboardAnalytics':
-        navigation.navigate('DashboardAnalytics');
-        break;
       default:
-        Alert.alert('Info', `Navigation vers ${action.title} - À implémenter`);
+        console.log(`Navigation vers ${action.title} - Route non implémentée`);
     }
   };
 
-  const StatCard = ({ title, value, icon, color }) => (
+  const StatCard = ({ title, value, subtitle, icon, color, trend }) => (
     <View style={[styles.statCard, { borderLeftColor: color }]}>
       <View style={styles.statHeader}>
-        <Ionicons name={icon} size={24} color={color} />
-        <Text style={styles.statTitle}>{title}</Text>
+        <View style={[styles.statIcon, { backgroundColor: color + '20' }]}>
+          <Ionicons name={icon} size={20} color={color} />
+        </View>
+        {trend && (
+          <View style={[styles.trendBadge, { backgroundColor: trend > 0 ? '#4CAF50' : '#F44336' }]}>
+            <Ionicons 
+              name={trend > 0 ? 'trending-up' : 'trending-down'} 
+              size={12} 
+              color="#FFF" 
+            />
+            <Text style={styles.trendText}>{Math.abs(trend)}%</Text>
+          </View>
+        )}
       </View>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statTitle}>{title}</Text>
+      {subtitle && <Text style={styles.statSubtitle}>{subtitle}</Text>}
     </View>
   );
 
+  const PriorityBadge = ({ count, color }) => {
+    if (!count || count === 0) return null;
+    
+    return (
+      <View style={[styles.priorityBadge, { backgroundColor: color }]}>
+        <Text style={styles.badgeText}>{count}</Text>
+      </View>
+    );
+  };
+
   const ActivityItem = ({ activity }) => (
-    <View style={styles.activityItem}>
-      <View style={styles.activityIcon}>
+    <View style={[
+      styles.activityItem,
+      activity.priority === 0 && styles.priorityActivity
+    ]}>
+      <View style={[
+        styles.activityIcon,
+        { backgroundColor: 
+          activity.type === 'order' ? '#FF6B3520' : 
+          activity.type === 'user' ? '#2196F320' :
+          activity.type === 'farm' ? '#FF980020' : '#4CAF5020'
+        }
+      ]}>
         <Ionicons 
           name={activity.type === 'order' ? 'receipt' : 
                 activity.type === 'user' ? 'person' :
                 activity.type === 'farm' ? 'business' : 'leaf'} 
           size={16} 
-          color="#4CAF50" 
+          color={
+            activity.type === 'order' ? '#FF6B35' : 
+            activity.type === 'user' ? '#2196F3' :
+            activity.type === 'farm' ? '#FF9800' : '#4CAF50'
+          } 
         />
       </View>
       <View style={styles.activityContent}>
         <Text style={styles.activityMessage}>{activity.message}</Text>
         <Text style={styles.activityTime}>{activity.time}</Text>
       </View>
+      {activity.priority === 0 && (
+        <Ionicons name="alert-circle" size={16} color="#FF6B35" />
+      )}
     </View>
   );
 
@@ -169,56 +298,121 @@ export default function AdminDashboard({ navigation }) {
           <Ionicons name="menu" size={24} color="#283106" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Tableau de Bord </Text>
+          <Text style={styles.headerTitle}>Tableau de Bord Admin</Text>
           <Text style={styles.headerSubtitle}>Bienvenue, {user?.firstName}</Text>
         </View>
-        
+        <TouchableOpacity style={styles.settingsButton}>
+          <Ionicons name="notifications-outline" size={22} color="#283106" />
+          {(stats.pendingOrders > 0 || stats.pendingFarms > 0) && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationText}>{stats.pendingOrders + stats.pendingFarms}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Statistiques */}
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {/* Section Alertes Prioritaires */}
+        {(stats.pendingOrders > 0 || stats.pendingFarms > 0) && (
+          <Container style={styles.alertsSection}>
+            <View style={styles.alertsHeader}>
+              <Ionicons name="warning-outline" size={20} color="#FF6B35" />
+              <Text style={styles.alertsTitle}>Actions Requises</Text>
+            </View>
+            <View style={styles.alertsGrid}>
+              {stats.pendingOrders > 0 && (
+                <TouchableOpacity 
+                  style={styles.alertCard}
+                  onPress={() => navigation.navigate('OrdersManagement')}
+                >
+                  <View style={styles.alertContent}>
+                    <Ionicons name="time-outline" size={24} color="#FF6B35" />
+                    <View style={styles.alertText}>
+                      <Text style={styles.alertTitle}>Commandes en attente</Text>
+                      <Text style={styles.alertCount}>{stats.pendingOrders} commande(s)</Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#FF6B35" />
+                </TouchableOpacity>
+              )}
+              {stats.pendingFarms > 0 && (
+                <TouchableOpacity 
+                  style={styles.alertCard}
+                  onPress={() => navigation.navigate('FarmsManagement')}
+                >
+                  <View style={styles.alertContent}>
+                    <Ionicons name="business-outline" size={24} color="#FF9800" />
+                    <View style={styles.alertText}>
+                      <Text style={styles.alertTitle}>Fermes à vérifier</Text>
+                      <Text style={styles.alertCount}>{stats.pendingFarms} ferme(s)</Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#FF9800" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </Container>
+        )}
+
+        {/* Statistiques Principales */}
         <Container style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Statistiques Générales</Text>
+          <Text style={styles.sectionTitle}>Aperçu Global</Text>
           <View style={styles.statsGrid}>
             <StatCard 
-              title="Utilisateurs" 
-              value={stats.totalUsers.toLocaleString()} 
-              icon="people-outline" 
-              color="#4CAF50" 
+              title="Commandes Total" 
+              value={stats.totalOrders?.toLocaleString() || '0'} 
+              subtitle="Ce mois"
+              icon="cart-outline" 
+              color="#FF6B35"
             />
             <StatCard 
-              title="Produits" 
-              value={stats.totalProducts.toLocaleString()} 
-              icon="leaf-outline" 
+              title="Utilisateurs" 
+              value={stats.totalUsers?.toLocaleString() || '0'} 
+              subtitle="Inscrits"
+              icon="people-outline" 
               color="#2196F3" 
             />
             <StatCard 
-              title="Fermes" 
-              value={stats.totalFarms.toLocaleString()} 
-              icon="business-outline" 
-              color="#FF9800" 
+              title="Produits Actifs" 
+              value={stats.activeProducts?.toLocaleString() || '0'} 
+              subtitle={`sur ${stats.totalProducts}`}
+              icon="leaf-outline" 
+              color="#4CAF50" 
             />
             <StatCard 
-              title="Commandes" 
-              value={stats.totalOrders.toLocaleString()} 
-              icon="receipt-outline" 
-              color="#F44336" 
+              title="Fermes Vérifiées" 
+              value={stats.verifiedFarms?.toLocaleString() || '0'} 
+              subtitle={`sur ${stats.totalFarms}`}
+              icon="business-outline" 
+              color="#FF9800" 
             />
           </View>
         </Container>
 
         {/* Actions rapides */}
         <Container style={styles.actionsSection}>
-          <Text style={styles.sectionTitle}>Actions Rapides</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Actions Rapides</Text>
+            <Text style={styles.sectionSubtitle}>Gestion quotidienne</Text>
+          </View>
           <View style={styles.actionsGrid}>
-            {quickActions.map((action) => (
+            {sortedQuickActions.map((action) => (
               <TouchableOpacity
                 key={action.id}
                 style={styles.actionCard}
                 onPress={() => handleQuickAction(action)}
               >
-                <View style={[styles.actionIcon, { backgroundColor: action.color }]}>
-                  <Ionicons name={action.icon} size={24} color="#FFFFFF" />
+                <View style={styles.actionHeader}>
+                  <View style={[styles.actionIcon, { backgroundColor: action.color }]}>
+                    <Ionicons name={action.icon} size={20} color="#FFFFFF" />
+                  </View>
+                  <PriorityBadge count={action.badge} color={action.color} />
                 </View>
                 <Text style={styles.actionTitle}>{action.title}</Text>
                 <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
@@ -229,11 +423,20 @@ export default function AdminDashboard({ navigation }) {
 
         {/* Activités récentes */}
         <Container style={styles.activitiesSection}>
-          <Text style={styles.sectionTitle}>Activités Récentes</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Activités Récentes</Text>
+            <TouchableOpacity>
+              <Text style={styles.seeAllText}>Voir tout</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.activitiesList}>
-            {recentActivities.map((activity) => (
-              <ActivityItem key={activity.id} activity={activity} />
-            ))}
+            {recentActivities.length > 0 ? (
+              recentActivities.map((activity) => (
+                <ActivityItem key={activity.id} activity={activity} />
+              ))
+            ) : (
+              <Text style={styles.noActivities}>Aucune activité récente</Text>
+            )}
           </View>
         </Container>
       </ScrollView>
@@ -244,48 +447,143 @@ export default function AdminDashboard({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   menuButton: {
     padding: 8,
   },
   headerContent: {
     flex: 1,
+    marginLeft: 12,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#283106',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A202C',
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#777E5C',
+    color: '#718096',
     marginTop: 2,
   },
   settingsButton: {
     padding: 8,
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#FF6B35',
+    borderRadius: 10,
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notificationText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   content: {
     flex: 1,
   },
+  // Section Alertes
+  alertsSection: {
+    marginTop: 16,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  alertsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#FFF8F6',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFE5DE',
+  },
+  alertsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FF6B35',
+    marginLeft: 8,
+  },
+  alertsGrid: {
+    gap: 1,
+    backgroundColor: '#FFE5DE',
+  },
+  alertCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  alertContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  alertText: {
+    marginLeft: 12,
+  },
+  alertTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2D3748',
+  },
+  alertCount: {
+    fontSize: 12,
+    color: '#718096',
+    marginTop: 2,
+  },
+  // Sections communes
   statsSection: {
-    paddingVertical: 20,
+    marginTop: 16,
+  },
+  actionsSection: {
+    marginTop: 16,
+  },
+  activitiesSection: {
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#283106',
-    marginBottom: 16,
+    fontWeight: '700',
+    color: '#1A202C',
   },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#718096',
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: '#4299E1',
+    fontWeight: '500',
+  },
+  // Cartes de statistiques
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -298,28 +596,54 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderLeftWidth: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   statHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  statTitle: {
-    fontSize: 14,
-    color: '#777E5C',
-    marginLeft: 8,
+  statIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  trendText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+    marginLeft: 2,
   },
   statValue: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#1A202C',
+    marginBottom: 4,
   },
-  actionsSection: {
-    paddingVertical: 20,
+  statTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4A5568',
   },
+  statSubtitle: {
+    fontSize: 12,
+    color: '#718096',
+    marginTop: 2,
+  },
+  // Actions rapides
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -330,49 +654,74 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 12,
-    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  actionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+  },
+  priorityBadge: {
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   actionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#283106',
-    textAlign: 'center',
+    color: '#1A202C',
     marginBottom: 4,
   },
   actionSubtitle: {
     fontSize: 12,
-    color: '#777E5C',
-    textAlign: 'center',
+    color: '#718096',
+    lineHeight: 16,
   },
-  activitiesSection: {
-    paddingVertical: 20,
-  },
+  // Activités
   activitiesList: {
-    gap: 12,
+    gap: 8,
   },
   activityItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  priorityActivity: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF6B35',
+    backgroundColor: '#FFF8F6',
   },
   activityIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F0F8F0',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -382,11 +731,19 @@ const styles = StyleSheet.create({
   },
   activityMessage: {
     fontSize: 14,
-    color: '#283106',
+    fontWeight: '500',
+    color: '#2D3748',
     marginBottom: 2,
   },
   activityTime: {
     fontSize: 12,
-    color: '#777E5C',
+    color: '#718096',
+  },
+  noActivities: {
+    textAlign: 'center',
+    color: '#A0AEC0',
+    fontSize: 14,
+    fontStyle: 'italic',
+    padding: 20,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState} from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -193,7 +193,7 @@ export default function FarmDetail({ route, navigation }) {
             <View style={styles.servicesContainer}>
               <ServiceToggle service="Livraison" enabled={farm.delivery} />
               <ServiceToggle service="Retrait sur place" enabled={farm.pickup} />
-              <ServiceToggle service="Magasin à la ferme" enabled={farm.farmShop} />
+              <ServiceToggle service="Magasin à la ferme" enabled={farm.farm_shop} />
             </View>
           </View>
 
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     padding: 8,
     borderWidth: 1,
     borderColor: '#4CAF50',
-    borderRadius: 8,
+    borderRadius: 50,
   },
   content: {
     flex: 1,

@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { orderService } from '../../backend/services/orderService';
 
 // État initial pour les commandes admin
 const initialState = {
@@ -31,162 +32,41 @@ export const fetchOrders = createAsyncThunk(
   'adminOrders/fetchOrders',
   async (params = {}, { rejectWithValue }) => {
     try {
-      // Simulation d'un appel API
-      const { page = 1, limit = 20, status, search, sortBy, sortOrder } = params;
+      const orders = await orderService.getAllOrders();
       
-      // Simuler un délai d'API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Transformer les données pour correspondre au format attendu
+      const transformedOrders = orders.map(order => ({
+        id: order.id,
+        orderNumber: order.order_number,
+        customerName: order.profiles ? `${order.profiles.first_name || ''} ${order.profiles.last_name || ''}`.trim() : 'Client inconnu',
+        customerPhone: order.phone_number,
+        customerEmail: order.profiles?.email || '',
+        date: order.created_at,
+        status: order.status,
+        items: order.items || [],
+        deliveryAddress: order.delivery_address,
+        phoneNumber: order.phone_number,
+        notes: order.notes || '',
+        paymentMethod: order.payment_method,
+        totals: order.totals || {},
+        estimatedDelivery: order.estimated_delivery,
+        lastUpdated: order.last_updated,
+        createdAt: order.created_at
+      }));
       
-      // Données simulées (à remplacer par un vrai appel API)
-      const mockOrders = [
-        {
-          id: 1,
-          orderNumber: 'DM-240115001',
-          customerName: 'Jean Mukendi',
-          customerPhone: '+243 81 234 5678',
-          customerEmail: 'jean.mukendi@email.com',
-          date: '2024-01-15T08:30:00Z',
-          status: 'pending',
-          items: [
-            {
-              id: 1,
-              product: {
-                id: 1,
-                name: 'Tomates Bio Premium',
-                price: 2.50,
-                currency: 'CDF',
-                images: ['https://images.unsplash.com/photo-1506905925346-21bda4d32df4'],
-                farm: 'Ferme Bio du Val'
-              },
-              quantity: 3,
-              unit: 'kg'
-            },
-            {
-              id: 2,
-              product: {
-                id: 2,
-                name: 'Carottes Fraîches',
-                price: 1.80,
-                currency: 'CDF',
-                images: ['https://images.unsplash.com/photo-1445282768818-728615cc910a'],
-                farm: 'Ferme Bio du Val'
-              },
-              quantity: 2,
-              unit: 'kg'
-            }
-          ],
-          deliveryAddress: 'Avenue des Cliniques, Kinshasa, RDC',
-          phoneNumber: '+243 81 234 5678',
-          notes: 'Livraison préférée en matinée',
-          paymentMethod: 'cash',
-          totals: {
-            CDF: 11.10
-          },
-          estimatedDelivery: '2024-01-16T10:00:00Z',
-          lastUpdated: '2024-01-15T08:30:00Z',
-          createdAt: '2024-01-15T08:30:00Z'
-        },
-        {
-          id: 2,
-          orderNumber: 'DM-240114002',
-          customerName: 'Marie Kabila',
-          customerPhone: '+243 99 876 5432',
-          customerEmail: 'marie.kabila@email.com',
-          date: '2024-01-14T14:20:00Z',
-          status: 'confirmed',
-          items: [
-            {
-              id: 3,
-              product: {
-                id: 3,
-                name: 'Salade Verte',
-                price: 1.50,
-                currency: 'CDF',
-                images: ['https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1'],
-                farm: 'Ferme du Soleil'
-              },
-              quantity: 1,
-              unit: 'pièce'
-            }
-          ],
-          deliveryAddress: 'Commune de Limete, Kinshasa, RDC',
-          phoneNumber: '+243 99 876 5432',
-          notes: '',
-          paymentMethod: 'mobile_money',
-          totals: {
-            CDF: 1.50
-          },
-          estimatedDelivery: '2024-01-15T16:00:00Z',
-          lastUpdated: '2024-01-14T16:30:00Z',
-          createdAt: '2024-01-14T14:20:00Z'
-        },
-        {
-          id: 3,
-          orderNumber: 'DM-240113003',
-          customerName: 'Pierre Mbuyi',
-          customerPhone: '+243 85 123 4567',
-          customerEmail: 'pierre.mbuyi@email.com',
-          date: '2024-01-13T10:15:00Z',
-          status: 'delivered',
-          items: [
-            {
-              id: 4,
-              product: {
-                id: 4,
-                name: 'Pommes de Terre',
-                price: 2.00,
-                currency: 'CDF',
-                images: ['https://images.unsplash.com/photo-1518977676601-b53f82aba655'],
-                farm: 'Ferme Bio du Val'
-              },
-              quantity: 5,
-              unit: 'kg'
-            }
-          ],
-          deliveryAddress: 'Quartier Matonge, Kinshasa, RDC',
-          phoneNumber: '+243 85 123 4567',
-          notes: 'Livraison confirmée par le client',
-          paymentMethod: 'cash',
-          totals: {
-            CDF: 10.00
-          },
-          estimatedDelivery: '2024-01-14T12:00:00Z',
-          deliveredAt: '2024-01-14T11:45:00Z',
-          lastUpdated: '2024-01-14T11:45:00Z',
-          createdAt: '2024-01-13T10:15:00Z'
-        }
-      ];
-      
-      return {
-        orders: mockOrders,
-        pagination: {
-          currentPage: page,
-          itemsPerPage: limit,
-          totalItems: mockOrders.length,
-          totalPages: Math.ceil(mockOrders.length / limit)
-        }
-      };
+      return transformedOrders;
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
 
+// Action pour mettre à jour le statut d'une commande
 export const updateOrderStatus = createAsyncThunk(
   'adminOrders/updateOrderStatus',
-  async ({ orderId, status, notes }, { rejectWithValue, getState }) => {
+  async ({ orderId, status }, { rejectWithValue }) => {
     try {
-      // Simulation d'un appel API
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Dans une vraie app, ceci ferait un appel à l'API
-      const updatedOrder = {
-        id: orderId,
-        status,
-        notes,
-        lastUpdated: new Date().toISOString()
-      };
-      
+      const updatedOrder = await orderService.updateOrderStatus(orderId, status);
       return updatedOrder;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -194,19 +74,13 @@ export const updateOrderStatus = createAsyncThunk(
   }
 );
 
-export const contactCustomer = createAsyncThunk(
-  'adminOrders/contactCustomer',
-  async ({ orderId, method, message }, { rejectWithValue }) => {
+// Action pour supprimer une commande
+export const deleteOrder = createAsyncThunk(
+  'adminOrders/deleteOrder',
+  async (orderId, { rejectWithValue }) => {
     try {
-      // Simulation d'un appel API pour enregistrer le contact
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      return {
-        orderId,
-        method,
-        message,
-        contactedAt: new Date().toISOString()
-      };
+      await orderService.deleteOrder(orderId);
+      return orderId;
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -218,15 +92,14 @@ const ordersSlice = createSlice({
   name: 'adminOrders',
   initialState,
   reducers: {
-    // Filtres et recherche
-    setStatusFilter: (state, action) => {
-      state.filters.status = action.payload;
+    setFilters: (state, action) => {
+      state.filters = { ...state.filters, ...action.payload };
     },
-    setSearchQuery: (state, action) => {
+    setSearch: (state, action) => {
       state.filters.search = action.payload;
     },
-    setDateRange: (state, action) => {
-      state.filters.dateRange = action.payload;
+    setStatusFilter: (state, action) => {
+      state.filters.status = action.payload;
     },
     setSortBy: (state, action) => {
       state.filters.sortBy = action.payload;
@@ -234,13 +107,6 @@ const ordersSlice = createSlice({
     setSortOrder: (state, action) => {
       state.filters.sortOrder = action.payload;
     },
-    
-    // Pagination
-    setCurrentPage: (state, action) => {
-      state.pagination.currentPage = action.payload;
-    },
-    
-    // État d'édition
     setEditingOrder: (state, action) => {
       state.editingOrder = action.payload;
       state.isEditing = !!action.payload;
@@ -249,10 +115,17 @@ const ordersSlice = createSlice({
       state.editingOrder = null;
       state.isEditing = false;
     },
-    
-    // Gestion d'erreurs
     clearError: (state) => {
       state.error = null;
+    },
+    resetFilters: (state) => {
+      state.filters = {
+        status: 'all',
+        search: '',
+        dateRange: null,
+        sortBy: 'date',
+        sortOrder: 'desc'
+      };
     }
   },
   extraReducers: (builder) => {
@@ -264,15 +137,13 @@ const ordersSlice = createSlice({
       })
       .addCase(fetchOrders.fulfilled, (state, action) => {
         state.loading = false;
-        state.orders = action.payload.orders;
-        state.pagination = action.payload.pagination;
+        state.orders = action.payload;
         state.lastUpdated = new Date().toISOString();
       })
       .addCase(fetchOrders.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-      
       // Update Order Status
       .addCase(updateOrderStatus.pending, (state) => {
         state.loading = true;
@@ -282,27 +153,29 @@ const ordersSlice = createSlice({
         state.loading = false;
         const index = state.orders.findIndex(order => order.id === action.payload.id);
         if (index !== -1) {
-          state.orders[index] = {
-            ...state.orders[index],
-            ...action.payload
-          };
+          state.orders = [
+            ...state.orders.slice(0, index),
+            action.payload,
+            ...state.orders.slice(index + 1)
+          ];
         }
+        state.lastUpdated = new Date().toISOString();
       })
       .addCase(updateOrderStatus.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-      
-      // Contact Customer
-      .addCase(contactCustomer.pending, (state) => {
+      // Delete Order
+      .addCase(deleteOrder.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(contactCustomer.fulfilled, (state, action) => {
+      .addCase(deleteOrder.fulfilled, (state, action) => {
         state.loading = false;
-        // Enregistrer l'historique de contact (optionnel)
+        state.orders = state.orders.filter(order => order.id !== action.payload);
+        state.lastUpdated = new Date().toISOString();
       })
-      .addCase(contactCustomer.rejected, (state, action) => {
+      .addCase(deleteOrder.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
@@ -311,42 +184,45 @@ const ordersSlice = createSlice({
 
 // Export des actions
 export const {
+  setFilters,
+  setSearch,
   setStatusFilter,
-  setSearchQuery,
-  setDateRange,
   setSortBy,
   setSortOrder,
-  setCurrentPage,
   setEditingOrder,
   clearEditingOrder,
-  clearError
+  clearError,
+  resetFilters
 } = ordersSlice.actions;
 
-// Sélecteurs
+// Selectors
 export const selectAdminOrders = (state) => state.admin.orders.orders;
 export const selectAdminOrdersLoading = (state) => state.admin.orders.loading;
 export const selectAdminOrdersError = (state) => state.admin.orders.error;
 export const selectAdminOrdersFilters = (state) => state.admin.orders.filters;
-export const selectAdminOrdersPagination = (state) => state.admin.orders.pagination;
+export const selectIsEditingOrder = (state) => state.admin.orders.isEditing;
 
-// Sélecteurs dérivés
+// Selector pour les commandes filtrées
 export const selectFilteredOrders = (state) => {
-  const { orders, filters } = state.admin.orders;
-  let filtered = [...orders];
+  const { orders } = state.admin.orders;
+  const { filters } = state.admin.orders;
   
-  // Filtre par statut
-  if (filters.status !== 'all') {
-    filtered = filtered.filter(order => order.status === filters.status);
-  }
+  let filtered = [...orders];
   
   // Filtre par recherche
   if (filters.search) {
     const searchLower = filters.search.toLowerCase();
     filtered = filtered.filter(order => 
-      order.orderNumber.toLowerCase().includes(searchLower) ||
-      order.customerName.toLowerCase().includes(searchLower) ||
-      order.customerPhone.includes(searchLower)
+      (order.orderNumber || '').toLowerCase().includes(searchLower) ||
+      (order.customerName || '').toLowerCase().includes(searchLower) ||
+      (order.customerPhone || '').toLowerCase().includes(searchLower) ||
+      (order.customerEmail || '').toLowerCase().includes(searchLower)
     );
+  }
+  
+  // Filtre par statut
+  if (filters.status !== 'all') {
+    filtered = filtered.filter(order => order.status === filters.status);
   }
   
   // Tri
@@ -355,8 +231,8 @@ export const selectFilteredOrders = (state) => {
     
     switch (filters.sortBy) {
       case 'date':
-        aValue = new Date(a.date);
-        bValue = new Date(b.date);
+        aValue = new Date(a.createdAt);
+        bValue = new Date(b.createdAt);
         break;
       case 'total':
         aValue = Object.values(a.totals)[0] || 0;
@@ -371,8 +247,8 @@ export const selectFilteredOrders = (state) => {
         bValue = b.customerName;
         break;
       default:
-        aValue = new Date(a.date);
-        bValue = new Date(b.date);
+        aValue = new Date(a.createdAt);
+        bValue = new Date(b.createdAt);
     }
     
     if (filters.sortOrder === 'asc') {

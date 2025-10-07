@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -10,22 +10,82 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { 
   Container, 
   Button, 
   Divider,
   SectionHeader
 } from '../components/ui';
-import { selectOrders } from '../store/ordersSlice';
-import { formatPrice } from '../utils/currency';
+import { 
+  fetchOrderById,
+  selectCurrentOrder,
+  selectOrdersLoading,
+  selectOrdersError,
+  clearError
+} from '../store/ordersSlice';
+import { formatPrice, getCurrencySymbol } from '../utils/currency';
 
 export default function OrderDetailScreen({ navigation, route }) {
-  const orders = useSelector(selectOrders);
+  const dispatch = useDispatch();
   const { orderId } = route.params;
-  
-  const order = orders.find(o => o.id === orderId);
+  const order = useSelector(selectCurrentOrder);
+  const loading = useSelector(selectOrdersLoading);
+  const error = useSelector(selectOrdersError);
 
+  // Charger la commande au montage
+  useEffect(() => {
+    console.log('🔄 [OrderDetailScreen] Loading order with ID:', orderId);
+    if (orderId) {
+      dispatch(fetchOrderById(orderId));
+    } else {
+      console.log('❌ [OrderDetailScreen] No order ID provided');
+    }
+  }, [dispatch, orderId]);
+
+  // Log des changements d'état
+  useEffect(() => {
+    console.log('🔄 [OrderDetailScreen] Order state changed:', {
+      loading,
+      error,
+      order: order ? {
+        id: order.id,
+        order_number: order.order_number,
+        status: order.status,
+        items: order.items,
+        totals: order.totals,
+        user_id: order.user_id,
+        delivery_address: order.delivery_address,
+        phone_number: order.phone_number
+      } : null
+    });
+  }, [loading, error, order]);
+  
+
+  // Gérer les erreurs
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Erreur', error);
+      dispatch(clearError());
+    }
+  }, [error, dispatch]);
+
+  // État de chargement
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="hourglass-outline" size={80} color="#4CAF50" />
+          <Text style={styles.loadingTitle}>Chargement...</Text>
+          <Text style={styles.loadingSubtitle}>
+            Récupération des détails de la commande
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Commande introuvable
   if (!order) {
     return (
       <SafeAreaView style={styles.container}>
@@ -161,23 +221,21 @@ export default function OrderDetailScreen({ navigation, route }) {
           />
           
           <View style={styles.itemsContainer}>
-            {order.items.map((item, index) => (
+            {Array.isArray(order.items) && order.items.map((item, index) => (
               <View key={index} style={styles.itemCard}>
-                <Image 
-                  source={{ uri: item.product.images?.[0] || item.product.image }} 
-                  style={styles.itemImage}
-                  resizeMode="cover"
-                />
+                <View style={styles.itemImagePlaceholder}>
+                  <Ionicons name="image-outline" size={40} color="#777E5C" />
+                </View>
                 <View style={styles.itemInfo}>
-                  <Text style={styles.itemName}>{item.product.name}</Text>
-                  <Text style={styles.itemFarm}>{item.product.farm}</Text>
+                  <Text style={styles.itemName}>{item.product_name || 'Produit'}</Text>
+                  <Text style={styles.itemFarm}>Dream Market</Text>
                   <Text style={styles.itemPrice}>
-                    {formatPrice(item.product.price, item.product.currency)} × {item.quantity}
+                    {formatPrice(item.product_price, item.product_currency)} × {item.quantity}
                   </Text>
                 </View>
                 <View style={styles.itemTotal}>
                   <Text style={styles.itemTotalText}>
-                    {formatPrice(item.product.price * item.quantity, item.product.currency)}
+                    {formatPrice(item.subtotal, item.product_currency)}
                   </Text>
                 </View>
               </View>
@@ -197,7 +255,7 @@ export default function OrderDetailScreen({ navigation, route }) {
               <Ionicons name="location-outline" size={20} color="#4CAF50" />
               <View style={styles.deliveryDetails}>
                 <Text style={styles.deliveryLabel}>Adresse de livraison</Text>
-                <Text style={styles.deliveryValue}>{order.deliveryAddress}</Text>
+                <Text style={styles.deliveryValue}>{order.delivery_address}</Text>
               </View>
             </View>
             
@@ -205,7 +263,7 @@ export default function OrderDetailScreen({ navigation, route }) {
               <Ionicons name="call-outline" size={20} color="#4CAF50" />
               <View style={styles.deliveryDetails}>
                 <Text style={styles.deliveryLabel}>Téléphone de contact</Text>
-                <Text style={styles.deliveryValue}>{order.phoneNumber}</Text>
+                <Text style={styles.deliveryValue}>{order.phone_number}</Text>
               </View>
             </View>
             
@@ -247,17 +305,19 @@ export default function OrderDetailScreen({ navigation, route }) {
             
             <View style={styles.summaryRow}>
               <Text style={styles.summaryTotalLabel}>Total</Text>
-              <Text style={styles.summaryTotalValue}>
-                {Object.entries(order.totals).map(([currency, amount]) => 
-                  `${formatPrice(amount, currency)}`
-                ).join(' + ')}
-              </Text>
+              <View style={styles.summaryTotalValue}>
+                {order.totals && Object.entries(order.totals).map(([currency, amount]) => (
+                  <Text key={currency} style={styles.totalText}>
+                    {formatPrice(amount, currency)}
+                  </Text>
+                ))}
+              </View>
             </View>
             
             <View style={styles.paymentInfo}>
               <Ionicons name="cash-outline" size={16} color="#4CAF50" />
               <Text style={styles.paymentText}>
-                Paiement à la livraison ({order.paymentMethod})
+                Paiement à la livraison ({order.payment_method || 'cash'})
               </Text>
             </View>
           </View>
@@ -418,6 +478,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#4CAF50',
   },
+  itemImagePlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  totalText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    marginBottom: 2,
+  },
   deliveryCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -504,6 +579,26 @@ const styles = StyleSheet.create({
   },
   supportButton: {
     marginTop: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  loadingTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loadingSubtitle: {
+    fontSize: 14,
+    color: '#777E5C',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   errorContainer: {
     flex: 1,

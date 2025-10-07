@@ -21,16 +21,35 @@ import {
   Divider,
   SectionHeader
 } from '../components/ui';
-import { selectCartItems, selectCartTotal, clearCart } from '../store/cartSlice';
-import { addOrder } from '../store/ordersSlice';
+import { 
+  selectCartItems, 
+  selectCartTotals, 
+  selectCartItemsCount,
+  selectCartLoading,
+  selectCartError,
+  clearCart 
+} from '../store/cartSlice';
+import { 
+  createOrder,
+  fetchUserOrders,
+  selectOrdersLoading,
+  selectOrdersError,
+  clearError
+} from '../store/ordersSlice';
+import { useAuth } from '../hooks/useAuth';
 import { formatPrice, getCurrencySymbol } from '../utils/currency';
 
 export default function CheckoutScreen({ navigation }) {
   const dispatch = useDispatch();
+  const { user } = useAuth();
   const cartItems = useSelector(selectCartItems);
-  const cartTotal = useSelector(selectCartTotal);
-  const user = useSelector(state => state.auth.user);
-  const [isLoading, setIsLoading] = useState(false);
+  const cartTotals = useSelector(selectCartTotals);
+  const cartItemsCount = useSelector(selectCartItemsCount);
+  const cartLoading = useSelector(selectCartLoading);
+  const cartError = useSelector(selectCartError);
+  const ordersLoading = useSelector(selectOrdersLoading);
+  const ordersError = useSelector(selectOrdersError);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // États pour les formulaires - pré-remplis avec les données utilisateur
   const [deliveryAddress, setDeliveryAddress] = useState(user?.address || '');
@@ -52,7 +71,12 @@ export default function CheckoutScreen({ navigation }) {
     return totals;
   };
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
+    if (!user?.id) {
+      Alert.alert('Erreur', 'Vous devez être connecté pour passer une commande.');
+      return;
+    }
+
     if (!deliveryAddress.trim()) {
       Alert.alert('Adresse requise', 'Veuillez saisir votre adresse de livraison.');
       return;
@@ -63,36 +87,70 @@ export default function CheckoutScreen({ navigation }) {
       return;
     }
 
-    setIsLoading(true);
+    if (cartItems.length === 0) {
+      Alert.alert('Panier vide', 'Votre panier est vide.');
+      return;
+    }
+
+    setIsProcessing(true);
     
-    // Simulation du processus de commande
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      // Créer la commande dans le store
+    try {
+      // Calculer la date de livraison estimée (24h après)
+      const estimatedDelivery = new Date();
+      estimatedDelivery.setHours(estimatedDelivery.getHours() + 24);
+
+      // Créer la commande avec le backend
       const orderData = {
-        items: cartItems,
-        deliveryAddress,
-        phoneNumber,
+        user_id: user.id,
+        items: cartItems.map(item => ({
+          product_id: item.product.id,
+          product_name: item.product.name,
+          product_price: item.product.price,
+          product_currency: item.product.currency || 'CDF',
+          quantity: item.quantity,
+          subtotal: item.product.price * item.quantity
+        })),
+        delivery_address: deliveryAddress,
+        phone_number: phoneNumber,
         notes,
-        paymentMethod: selectedPaymentMethod,
-        totals: getTotalsByCurrency()
+        payment_method: selectedPaymentMethod,
+        totals: cartTotals,
+        estimated_delivery: estimatedDelivery.toISOString()
       };
       
-      dispatch(addOrder(orderData));
+      console.log('🛒 [Checkout] Placing order:', orderData);
+      
+      const result = await dispatch(createOrder(orderData)).unwrap();
+      console.log('✅ [Checkout] Order placed successfully:', result);
+      
+      // Vider le panier après commande réussie
       dispatch(clearCart());
       
       // Afficher le modal de succès
       setShowSuccessModal(true);
-    }, 2000);
+      
+    } catch (error) {
+      console.error('❌ [Checkout] Error placing order:', error);
+      Alert.alert(
+        'Erreur de commande', 
+        error || 'Une erreur est survenue lors de la création de votre commande.'
+      );
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleGoToOrders = () => {
     setShowSuccessModal(false);
+    // Forcer le rechargement des commandes avant la navigation
+    if (user?.id) {
+      dispatch(fetchUserOrders(user.id));
+    }
     navigation.navigate('Orders');
   };
 
-  const totalsByCurrency = getTotalsByCurrency();
+  // Calculer les totaux pour l'affichage
+  const totalsByCurrency = cartTotals;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -278,7 +336,7 @@ export default function CheckoutScreen({ navigation }) {
           <Button
             title="Confirmer la commande"
             onPress={handlePlaceOrder}
-            loading={isLoading}
+            loading={isProcessing || ordersLoading}
             style={styles.confirmButton}
           />
         </View>

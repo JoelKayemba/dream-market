@@ -2,16 +2,19 @@ import { supabase } from '../config/supabase';
 
 export const categoryService = {
   // Récupérer toutes les catégories
-  getAllCategories: async () => {
+  getCategories: async () => {
     try {
       const { data, error } = await supabase
         .from('categories')
         .select('*')
+        .eq('type', 'product')
         .order('name', { ascending: true });
 
       if (error) throw error;
+      console.log('📊 Categories from DB:', data);
       return data;
     } catch (error) {
+      console.error('❌ Error fetching categories:', error);
       throw error;
     }
   },
@@ -49,7 +52,7 @@ export const categoryService = {
   },
 
   // Créer une nouvelle catégorie
-  createCategory: async (categoryData) => {
+  addCategory: async (categoryData) => {
     try {
       const { data, error } = await supabase
         .from('categories')

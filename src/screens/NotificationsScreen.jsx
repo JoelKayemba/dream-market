@@ -1,74 +1,69 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useDispatch, useSelector } from 'react-redux';
 import { Container, Badge, Button } from '../components/ui';
+import { 
+  selectClientProducts as selectProducts,
+  fetchProducts
+} from '../store/client/productsSlice';
+import { 
+  selectClientFarms as selectFarms,
+  fetchFarms
+} from '../store/client/farmsSlice';
+import { 
+  selectClientServices as selectServices,
+  fetchServices
+} from '../store/client/servicesSlice';
+import { 
+  selectOrders,
+  fetchUserOrders
+} from '../store/ordersSlice';
+import { useAuth } from '../hooks/useAuth';
+import { useNotifications } from '../hooks/useNotifications';
 
 export default function NotificationsScreen({ navigation }) {
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: 'promo',
-      title: '🎉 Promotion spéciale !',
-      message: 'Réduction de 20% sur tous les produits bio cette semaine',
-      time: 'Il y a 2h',
-      isRead: false,
-      action: 'Voir les offres',
-      image: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=100&h=100&fit=crop'
-    },
-    {
-      id: 2,
-      type: 'order',
-      title: '📦 Commande expédiée',
-      message: 'Votre commande #DM-2024-001 a été expédiée et sera livrée demain',
-      time: 'Il y a 4h',
-      isRead: false,
-      action: 'Suivre ma commande',
-      image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=100&h=100&fit=crop'
-    },
-    {
-      id: 3,
-      type: 'product',
-      title: '🥕 Nouveau produit disponible',
-      message: 'Les carottes bio de la ferme Dupont sont maintenant disponibles',
-      time: 'Il y a 6h',
-      isRead: true,
-      action: 'Voir le produit',
-      image: 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=100&h=100&fit=crop'
-    },
-    {
-      id: 4,
-      type: 'farm',
-      title: '🏡 Nouvelle ferme partenaire',
-      message: 'La ferme Martin rejoint Dream Market avec ses produits laitiers',
-      time: 'Il y a 1 jour',
-      isRead: true,
-      action: 'Découvrir la ferme',
-      image: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=100&h=100&fit=crop'
-    },
-    {
-      id: 5,
-      type: 'service',
-      title: '🚚 Service de livraison amélioré',
-      message: 'Livraison gratuite maintenant disponible pour toutes les commandes > 30€',
-      time: 'Il y a 2 jours',
-      isRead: true,
-      action: 'En savoir plus',
-      image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=100&h=100&fit=crop'
-    },
-    {
-      id: 6,
-      type: 'system',
-      title: '🔔 Maintenance prévue',
-      message: 'Le site sera en maintenance le 15 décembre de 2h à 4h du matin',
-      time: 'Il y a 3 jours',
-      isRead: true,
-      action: 'Voir les détails',
-      image: null
-    }
-  ]);
-
+  const dispatch = useDispatch();
+  const { user } = useAuth();
+  const products = useSelector(selectProducts);
+  const farms = useSelector(selectFarms);
+  const services = useSelector(selectServices);
+  const orders = useSelector(selectOrders);
+  
+  // Utiliser le hook personnalisé pour les notifications
+  const { 
+    notifications, 
+    unreadCount, 
+    markAsRead, 
+    markAllAsRead, 
+    deleteNotification
+  } = useNotifications();
+  
   const [activeFilter, setActiveFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      
+      // Charger les données nécessaires
+      await Promise.all([
+        dispatch(fetchProducts()),
+        dispatch(fetchFarms()),
+        dispatch(fetchServices()),
+        user?.id && dispatch(fetchUserOrders(user.id))
+      ]);
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -95,47 +90,85 @@ export default function NotificationsScreen({ navigation }) {
     return notifications.filter(n => n.type === activeFilter);
   };
 
-  const markAsRead = (notificationId) => {
-    setNotifications(prev => 
-      prev.map(n => 
-        n.id === notificationId ? { ...n, isRead: true } : n
-      )
-    );
-  };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => 
-      prev.map(n => ({ ...n, isRead: true }))
-    );
-  };
 
-  const deleteNotification = (notificationId) => {
-    setNotifications(prev => 
-      prev.filter(n => n.id !== notificationId)
-    );
-  };
 
   const handleNotificationAction = (notification) => {
     markAsRead(notification.id);
     
-    switch (notification.type) {
-      case 'promo':
-        navigation.navigate('Products');
-        break;
-      case 'order':
-        navigation.navigate('Orders');
-        break;
-      case 'product':
-        navigation.navigate('ProductDetail', { product: { id: 1, name: 'Carottes bio' } });
-        break;
-      case 'farm':
-        navigation.navigate('Farms');
-        break;
-      case 'service':
-        navigation.navigate('Services');
-        break;
-      default:
-        console.log('Action non définie pour:', notification.type);
+    try {
+      switch (notification.type) {
+        case 'promo':
+          if (notification.data?.productId) {
+            // Naviguer vers le détail du produit en promotion
+            navigation.navigate('ProductDetail', { 
+              productId: notification.data.productId,
+              product: notification.data.product 
+            });
+          } else {
+            // Naviguer vers la page des produits avec filtre promotion
+            navigation.navigate('Products', { filter: 'promotions' });
+          }
+          break;
+          
+        case 'order':
+          if (notification.data?.orderId) {
+            // Naviguer vers le détail de la commande
+            navigation.navigate('OrderDetail', { 
+              orderId: notification.data.orderId,
+              order: notification.data.order 
+            });
+          } else {
+            // Naviguer vers la liste des commandes
+            navigation.navigate('Orders');
+          }
+          break;
+          
+        case 'product':
+          if (notification.data?.productId) {
+            // Naviguer vers le détail du nouveau produit
+            navigation.navigate('ProductDetail', { 
+              productId: notification.data.productId,
+              product: notification.data.product 
+            });
+          } else {
+            // Naviguer vers la page des produits
+            navigation.navigate('Products');
+          }
+          break;
+          
+        case 'farm':
+          if (notification.data?.farmId) {
+            // Naviguer vers le détail de la ferme
+            navigation.navigate('FarmDetail', { 
+              farmId: notification.data.farmId,
+              farm: notification.data.farm 
+            });
+          } else {
+            // Naviguer vers la liste des fermes
+            navigation.navigate('Farms');
+          }
+          break;
+          
+        case 'service':
+          if (notification.data?.serviceId) {
+            // Naviguer vers le détail du service
+            navigation.navigate('ServiceDetail', { 
+              serviceId: notification.data.serviceId,
+              service: notification.data.service 
+            });
+          } else {
+            // Naviguer vers la liste des services
+            navigation.navigate('Services');
+          }
+          break;
+          
+        default:
+          console.log('Action non définie pour:', notification.type);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la navigation:', error);
+      Alert.alert('Erreur', 'Impossible d\'ouvrir cette notification');
     }
   };
 
@@ -204,7 +237,20 @@ export default function NotificationsScreen({ navigation }) {
     );
   };
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="hourglass-outline" size={64} color="#4CAF50" />
+          <Text style={styles.loadingTitle}>Chargement...</Text>
+          <Text style={styles.loadingSubtitle}>
+            Récupération de vos notifications
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -229,12 +275,14 @@ export default function NotificationsScreen({ navigation }) {
           )}
         </View>
 
-        <TouchableOpacity
-          style={styles.markAllReadButton}
-          onPress={markAllAsRead}
-        >
-          <Text style={styles.markAllReadText}>Tout marquer</Text>
-        </TouchableOpacity>
+        {notifications.length > 0 && (
+          <TouchableOpacity
+            style={styles.markAllReadButton}
+            onPress={markAllAsRead}
+          >
+            <Text style={styles.markAllReadText}>Tout marquer</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Filtres */}
@@ -480,8 +528,8 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 0,
+    right: 2,
     padding: 4,
   },
   emptyContainer: {
@@ -498,6 +546,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptySubtitle: {
+    fontSize: 14,
+    color: '#777E5C',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  // Loading styles
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  loadingTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loadingSubtitle: {
     fontSize: 14,
     color: '#777E5C',
     textAlign: 'center',

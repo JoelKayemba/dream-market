@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import AuthGuard from '../components/AuthGuard';
+// import AuthGuard from '../components/AuthGuard';
 
 // Écrans principaux
 import HomeScreen from '../screens/HomeScreen';
@@ -14,8 +14,7 @@ const Tab = createBottomTabNavigator();
 
 export default function AppNavigator({ navigation }) {
   return (
-    <AuthGuard navigation={navigation}>
-      <Tab.Navigator
+    <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
             let iconName;
@@ -83,6 +82,5 @@ export default function AppNavigator({ navigation }) {
           }}
         />
       </Tab.Navigator>
-    </AuthGuard>
   );
 }

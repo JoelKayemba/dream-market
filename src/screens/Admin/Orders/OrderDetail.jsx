@@ -6,7 +6,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Container, Button } from '../../../components/ui';
 import { 
   updateOrderStatus,
-  contactCustomer,
   selectOrderById
 } from '../../../store/admin/ordersSlice';
 
@@ -43,27 +42,36 @@ export default function OrderDetail({ route, navigation }) {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!dateString) return 'Date inconnue';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Date invalide';
+      return date.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return 'Date invalide';
+    }
   };
 
   const formatPrice = (amount, currency = 'CDF') => {
-    if (currency === 'USD') {
-      return `$${amount.toFixed(2)}`;
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return currency === 'USD' ? '$0.00' : '0 FC';
     }
-    return `${amount.toFixed(0)} FC`;
+    if (currency === 'USD') {
+      return `$${parseFloat(amount).toFixed(2)}`;
+    }
+    return `${parseFloat(amount).toFixed(0)} FC`;
   };
 
   const handleUpdateStatus = (newStatus) => {
     Alert.alert(
       'Changer le statut',
-      `Voulez-vous passer la commande ${order.orderNumber} au statut "${getStatusLabel(newStatus)}" ?`,
+      `Voulez-vous passer la commande ${order.orderNumber || order.order_number} au statut "${getStatusLabel(newStatus)}" ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         { 
@@ -83,19 +91,23 @@ export default function OrderDetail({ route, navigation }) {
   };
 
   const handleContactCustomer = (method) => {
+    const phone = order.customerPhone || order.phone_number;
+    const email = order.customerEmail || order.profiles?.email;
+    const orderNumber = order.orderNumber || order.order_number;
+    
     const actions = {
-      call: () => Alert.alert('Appel', `Appel vers ${order.customerPhone}`),
-      whatsapp: () => Alert.alert('WhatsApp', `Ouverture WhatsApp vers ${order.customerPhone}`),
-      email: () => Alert.alert('Email', `Envoi d'email à ${order.customerEmail}`)
+      call: () => Alert.alert('Appel', `Appel vers ${phone}`),
+      whatsapp: () => Alert.alert('WhatsApp', `Ouverture WhatsApp vers ${phone}`),
+      email: () => Alert.alert('Email', `Envoi d'email à ${email}`)
     };
     
     if (actions[method]) {
       actions[method]();
-      dispatch(contactCustomer({ 
-        orderId: order.id, 
-        method, 
-        message: `Contact ${method} initié par l'admin` 
-      }));
+      Alert.alert(
+        'Contact Client',
+        `Contact ${method} initié pour la commande ${orderNumber}`,
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -135,7 +147,7 @@ export default function OrderDetail({ route, navigation }) {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Détails de la commande</Text>
-          <Text style={styles.headerSubtitle}>#{order.orderNumber}</Text>
+                <Text style={styles.headerSubtitle}>#{order.orderNumber || order.order_number}</Text>
         </View>
         <TouchableOpacity 
           style={styles.editButton}
@@ -158,16 +170,16 @@ export default function OrderDetail({ route, navigation }) {
               <View style={styles.statusInfo}>
                 <Text style={styles.statusLabel}>{getStatusLabel(order.status)}</Text>
                 <Text style={styles.statusDate}>
-                  Commande passée le {formatDate(order.date)}
+                  Commande passée le {formatDate(order.date || order.created_at)}
                 </Text>
               </View>
             </View>
             
-            {order.estimatedDelivery && (
+            {(order.estimatedDelivery || order.estimated_delivery) && (
               <View style={styles.deliveryInfo}>
                 <Ionicons name="time-outline" size={16} color="#777E5C" />
                 <Text style={styles.deliveryText}>
-                  Livraison estimée : {formatDate(order.estimatedDelivery)}
+                  Livraison estimée : {formatDate(order.estimatedDelivery || order.estimated_delivery)}
                 </Text>
               </View>
             )}
@@ -183,7 +195,7 @@ export default function OrderDetail({ route, navigation }) {
               <Ionicons name="person-outline" size={20} color="#4CAF50" />
               <View style={styles.customerDetails}>
                 <Text style={styles.customerLabel}>Nom</Text>
-                <Text style={styles.customerValue}>{order.customerName}</Text>
+                <Text style={styles.customerValue}>{order.customerName || 'Client inconnu'}</Text>
               </View>
             </View>
             
@@ -192,18 +204,18 @@ export default function OrderDetail({ route, navigation }) {
               <View style={styles.customerDetails}>
                 <Text style={styles.customerLabel}>Téléphone</Text>
                 <TouchableOpacity onPress={() => handleContactCustomer('call')}>
-                  <Text style={[styles.customerValue, styles.contactValue]}>{order.customerPhone}</Text>
+                  <Text style={[styles.customerValue, styles.contactValue]}>{order.customerPhone || order.phone_number}</Text>
                 </TouchableOpacity>
               </View>
             </View>
             
-            {order.customerEmail && (
+            {(order.customerEmail || order.profiles?.email) && (
               <View style={styles.customerItem}>
                 <Ionicons name="mail-outline" size={20} color="#4CAF50" />
                 <View style={styles.customerDetails}>
                   <Text style={styles.customerLabel}>Email</Text>
                   <TouchableOpacity onPress={() => handleContactCustomer('email')}>
-                    <Text style={[styles.customerValue, styles.contactValue]}>{order.customerEmail}</Text>
+                    <Text style={[styles.customerValue, styles.contactValue]}>{order.customerEmail || order.profiles?.email}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -218,21 +230,19 @@ export default function OrderDetail({ route, navigation }) {
           <View style={styles.itemsContainer}>
             {order.items.map((item, index) => (
               <View key={index} style={styles.itemCard}>
-                <Image 
-                  source={{ uri: item.product.images?.[0] || item.product.image }} 
-                  style={styles.itemImage}
-                  resizeMode="cover"
-                />
+                <View style={styles.itemImagePlaceholder}>
+                  <Ionicons name="image-outline" size={40} color="#777E5C" />
+                </View>
                 <View style={styles.itemInfo}>
-                  <Text style={styles.itemName}>{item.product.name}</Text>
-                  <Text style={styles.itemFarm}>{item.product.farm}</Text>
+                  <Text style={styles.itemName}>{item.product_name || 'Produit'}</Text>
+                  <Text style={styles.itemFarm}>Dream Market</Text>
                   <Text style={styles.itemPrice}>
-                    {formatPrice(item.product.price, item.product.currency)} × {item.quantity} {item.unit}
+                    {formatPrice(item.product_price || 0, item.product_currency || 'CDF')} × {item.quantity}
                   </Text>
                 </View>
                 <View style={styles.itemTotal}>
                   <Text style={styles.itemTotalText}>
-                    {formatPrice(item.product.price * item.quantity, item.product.currency)}
+                    {formatPrice(item.subtotal || 0, item.product_currency || 'CDF')}
                   </Text>
                 </View>
               </View>
@@ -249,7 +259,7 @@ export default function OrderDetail({ route, navigation }) {
               <Ionicons name="location-outline" size={20} color="#4CAF50" />
               <View style={styles.deliveryDetails}>
                 <Text style={styles.deliveryLabel}>Adresse de livraison</Text>
-                <Text style={styles.deliveryValue}>{order.deliveryAddress}</Text>
+                <Text style={styles.deliveryValue}>{order.deliveryAddress || order.delivery_address}</Text>
               </View>
             </View>
             
@@ -257,7 +267,7 @@ export default function OrderDetail({ route, navigation }) {
               <Ionicons name="call-outline" size={20} color="#4CAF50" />
               <View style={styles.deliveryDetails}>
                 <Text style={styles.deliveryLabel}>Téléphone de contact</Text>
-                <Text style={styles.deliveryValue}>{order.phoneNumber}</Text>
+                <Text style={styles.deliveryValue}>{order.phoneNumber || order.phone_number}</Text>
               </View>
             </View>
             
@@ -306,7 +316,7 @@ export default function OrderDetail({ route, navigation }) {
             <View style={styles.paymentInfo}>
               <Ionicons name="cash-outline" size={16} color="#4CAF50" />
               <Text style={styles.paymentText}>
-                Paiement à la livraison ({order.paymentMethod})
+                Paiement à la livraison ({order.paymentMethod || order.payment_method || 'cash'})
               </Text>
             </View>
           </View>
@@ -535,6 +545,15 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 12,
+    marginRight: 12,
+  },
+  itemImagePlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   itemInfo: {

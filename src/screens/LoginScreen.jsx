@@ -23,7 +23,7 @@ export default function LoginScreen({ navigation }) {
       clearError();
     });
     return unsubscribe;
-  }, [navigation, clearError]);
+  }, [navigation]); // Retirer clearError des dépendances
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {

@@ -2,7 +2,7 @@ import { supabase, STORAGE_BUCKETS } from '../config/supabase';
 
 export const farmService = {
   // Récupérer toutes les fermes
-  getAllFarms: async () => {
+  getFarms: async () => {
     try {
       const { data, error } = await supabase
         .from('farms')
@@ -33,7 +33,7 @@ export const farmService = {
   },
 
   // Créer une nouvelle ferme
-  createFarm: async (farmData) => {
+  addFarm: async (farmData) => {
     try {
       const { data, error } = await supabase
         .from('farms')
@@ -203,6 +203,57 @@ export const farmService = {
       };
 
       return stats;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Récupérer les fermes populaires (rating >= 4)
+  getPopularFarms: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('farms')
+        .select('*')
+        .gte('rating', 4)
+        .order('rating', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Récupérer les nouvelles fermes (créées dans les 30 derniers jours)
+  getNewFarms: async () => {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data, error } = await supabase
+        .from('farms')
+        .select('*')
+        .gte('created_at', thirtyDaysAgo.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Récupérer les catégories de fermes
+  getFarmCategories: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('type', 'farm')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       throw error;
     }

@@ -2,7 +2,7 @@ import { supabase, STORAGE_BUCKETS } from '../config/supabase';
 
 export const serviceService = {
   // Récupérer tous les services
-  getAllServices: async () => {
+  getServices: async () => {
     try {
       const { data, error } = await supabase
         .from('services')
@@ -47,7 +47,7 @@ export const serviceService = {
   },
 
   // Créer un nouveau service
-  createService: async (serviceData) => {
+  addService: async (serviceData) => {
     try {
       const { data, error } = await supabase
         .from('services')

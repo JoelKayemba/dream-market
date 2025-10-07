@@ -100,6 +100,7 @@ export const favoriteService = {
   // Ajouter un élément aux favoris
   addToFavorites: async (userId, itemType, itemId) => {
     try {
+      console.log('🔄 [Service] addToFavorites called:', { userId, itemType, itemId });
       const { data, error } = await supabase
         .from('favorites')
         .insert([{
@@ -110,9 +111,14 @@ export const favoriteService = {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [Service] addToFavorites Supabase error:', error);
+        throw error;
+      }
+      console.log('✅ [Service] addToFavorites success:', data);
       return data;
     } catch (error) {
+      console.error('❌ [Service] addToFavorites error:', error);
       throw error;
     }
   },
@@ -120,6 +126,7 @@ export const favoriteService = {
   // Supprimer un élément des favoris
   removeFromFavorites: async (userId, itemType, itemId) => {
     try {
+      console.log('🔄 [Service] removeFromFavorites called:', { userId, itemType, itemId });
       const { error } = await supabase
         .from('favorites')
         .delete()
@@ -127,9 +134,14 @@ export const favoriteService = {
         .eq('item_type', itemType)
         .eq('item_id', itemId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [Service] removeFromFavorites Supabase error:', error);
+        throw error;
+      }
+      console.log('✅ [Service] removeFromFavorites success');
       return true;
     } catch (error) {
+      console.error('❌ [Service] removeFromFavorites error:', error);
       throw error;
     }
   },
@@ -155,16 +167,23 @@ export const favoriteService = {
   // Toggle favori (ajouter si absent, supprimer si présent)
   toggleFavorite: async (userId, itemType, itemId) => {
     try {
+      console.log('🔄 [Service] toggleFavorite called:', { userId, itemType, itemId });
       const isCurrentlyFavorite = await favoriteService.isFavorite(userId, itemType, itemId);
+      console.log('🔍 [Service] isCurrentlyFavorite:', isCurrentlyFavorite);
       
       if (isCurrentlyFavorite) {
+        console.log('🗑️ [Service] Removing from favorites...');
         await favoriteService.removeFromFavorites(userId, itemType, itemId);
+        console.log('✅ [Service] Removed from favorites');
         return false; // Retourne false si supprimé
       } else {
+        console.log('➕ [Service] Adding to favorites...');
         await favoriteService.addToFavorites(userId, itemType, itemId);
+        console.log('✅ [Service] Added to favorites');
         return true; // Retourne true si ajouté
       }
     } catch (error) {
+      console.error('❌ [Service] toggleFavorite error:', error);
       throw error;
     }
   },

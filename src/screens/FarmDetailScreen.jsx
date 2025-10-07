@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Dimensions, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Container, Button, Badge } from '../components/ui';
-import { products } from '../data/products';
-import { farms } from '../data/farms';
+import { useDispatch, useSelector } from 'react-redux';
+import { selectClientProducts } from '../store/client';
 import ProductCard from '../components/ui/ProductCard';
 import { useFavorites } from '../hooks/useFavorites';
 
@@ -12,6 +12,8 @@ const { width } = Dimensions.get('window');
 
 export default function FarmDetailScreen({ route, navigation }) {
   const { farm } = route.params;
+  const dispatch = useDispatch();
+  const products = useSelector(selectClientProducts);
   const [selectedTab, setSelectedTab] = useState('products');
   const { toggleFarmFavorite, isFarmFavorite } = useFavorites();
   const isFavorite = isFarmFavorite(farm.id);
@@ -35,8 +37,8 @@ export default function FarmDetailScreen({ route, navigation }) {
   // Filtrer les produits de cette ferme avec useMemo pour éviter les recalculs
   const farmProducts = useMemo(() => {
     if (!products || !Array.isArray(products)) return [];
-    return products.filter(product => product.farmId === farm.id);
-  }, [farm.id]);
+    return products.filter(product => product.farm_id === farm.id);
+  }, [farm.id, products]);
 
   const handleFavoriteToggle = () => {
     const wasFavorite = isFavorite;
@@ -61,7 +63,7 @@ export default function FarmDetailScreen({ route, navigation }) {
   const renderFarmInfo = () => (
     <View style={styles.farmInfo}>
       <View style={styles.farmHeader}>
-        <Image source={{ uri: farm.image }} style={styles.farmImage} />
+        <Image source={{ uri: farm.main_image }} style={styles.farmImage} />
         <View style={styles.farmDetails}>
           <Text style={styles.farmName}>{farm.name}</Text>
           <Text style={styles.farmLocation}>📍 {farm.location}</Text>
@@ -403,6 +405,8 @@ const styles = StyleSheet.create({
   },
   productsList: {
     gap: 16,
+    
+    
   },
   emptyProducts: {
     alignItems: 'center',

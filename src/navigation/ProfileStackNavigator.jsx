@@ -2,11 +2,15 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 
 import ProfileScreen from '../screens/ProfileScreen';
-import OrdersScreen from '../screens/OrdersScreen';
+import OrderScreen from '../screens/OrderScreen';
+import OrderDetailScreen from '../screens/OrderDetailScreen';
 import PersonalInfoScreen from '../screens/PersonalInfoScreen';
 import SupportScreen from '../screens/SupportScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import LoginScreen from '../screens/LoginScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import PasswordChangeScreen from '../screens/PasswordChangeScreen';
+import NotificationsSettingsScreen from '../screens/NotificationsSettingsScreen';
 
 const Stack = createStackNavigator();
 
@@ -27,9 +31,16 @@ export default function ProfileStackNavigator() {
       />
       <Stack.Screen
         name="Orders"
-        component={OrdersScreen}
+        component={OrderScreen}
         options={{
           title: 'Mes Commandes'
+        }}
+      />
+      <Stack.Screen
+        name="OrderDetail"
+        component={OrderDetailScreen}
+        options={{
+          title: 'Détails de la commande'
         }}
       />
       <Stack.Screen
@@ -58,6 +69,27 @@ export default function ProfileStackNavigator() {
         component={LoginScreen}
         options={{
           title: 'Administration'
+        }}
+      />
+      <Stack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          title: 'Paramètres'
+        }}
+      />
+      <Stack.Screen
+        name="PasswordChange"
+        component={PasswordChangeScreen}
+        options={{
+          title: 'Changer le mot de passe'
+        }}
+      />
+      <Stack.Screen
+        name="NotificationsSettings"
+        component={NotificationsSettingsScreen}
+        options={{
+          title: 'Notifications'
         }}
       />
     </Stack.Navigator>

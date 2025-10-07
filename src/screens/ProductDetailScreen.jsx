@@ -204,12 +204,12 @@ export default function ProductDetailScreen({ route, navigation }) {
               <Text style={styles.discountText}>-{product.discount}%</Text>
             </View>
           )}
-          {product.isNew && (
+          {product.is_new && (
             <View style={styles.newBadge}>
               <Text style={styles.newText}>Nouveau</Text>
             </View>
           )}
-          {product.isOrganic && (
+          {product.is_organic && (
             <View style={styles.organicBadge}>
               <Text style={styles.organicText}>Bio</Text>
             </View>
@@ -222,8 +222,8 @@ export default function ProductDetailScreen({ route, navigation }) {
         <View style={styles.productHeader}>
           <Text style={styles.productName}>{product.name}</Text>
           <View style={styles.priceContainer}>
-            {product.oldPrice && (
-              <Text style={styles.oldPrice}>{formatPrice(product.oldPrice, product.currency)}</Text>
+            {product.old_price && (
+              <Text style={styles.oldPrice}>{formatPrice(product.old_price, product.currency)}</Text>
             )}
             <Text style={styles.productPrice}>{formatPrice(product.price, product.currency)}</Text>
           </View>
@@ -231,23 +231,14 @@ export default function ProductDetailScreen({ route, navigation }) {
           <TouchableOpacity 
             style={styles.productFarm}
             onPress={() => {
-              if (product.farmId && navigation) {
-                // Trouver la ferme correspondante
-                const farm = require('../data/farms').farms.find(f => f.id === product.farmId);
-                if (farm) {
-                  navigation.navigate('FarmDetail', { farm });
-                }
+              if (product.farms && navigation) {
+                navigation.navigate('FarmDetail', { farm: product.farms });
               }
             }}
           >
             <Text style={styles.farmIcon}>🏡</Text>
             <Text style={styles.farmText}>
-              {product.farmId ? 
-                (() => {
-                  const farm = require('../data/farms').farms.find(f => f.id === product.farmId);
-                  return farm ? farm.name : product.farm;
-                })() : 
-                'Dream Market'}
+              {product.farms?.name || 'Dream Market'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -257,7 +248,7 @@ export default function ProductDetailScreen({ route, navigation }) {
           
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Catégorie</Text>
-            <Text style={styles.infoValue}>{product.category}</Text>
+            <Text style={styles.infoValue}>{product.categories?.name || 'Non spécifiée'}</Text>
           </View>
           
           <View style={styles.infoRow}>
@@ -274,8 +265,8 @@ export default function ProductDetailScreen({ route, navigation }) {
                 ))}
               </View>
               <Text style={styles.infoValue}>{product.rating || 'N/A'}</Text>
-              {product.reviewCount && (
-                <Text style={styles.reviewCount}>({product.reviewCount} avis)</Text>
+              {product.review_count > 0 && (
+                <Text style={styles.reviewCount}>({product.review_count} avis)</Text>
               )}
             </View>
           </View>

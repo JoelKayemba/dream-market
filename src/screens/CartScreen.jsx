@@ -1,30 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { Container, Button, Badge } from '../components/ui';
-import { removeFromCart, updateCartItemQuantity, clearCart, selectCartItems, selectCartTotal } from '../store/cartSlice';
+import { 
+  removeFromCart, 
+  updateCartItemQuantity, 
+  clearCart, 
+  loadCart,
+  selectCartItems, 
+  selectCartTotal,
+  selectCartTotals,
+  selectCartItemsCount,
+  selectCartLoading,
+  selectCartError
+} from '../store/cartSlice';
 import { formatPrice, getCurrencySymbol } from '../utils/currency';
 
 export default function CartScreen({ navigation }) {
   const dispatch = useDispatch();
   const cartItems = useSelector(selectCartItems);
-  const cartTotal = useSelector(selectCartTotal);
-  const [isLoading, setIsLoading] = useState(false);
+  const cartTotals = useSelector(selectCartTotals);
+  const cartItemsCount = useSelector(selectCartItemsCount);
+  const loading = useSelector(selectCartLoading);
+  const error = useSelector(selectCartError);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Calculer les totaux par devise
-  const getTotalsByCurrency = () => {
-    const totals = {};
-    cartItems.forEach(item => {
-      const currency = item.product.currency || 'EUR';
-      if (!totals[currency]) {
-        totals[currency] = 0;
-      }
-      totals[currency] += item.product.price * item.quantity;
-    });
-    return totals;
-  };
+  // Charger le panier depuis AsyncStorage au montage
+  useEffect(() => {
+    dispatch(loadCart());
+  }, [dispatch]);
 
   const handleQuantityChange = (productId, newQuantity) => {
     if (newQuantity <= 0) {
@@ -62,12 +68,10 @@ export default function CartScreen({ navigation }) {
       return;
     }
     
-    setIsLoading(true);
-    // Simulation du processus de commande
-    setTimeout(() => {
-      setIsLoading(false);
-      navigation.navigate('Checkout');
-    }, 1000);
+    setIsProcessing(true);
+    // Navigation directe vers le checkout
+    navigation.navigate('Checkout');
+    setIsProcessing(false);
   };
 
 
@@ -96,7 +100,7 @@ export default function CartScreen({ navigation }) {
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Panier</Text>
           <Text style={styles.itemCount}>
-            {cartItems.length} article{cartItems.length > 1 ? 's' : ''}
+            {cartItemsCount} article{cartItemsCount > 1 ? 's' : ''}
           </Text>
         </View>
         
@@ -183,7 +187,7 @@ export default function CartScreen({ navigation }) {
       {cartItems.length > 0 && (
         <View style={styles.footer}>
           <View style={styles.totalSection}>
-            {Object.entries(getTotalsByCurrency()).map(([currency, total]) => (
+            {Object.entries(cartTotals).map(([currency, total]) => (
               <View key={currency} style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Sous-total ({getCurrencySymbol(currency)})</Text>
                 <Text style={styles.totalValue}>{formatPrice(total, currency)}</Text>
@@ -193,7 +197,7 @@ export default function CartScreen({ navigation }) {
               <Text style={styles.totalLabel}>Livraison</Text>
               <Text style={styles.totalValue}>Gratuite</Text>
             </View>
-            {Object.entries(getTotalsByCurrency()).map(([currency, total]) => (
+            {Object.entries(cartTotals).map(([currency, total]) => (
               <View key={`total-${currency}`} style={[styles.totalRow, styles.finalTotal]}>
                 <Text style={styles.finalTotalLabel}>Total ({getCurrencySymbol(currency)})</Text>
                 <Text style={styles.finalTotalValue}>{formatPrice(total, currency)}</Text>
@@ -204,7 +208,7 @@ export default function CartScreen({ navigation }) {
           <Button
             title="Passer la commande"
             onPress={handleCheckout}
-            loading={isLoading}
+            loading={isProcessing || loading}
             style={styles.checkoutButton}
           />
         </View>

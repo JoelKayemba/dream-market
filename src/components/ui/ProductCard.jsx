@@ -108,13 +108,13 @@ export default function ProductCard({
         
         {/* Badges */}
         <View style={styles.badges}>
-          {product.discount && (
+          {product.discount > 0 && (
             <Badge text={`-${product.discount}%`} variant="discount" size="small" />
           )}
-          {product.isNew && (
+          {product.is_new && (
             <Badge text="Nouveau" variant="new" size="small" />
           )}
-          {product.isOrganic && (
+          {product.is_organic && (
             <Badge text="Bio" variant="organic" size="small" />
           )}
         </View>
@@ -138,8 +138,8 @@ export default function ProductCard({
             {product.name}
           </Text>
           <View style={styles.priceContainer}>
-            {product.oldPrice && (
-              <Text style={styles.oldPrice}>{formatPrice(product.oldPrice, product.currency)}</Text>
+            {product.old_price && (
+              <Text style={styles.oldPrice}>{formatPrice(product.old_price, product.currency)}</Text>
             )}
             <Text style={styles.price}>{formatPrice(product.price, product.currency)}</Text>
           </View>
@@ -147,23 +147,14 @@ export default function ProductCard({
         
         <TouchableOpacity 
           onPress={() => {
-            if (product.farmId && navigation) {
-              // Trouver la ferme correspondante
-              const farm = require('../../data/farms').farms.find(f => f.id === product.farmId);
-              if (farm) {
-                navigation.navigate('FarmDetail', { farm });
-              }
+            if (product.farms && navigation) {
+              navigation.navigate('FarmDetail', { farm: product.farms });
             }
           }}
           style={styles.farmContainer}
         >
           <Text style={styles.farm} numberOfLines={1}>
-            🏡 {product.farmId ? 
-              (() => {
-                const farm = require('../../data/farms').farms.find(f => f.id === product.farmId);
-                return farm ? farm.name : product.farm;
-              })() : 
-              'Dream Market'}
+            🏡 {product.farms?.name || 'Dream Market'}
           </Text>
         </TouchableOpacity>
         
@@ -177,8 +168,8 @@ export default function ProductCard({
               <Ionicons name="star" size={14} color="#FFD700" />
               <Text style={styles.ratingText}>{product.rating || 'N/A'}</Text>
             </View>
-            {product.reviewCount && (
-              <Text style={styles.reviewCount}>({product.reviewCount})</Text>
+            {product.review_count > 0 && (
+              <Text style={styles.reviewCount}>({product.review_count})</Text>
             )}
           </View>
           

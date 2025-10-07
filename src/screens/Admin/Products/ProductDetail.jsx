@@ -1,20 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { Container } from '../../../components/ui';
 import { deleteProduct, selectAdminProducts } from '../../../store/admin/productSlice';
-import { getCategoryById } from '../../../data/categories';
+import { selectAdminCategories, fetchCategories } from '../../../store/admin/productSlice';
 
 export default function ProductDetail({ route, navigation }) {
   const { product: initialProduct } = route.params;
   const dispatch = useDispatch();
   const products = useSelector(selectAdminProducts);
+  const categories = useSelector(selectAdminCategories);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Récupérer le produit mis à jour depuis le store
   const product = products.find(p => p.id === initialProduct.id) || initialProduct;
+
+  // Charger les catégories si pas encore chargées
+  useEffect(() => {
+    if (categories.length === 0) {
+      dispatch(fetchCategories());
+    }
+  }, [dispatch, categories.length]);
 
   const handleEditProduct = () => {
     navigation.navigate('ProductForm', { mode: 'edit', product });
@@ -58,11 +66,11 @@ export default function ProductDetail({ route, navigation }) {
 
   // === Valeurs formatées ===
   const priceStr = `${product.currency === 'USD' ? '$' : 'FC'} ${product.price ?? 0}`;
-  const oldPriceStr = product.oldPrice != null
-    ? `${product.currency === 'USD' ? '$' : 'FC'} ${product.oldPrice}`
+  const oldPriceStr = product.old_price != null
+    ? `${product.currency === 'USD' ? '$' : 'FC'} ${product.old_price}`
     : null;
-  const categoryName = product.categoryId 
-    ? getCategoryById(product.categoryId)?.name || product.category || 'Catégorie inconnue'
+  const categoryName = product.category_id 
+    ? categories.find(cat => cat.id === product.category_id)?.name || product.category || 'Catégorie inconnue'
     : product.category || 'Catégorie inconnue';
 
   return (
@@ -106,12 +114,12 @@ export default function ProductDetail({ route, navigation }) {
               </ScrollView>
             )}
             <View style={styles.badgesOverlay}>
-              {product.isOrganic ? (
+              {product.is_organic ? (
                 <View style={[styles.badge, { backgroundColor: '#4CAF50' }]}>
                   <Text style={styles.badgeText}>Bio</Text>
                 </View>
               ) : null}
-              {product.isNew ? (
+              {product.is_new ? (
                 <View style={[styles.badge, { backgroundColor: '#2196F3' }]}>
                   <Text style={styles.badgeText}>Nouveau</Text>
                 </View>
@@ -197,31 +205,41 @@ export default function ProductDetail({ route, navigation }) {
             <View style={styles.statusContainer}>
               <View style={styles.statusItem}>
                 <Ionicons 
-                  name={product.isOrganic ? "checkmark-circle" : "close-circle"} 
+                  name={product.is_active ? "checkmark-circle" : "close-circle"} 
                   size={20} 
-                  color={product.isOrganic ? "#4CAF50" : "#E0E0E0"} 
+                  color={product.is_active ? "#4CAF50" : "#E0E0E0"} 
                 />
-                <Text style={[styles.statusText, { color: product.isOrganic ? "#4CAF50" : "#777E5C" }]}>
+                <Text style={[styles.statusText, { color: product.is_active ? "#4CAF50" : "#777E5C" }]}>
+                  {product.is_active ? "Actif" : "Inactif"}
+                </Text>
+              </View>
+              <View style={styles.statusItem}>
+                <Ionicons 
+                  name={product.is_organic ? "checkmark-circle" : "close-circle"} 
+                  size={20} 
+                  color={product.is_organic ? "#4CAF50" : "#E0E0E0"} 
+                />
+                <Text style={[styles.statusText, { color: product.is_organic ? "#4CAF50" : "#777E5C" }]}>
                   Produit biologique
                 </Text>
               </View>
               <View style={styles.statusItem}>
                 <Ionicons 
-                  name={product.isNew ? "checkmark-circle" : "close-circle"} 
+                  name={product.is_new ? "checkmark-circle" : "close-circle"} 
                   size={20} 
-                  color={product.isNew ? "#4CAF50" : "#E0E0E0"} 
+                  color={product.is_new ? "#4CAF50" : "#E0E0E0"} 
                 />
-                <Text style={[styles.statusText, { color: product.isNew ? "#4CAF50" : "#777E5C" }]}>
+                <Text style={[styles.statusText, { color: product.is_new ? "#4CAF50" : "#777E5C" }]}>
                   Nouveau produit
                 </Text>
               </View>
               <View style={styles.statusItem}>
                 <Ionicons 
-                  name={product.isPopular ? "checkmark-circle" : "close-circle"} 
+                  name={product.is_popular ? "checkmark-circle" : "close-circle"} 
                   size={20} 
-                  color={product.isPopular ? "#4CAF50" : "#E0E0E0"} 
+                  color={product.is_popular ? "#4CAF50" : "#E0E0E0"} 
                 />
-                <Text style={[styles.statusText, { color: product.isPopular ? "#4CAF50" : "#777E5C" }]}>
+                <Text style={[styles.statusText, { color: product.is_popular ? "#4CAF50" : "#777E5C" }]}>
                   Produit populaire
                 </Text>
               </View>
@@ -249,7 +267,7 @@ const styles = StyleSheet.create({
   },
   backButton: { padding: 8 },
   headerTitle: { fontSize: 18, fontWeight: '600', color: '#283106', flex: 1, textAlign: 'center' },
-  editButton: { padding: 8, borderWidth: 1, borderColor: '#4CAF50', borderRadius: 8 },
+  editButton: { padding: 8, borderWidth: 1, borderColor: '#4CAF50', borderRadius: 50 },
   content: { flex: 1 },
   imageSection: { position: 'relative', height: 200 },
   productImage: { width: '100%', height: '100%' },

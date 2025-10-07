@@ -25,7 +25,7 @@ import ServiceDetailScreen from './src/screens/ServiceDetailScreen';
 import AllFarmsScreen from './src/screens/AllFarmsScreen';
 import AllServicesScreen from './src/screens/AllServicesScreen';
 import CheckoutScreen from './src/screens/CheckoutScreen';
-import OrdersScreen from './src/screens/OrdersScreen';
+import OrderScreen from './src/screens/OrderScreen';
 import OrderDetailScreen from './src/screens/OrderDetailScreen';
 
 // Écrans d'administration
@@ -164,7 +164,7 @@ export default function App() {
             />
             <Stack.Screen
               name="Orders"
-              component={OrdersScreen}
+              component={OrderScreen}
               options={{
                 title: 'Mes Commandes'
               }}

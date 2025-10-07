@@ -7,13 +7,16 @@ import { Container, Button } from '../../../components/ui';
 import { 
   fetchProducts, 
   deleteProduct,
+  toggleProductStatus,
   selectAdminProducts,
   selectAdminProductsLoading,
   selectAdminProductsError,
   setSearch,
-  selectAdminProductsFilters
+  setStatusFilter,
+  selectAdminProductsFilters,
+  selectFilteredProducts
 } from '../../../store/admin/productSlice';
-import { getCategoryById } from '../../../data/categories';
+import { selectAdminCategories, fetchCategories } from '../../../store/admin/productSlice';
 
 export default function ProductsManagement({ navigation, route }) {
   const dispatch = useDispatch();
@@ -24,12 +27,15 @@ export default function ProductsManagement({ navigation, route }) {
   
   // Selectors Redux
   const products = useSelector(selectAdminProducts);
+  const filteredProducts = useSelector(selectFilteredProducts);
   const loading = useSelector(selectAdminProductsLoading);
   const error = useSelector(selectAdminProductsError);
   const filters = useSelector(selectAdminProductsFilters);
+  const categories = useSelector(selectAdminCategories);
 
   useEffect(() => {
     dispatch(fetchProducts());
+    dispatch(fetchCategories());
   }, [dispatch]);
 
   useEffect(() => {
@@ -66,21 +72,37 @@ export default function ProductsManagement({ navigation, route }) {
     );
   };
 
-  // Filtrer les produits par farmId si spécifié
-  let filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleToggleStatus = (product) => {
+    const action = product.is_active ? 'désactiver' : 'activer';
+    Alert.alert(
+      `${action.charAt(0).toUpperCase() + action.slice(1)} le produit`,
+      `Voulez-vous ${action} le produit "${product.name}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: action.charAt(0).toUpperCase() + action.slice(1), 
+          onPress: () => {
+            dispatch(toggleProductStatus({ 
+              productId: product.id, 
+              isActive: !product.is_active 
+            }));
+            Alert.alert('Succès', `Produit ${action === 'activer' ? 'activé' : 'désactivé'} avec succès`);
+          }
+        }
+      ]
+    );
+  };
 
+  // Filtrer les produits par farmId si spécifié
+  let displayProducts = filteredProducts;
   if (farmId) {
-    filteredProducts = filteredProducts.filter(product => product.farmId === farmId);
+    displayProducts = filteredProducts.filter(product => product.farm_id === farmId);
   }
 
   const ProductCard = ({ product }) => {
-    const categoryName = product.categoryId 
-      ? getCategoryById(product.categoryId)?.name || product.category || 'Non catégorisé'
-      : product.category || 'Non catégorisé';
+    const categoryName = product.category_id 
+      ? categories.find(cat => cat.id === product.category_id)?.name || 'Non catégorisé'
+      : 'Non catégorisé';
     
     return (
       <TouchableOpacity 
@@ -91,12 +113,17 @@ export default function ProductsManagement({ navigation, route }) {
           <View style={styles.productInfo}>
             <Text style={styles.productName}>{product.name || 'Produit sans nom'}</Text>
             <Text style={styles.productCategory}>📦 {categoryName}</Text>
-            <Text style={styles.productFarm}>🏡 {product.farm || 'Ferme non assignée'}</Text>
+            <Text style={styles.productFarm}>🏡 {product.farms?.name || 'Ferme non assignée'}</Text>
           </View>
         <View style={styles.productStats}>
           <View style={[styles.statusBadge, { backgroundColor: (product.stock || 0) > 0 ? '#4CAF50' : '#F44336' }]}>
             <Text style={styles.statusText}>
               {(product.stock || 0) > 0 ? 'En stock' : 'Rupture'}
+            </Text>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: product.is_active ? '#4CAF50' + '20' : '#F44336' + '20' }]}>
+            <Text style={[styles.statusText, { color: product.is_active ? '#4CAF50' : '#F44336' }]}>
+              {product.is_active ? 'Actif' : 'Inactif'}
             </Text>
           </View>
         </View>
@@ -105,31 +132,57 @@ export default function ProductsManagement({ navigation, route }) {
       <View style={styles.productDetails}>
         <Text style={styles.productPrice}>
           {product.currency === 'USD' ? '$' : 'FC'} {product.price || 0}
-          {product.oldPrice && (
-            <Text style={styles.oldPrice}> {product.currency === 'USD' ? '$' : 'FC'} {product.oldPrice}</Text>
+          {product.old_price && (
+            <Text style={styles.oldPrice}> {product.currency === 'USD' ? '$' : 'FC'} {product.old_price}</Text>
           )}
         </Text>
         <Text style={styles.productStock}>{product.stock || 0} {product.unit || 'kg'}</Text>
       </View>
       
       <View style={styles.productActions}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('ProductForm', { mode: 'edit', product })}
-        >
-          <Ionicons name="pencil-outline" size={20} color="#2196F3" />
-          <Text style={styles.actionText}>Modifier</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.deleteButton]}
-          onPress={(e) => {
-            e.stopPropagation();
-            handleDeleteProduct(product);
-          }}
-        >
-          <Ionicons name="trash-outline" size={20} color="#F44336" />
-          <Text style={[styles.actionText, styles.deleteText]}>Supprimer</Text>
-        </TouchableOpacity>
+        {/* Première ligne : Modifier et Désactiver */}
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('ProductForm', { mode: 'edit', product })}
+          >
+            <Ionicons name="pencil-outline" size={20} color="#2196F3" />
+            <Text style={styles.actionText}>Modifier</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: product.is_active ? '#FFEBEE' : '#E8F5E8' }]}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleToggleStatus(product);
+            }}
+          >
+            <Ionicons 
+              name={product.is_active ? 'pause-outline' : 'play-outline'} 
+              size={20} 
+              color={product.is_active ? '#F44336' : '#4CAF50'} 
+            />
+            <Text style={[
+              styles.actionText, 
+              { color: product.is_active ? '#F44336' : '#4CAF50' }
+            ]}>
+              {product.is_active ? 'Désactiver' : 'Activer'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Deuxième ligne : Supprimer */}
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleDeleteProduct(product);
+            }}
+          >
+            <Ionicons name="trash-outline" size={20} color="#F44336" />
+            <Text style={[styles.actionText, styles.deleteText]}>Supprimer</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       </TouchableOpacity>
     );
@@ -175,6 +228,56 @@ export default function ProductsManagement({ navigation, route }) {
         </View>
       </View>
 
+      {/* Filtres de statut */}
+      <View style={styles.filterSection}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+          <View style={styles.filterButtons}>
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                filters.status === 'all' && styles.filterButtonActive
+              ]}
+              onPress={() => dispatch(setStatusFilter('all'))}
+            >
+              <Text style={[
+                styles.filterButtonText,
+                filters.status === 'all' && styles.filterButtonTextActive
+              ]}>
+                Tous
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                filters.status === 'active' && styles.filterButtonActive
+              ]}
+              onPress={() => dispatch(setStatusFilter('active'))}
+            >
+              <Text style={[
+                styles.filterButtonText,
+                filters.status === 'active' && styles.filterButtonTextActive
+              ]}>
+                Actifs
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                filters.status === 'inactive' && styles.filterButtonActive
+              ]}
+              onPress={() => dispatch(setStatusFilter('inactive'))}
+            >
+              <Text style={[
+                styles.filterButtonText,
+                filters.status === 'inactive' && styles.filterButtonTextActive
+              ]}>
+                Inactifs
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Container style={styles.productsSection}>
           <View style={styles.sectionHeader}>
@@ -211,7 +314,7 @@ export default function ProductsManagement({ navigation, route }) {
             </View>
           ) : (
             <View style={styles.productsList}>
-              {filteredProducts.map((product) => (
+              {displayProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </View>
@@ -250,7 +353,7 @@ const styles = StyleSheet.create({
     padding: 8,
     borderWidth: 1,
     borderColor: '#4CAF50',
-    borderRadius: 8,
+    borderRadius: 50,
   },
   searchSection: {
     paddingHorizontal: 16,
@@ -404,6 +507,9 @@ const styles = StyleSheet.create({
     color: '#777E5C',
   },
   productActions: {
+    gap: 8,
+  },
+  actionRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 12,
@@ -427,5 +533,38 @@ const styles = StyleSheet.create({
   },
   deleteText: {
     color: '#F44336',
+  },
+  filterSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  filterScroll: {
+    flexGrow: 0,
+  },
+  filterButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  filterButtonActive: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#777E5C',
+  },
+  filterButtonTextActive: {
+    color: '#FFFFFF',
   },
 });
