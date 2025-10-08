@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { supabase } from '../backend/config/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { translateError } from '../utils/errorTranslations';
 
 // Actions asynchrones
 export const loginUser = createAsyncThunk(
@@ -50,7 +51,7 @@ export const loginUser = createAsyncThunk(
         refreshToken: data.session.refresh_token
       };
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(translateError(error.message));
     }
   }
 );
@@ -107,7 +108,7 @@ export const registerUser = createAsyncThunk(
       };
 
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(translateError(error.message));
     }
   }
 );
@@ -123,7 +124,7 @@ export const forgotPassword = createAsyncThunk(
       if (error) throw error;
       return { message: 'Email de réinitialisation envoyé' };
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(translateError(error.message));
     }
   }
 );
@@ -140,7 +141,7 @@ export const resetPassword = createAsyncThunk(
       if (error) throw error;
       return { message: 'Mot de passe mis à jour avec succès' };
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(translateError(error.message));
     }
   }
 );
@@ -152,13 +153,15 @@ export const logout = createAsyncThunk(
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // Supprimer le token de l'AsyncStorage
+      // Supprimer TOUS les tokens et données utilisateur de l'AsyncStorage
       await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user_id');
+      await AsyncStorage.removeItem('refresh_token');
+      await AsyncStorage.removeItem('user_role');
       
       return true;
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(translateError(error.message));
     }
   }
 );
@@ -194,7 +197,7 @@ export const updateUserInfo = createAsyncThunk(
         address: data.address,
       };
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(translateError(error.message));
     }
   }
 );
@@ -229,7 +232,7 @@ export const changeUserPassword = createAsyncThunk(
 
       return true;
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(translateError(error.message));
     }
   }
 );
@@ -447,6 +450,7 @@ const authSlice = createSlice({
         // Load Stored Auth
         builder
           .addCase(loadStoredAuth.pending, (state) => {
+            // Ne charger que si pas déjà chargé pour éviter les boucles
             state.isLoading = true;
           })
           .addCase(loadStoredAuth.fulfilled, (state, action) => {

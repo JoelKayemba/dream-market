@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { Container, Button , ScreenWrapper } from '../../../components/ui';
 import { addService, updateService, selectAdminServicesLoading, selectAdminCategories, fetchCategories } from '../../../store/admin/servicesSlice';
 import { useImagePicker } from '../../../hooks/useImagePicker';
+import { storageService } from '../../../backend/services/storageService';
 
 export default function ServiceForm({ route, navigation }) {
   const { mode = 'add', service } = route.params || {};
@@ -33,6 +34,7 @@ export default function ServiceForm({ route, navigation }) {
   });
 
   const [showCategorySelector, setShowCategorySelector] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Charger les catégories au montage
   useEffect(() => {
@@ -46,7 +48,7 @@ export default function ServiceForm({ route, navigation }) {
     }
   }, [service, mode]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Validation
     if (!formData.name || !formData.description || !formData.category_id) {
       Alert.alert('Erreur', 'Veuillez remplir le nom, la description et la catégorie');
@@ -58,23 +60,49 @@ export default function ServiceForm({ route, navigation }) {
       return;
     }
 
-    const serviceData = {
-      ...formData,
-      image: selectedImages[0]?.uri || null,
-      min_order: formData.min_order ? parseInt(formData.min_order) : null,
-      features: formData.features ? formData.features.split('\n').filter(f => f.trim()) : [],
-      icon: '🔧', // Icône par défaut
-    };
+    setIsUploading(true);
 
-    if (mode === 'add') {
-      dispatch(addService(serviceData));
-      Alert.alert('Succès', 'Service ajouté avec succès');
-    } else {
-      dispatch(updateService({ id: service.id, serviceData }));
-      Alert.alert('Succès', 'Service modifié avec succès');
+    try {
+      // 📤 Upload de l'image vers Supabase
+      let imageUrl = selectedImages[0]?.uri;
+      
+      // Si l'image commence par "file://", c'est une nouvelle image à uploader
+      if (imageUrl && imageUrl.startsWith('file://')) {
+        
+        const uploadResult = await storageService.uploadImage(
+          imageUrl,
+          'services',  // Type de bucket
+          ''           // Pas de dossier spécifique (sera généré avec ID unique)
+        );
+        
+        imageUrl = uploadResult.url;
+      }
+
+      const serviceData = {
+        ...formData,
+        image: imageUrl,  // ✅ URL Supabase
+        min_order: formData.min_order ? parseInt(formData.min_order) : null,
+        features: formData.features ? formData.features.split('\n').filter(f => f.trim()) : [],
+        icon: '🔧',
+      };
+
+     
+
+      if (mode === 'add') {
+        await dispatch(addService(serviceData)).unwrap();
+        Alert.alert('Succès', 'Service ajouté avec succès');
+      } else {
+        await dispatch(updateService({ id: service.id, serviceData })).unwrap();
+        Alert.alert('Succès', 'Service modifié avec succès');
+      }
+      
+      navigation.goBack();
+    } catch (error) {
+      console.error('Erreur sauvegarde service:', error);
+      Alert.alert('Erreur', `Impossible de sauvegarder le service: ${error.message || error}`);
+    } finally {
+      setIsUploading(false);
     }
-    
-    navigation.goBack();
   };
 
   const handleImageSelection = (image) => {
@@ -341,13 +369,24 @@ export default function ServiceForm({ route, navigation }) {
           onPress={() => navigation.goBack()}
           variant="outline"
           style={styles.cancelButton}
+          disabled={isUploading}
         />
         <Button
           title={mode === 'add' ? 'Créer le service' : 'Modifier le service'}
           onPress={handleSave}
-          loading={loading}
+          loading={loading || isUploading}
         />
       </View>
+
+      {/* Modal de chargement */}
+      {isUploading && (
+        <View style={styles.uploadModalOverlay}>
+          <View style={styles.uploadModalContent}>
+            <ActivityIndicator size="large" color="#4CAF50" />
+            <Text style={styles.uploadModalText}>Enregistrement...</Text>
+          </View>
+        </View>
+      )}
 
       {/* Modal sélection catégorie */}
       {showCategorySelector && (
@@ -648,5 +687,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#777E5C',
     fontStyle: 'italic',
+  },
+  uploadModalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  uploadModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    minWidth: 250,
+  },
+  uploadModalText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#283106',
+    marginTop: 12,
+    textAlign: 'center',
   },
 });

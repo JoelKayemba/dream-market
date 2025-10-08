@@ -169,53 +169,13 @@ export default function SettingsScreen({ navigation }) {
      
       </Container>
 
-      {/* Notifications rapides */}
-      <Container style={styles.section}>
-        <Text style={styles.sectionTitle}>Notifications rapides</Text>
+      
         
-        <View style={styles.switchContainer}>
-          <View style={styles.switchLeft}>
-            <Ionicons name="phone-portrait-outline" size={20} color="#283106" />
-            <Text style={styles.switchTitle}>Notifications push</Text>
-          </View>
-          <Switch
-            value={notifications.push}
-            onValueChange={() => handleNotificationChange('push')}
-            trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
-            thumbColor={notifications.push ? '#FFFFFF' : '#FFFFFF'}
-          />
-        </View>
         
-        <Divider style={styles.divider} />
         
-        <View style={styles.switchContainer}>
-          <View style={styles.switchLeft}>
-            <Ionicons name="mail-outline" size={20} color="#283106" />
-            <Text style={styles.switchTitle}>Notifications email</Text>
-          </View>
-          <Switch
-            value={notifications.email}
-            onValueChange={() => handleNotificationChange('email')}
-            trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
-            thumbColor={notifications.email ? '#FFFFFF' : '#FFFFFF'}
-          />
-        </View>
+       
         
-        <Divider style={styles.divider} />
-        
-        <View style={styles.switchContainer}>
-          <View style={styles.switchLeft}>
-            <Ionicons name="megaphone-outline" size={20} color="#283106" />
-            <Text style={styles.switchTitle}>Promotions et offres</Text>
-          </View>
-          <Switch
-            value={notifications.promotions}
-            onValueChange={() => handleNotificationChange('promotions')}
-            trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
-            thumbColor={notifications.promotions ? '#FFFFFF' : '#FFFFFF'}
-          />
-        </View>
-      </Container>
+    
 
       {/* Danger Zone */}
       <Container style={styles.section}>

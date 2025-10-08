@@ -63,6 +63,8 @@ export const productService = {
   // Créer un nouveau produit
   addProduct: async (productData) => {
     try {
+      console.log('🟢 [productService.addProduct] Données reçues:', productData);
+      
       const { data, error } = await supabase
         .from('products')
         .insert([productData])
@@ -81,9 +83,15 @@ export const productService = {
         `)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [productService.addProduct] Erreur Supabase:', error);
+        throw error;
+      }
+      
+      console.log('✅ [productService.addProduct] Produit créé:', data);
       return data;
     } catch (error) {
+      console.error('❌ [productService.addProduct] Exception:', error);
       throw error;
     }
   },

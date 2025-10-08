@@ -62,26 +62,41 @@ export const addProduct = createAsyncThunk(
   'adminProducts/addProduct',
   async (productData, { rejectWithValue }) => {
     try {
+      console.log('🔵 [addProduct] Données reçues:', productData);
+      
       // Préparer les données du produit
       const productToCreate = {
-        ...productData,
-        is_active: true, // Toujours actif par défaut
+        name: productData.name,
+        description: productData.description || null,
+        short_description: productData.short_description || null,
+        price: productData.price,
+        old_price: productData.old_price || null,
+        currency: productData.currency || 'CDF',
+        unit: productData.unit || 'kg',
+        category_id: productData.category_id,
+        farm_id: productData.farm_id || null,
+        stock: productData.stock || 0,
+        is_organic: productData.is_organic || false,
+        is_new: productData.is_new || false,
+        is_popular: productData.is_popular || false,
+        discount: productData.discount || 0,
+        tags: productData.tags || [],
+        images: productData.images || [],
+        is_active: true,
         rating: 0,
         review_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
       };
 
-      // Assigner les images directement (comme pour les services)
-      if (productData.images && productData.images.length > 0) {
-        productToCreate.images = productData.images;
-      }
+      console.log('🔵 [addProduct] Données à envoyer à Supabase:', productToCreate);
 
       // Créer le produit avec les images
       const newProduct = await productService.addProduct(productToCreate);
+      
+      console.log('✅ [addProduct] Produit créé avec succès:', newProduct);
       return newProduct;
     } catch (error) {
-      return rejectWithValue(error.message);
+      console.error('❌ [addProduct] Erreur:', error);
+      return rejectWithValue(error.message || 'Erreur lors de l\'ajout du produit');
     }
   }
 );

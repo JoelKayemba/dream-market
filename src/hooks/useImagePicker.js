@@ -35,13 +35,20 @@ export const useImagePicker = () => {
         return null;
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
+      // Options par défaut améliorées
+      const defaultOptions = {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: options.aspect || [4, 3],
-        quality: options.quality || 0.8,
+        allowsEditing: options.allowsEditing !== undefined ? options.allowsEditing : false, // Désactivé par défaut pour garder l'image entière
+        aspect: options.aspect || [16, 9], // Format paysage par défaut
+        quality: options.quality || 1, // Qualité maximale par défaut
         base64: options.base64 || false,
-        ...options
+        allowsMultipleSelection: false,
+        exif: true, // Inclure les métadonnées EXIF
+      };
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        ...defaultOptions,
+        ...options // Les options passées en paramètre écrasent les défauts
       });
 
       setLoading(false);
@@ -53,9 +60,10 @@ export const useImagePicker = () => {
           width: asset.width,
           height: asset.height,
           type: asset.type,
-          fileName: asset.fileName,
+          fileName: asset.fileName || `image_${Date.now()}.jpg`,
           fileSize: asset.fileSize,
-          base64: asset.base64
+          base64: asset.base64,
+          exif: asset.exif
         };
       }
 
@@ -78,26 +86,34 @@ export const useImagePicker = () => {
         return [];
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
+      // Options par défaut améliorées
+      const defaultOptions = {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
-        quality: options.quality || 0.8,
+        allowsEditing: false, // Pas d'édition pour sélection multiple
+        quality: options.quality || 1, // Qualité maximale par défaut
         base64: options.base64 || false,
         selectionLimit: options.limit || 5,
-        ...options
+        exif: true,
+      };
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        ...defaultOptions,
+        ...options // Les options passées en paramètre écrasent les défauts
       });
 
       setLoading(false);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const assets = result.assets.map(asset => ({
+        const assets = result.assets.map((asset, index) => ({
           uri: asset.uri,
           width: asset.width,
           height: asset.height,
           type: asset.type,
-          fileName: asset.fileName,
+          fileName: asset.fileName || `image_${Date.now()}_${index}.jpg`,
           fileSize: asset.fileSize,
-          base64: asset.base64
+          base64: asset.base64,
+          exif: asset.exif
         }));
         return assets;
       }
@@ -127,12 +143,18 @@ export const useImagePicker = () => {
         return null;
       }
 
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: options.aspect || [4, 3],
-        quality: options.quality || 0.8,
+      // Options par défaut améliorées
+      const defaultOptions = {
+        allowsEditing: options.allowsEditing !== undefined ? options.allowsEditing : false, // Désactivé par défaut
+        aspect: options.aspect || [16, 9],
+        quality: options.quality || 1, // Qualité maximale
         base64: options.base64 || false,
-        ...options
+        exif: true,
+      };
+
+      const result = await ImagePicker.launchCameraAsync({
+        ...defaultOptions,
+        ...options // Les options passées en paramètre écrasent les défauts
       });
 
       setLoading(false);
@@ -144,9 +166,10 @@ export const useImagePicker = () => {
           width: asset.width,
           height: asset.height,
           type: asset.type,
-          fileName: asset.fileName,
+          fileName: asset.fileName || `photo_${Date.now()}.jpg`,
           fileSize: asset.fileSize,
-          base64: asset.base64
+          base64: asset.base64,
+          exif: asset.exif
         };
       }
 

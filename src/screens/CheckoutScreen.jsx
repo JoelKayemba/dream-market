@@ -72,6 +72,7 @@ export default function CheckoutScreen({ navigation }) {
   };
 
   const handlePlaceOrder = async () => {
+    // Validation des données avant d'afficher la confirmation
     if (!user?.id) {
       Alert.alert('Erreur', 'Vous devez être connecté pour passer une commande.');
       return;
@@ -92,7 +93,35 @@ export default function CheckoutScreen({ navigation }) {
       return;
     }
 
+    // Calculer le total pour l'afficher dans la confirmation
+    const totalsText = Object.entries(cartTotals)
+      .map(([currency, amount]) => formatPrice(amount, currency))
+      .join(' + ');
+
+    // Afficher l'alerte de confirmation
+    Alert.alert(
+      'Confirmer la commande',
+      `Êtes-vous sûr de vouloir passer cette commande ?\n\nTotal : ${totalsText}\nArticles : ${cartItemsCount}\nLivraison : ${deliveryAddress}`,
+      [
+        {
+          text: 'Annuler',
+          style: 'cancel',
+          onPress: () => {}
+        },
+        {
+          text: 'Confirmer',
+          style: 'default',
+          onPress: () => confirmOrder()
+        }
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const confirmOrder = async () => {
     setIsProcessing(true);
+
+    
     
     try {
       // Calculer la date de livraison estimée (24h après)

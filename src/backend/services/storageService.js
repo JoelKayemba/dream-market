@@ -15,13 +15,45 @@ export const storageService = {
     }
   },
 
-  // Upload une image générique (pour React Native)
-  uploadImage: async (imageUri, bucketType = 'farms') => {
+  // Convertir une URI React Native en Blob/ArrayBuffer pour upload
+  uriToBlob: async (uri) => {
     try {
+      console.log('🔄 [uriToBlob] Conversion de:', uri);
+      
+      // Pour React Native, on utilise FormData ou on lit directement le fichier
+      // Créer un objet File-like compatible avec Supabase
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      console.log('✅ [uriToBlob] Blob créé, taille:', blob.size);
+      return blob;
+    } catch (error) {
+      console.error('❌ [uriToBlob] Erreur:', error);
+      // Si blob() ne marche pas (React Native), utiliser arrayBuffer
+      try {
+        const response = await fetch(uri);
+        const buffer = await response.arrayBuffer();
+        console.log('✅ [uriToBlob] ArrayBuffer créé, taille:', buffer.byteLength);
+        return buffer;
+      } catch (bufferError) {
+        console.error('❌ [uriToBlob] Erreur arrayBuffer:', bufferError);
+        throw new Error('Impossible de convertir l\'image: ' + bufferError.message);
+      }
+    }
+  },
+
+  // Upload une image générique (pour React Native)
+  uploadImage: async (imageUri, bucketType = 'farms', folderPrefix = '') => {
+    try {
+      console.log('📤 [uploadImage] Début upload, URI:', imageUri.substring(0, 50) + '...');
+      
       // Générer un nom de fichier unique
       const timestamp = Date.now();
       const randomId = Math.random().toString(36).substring(2, 15);
       const fileName = `${randomId}_${timestamp}.jpg`;
+      const fullPath = folderPrefix ? `${folderPrefix}/${fileName}` : fileName;
+
+      console.log('📤 [uploadImage] Nom fichier:', fullPath);
 
       // Déterminer le bucket
       let bucket;
@@ -41,33 +73,60 @@ export const storageService = {
           break;
       }
 
-      // Pour React Native, créer un objet fichier compatible
-      const file = {
-        uri: imageUri,
-        type: 'image/jpeg',
-        name: fileName
-      };
+      console.log('📤 [uploadImage] Bucket cible:', bucket);
+
+      // Pour React Native, utiliser FormData ou ArrayBuffer
+      let fileData;
+      
+      // Méthode 1 : Essayer avec fetch + arrayBuffer (plus compatible React Native)
+      try {
+        console.log('📤 [uploadImage] Tentative fetch de l\'image...');
+        const response = await fetch(imageUri);
+        
+        if (!response.ok) {
+          throw new Error(`Fetch failed: ${response.status}`);
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        console.log('✅ [uploadImage] ArrayBuffer obtenu, taille:', arrayBuffer.byteLength);
+        fileData = arrayBuffer;
+      } catch (fetchError) {
+        console.error('❌ [uploadImage] Erreur fetch:', fetchError);
+        throw new Error('Impossible de lire l\'image: ' + fetchError.message);
+      }
 
       // Upload vers Supabase
+      console.log('📤 [uploadImage] Upload vers Supabase...');
       const { data, error } = await supabase.storage
         .from(bucket)
-        .upload(fileName, file, {
+        .upload(fullPath, fileData, {
           cacheControl: '3600',
           upsert: false,
           contentType: 'image/jpeg'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [uploadImage] Erreur Supabase:', error);
+        throw new Error(`Erreur Supabase: ${error.message}`);
+      }
+
+      console.log('✅ [uploadImage] Upload réussi:', data);
 
       // Récupérer l'URL publique
       const { data: urlData } = supabase.storage
         .from(bucket)
-        .getPublicUrl(fileName);
+        .getPublicUrl(fullPath);
 
-      return urlData.publicUrl;
+      console.log('✅ [uploadImage] URL publique:', urlData.publicUrl);
+
+      return {
+        path: fullPath,
+        url: urlData.publicUrl,
+        fileName: fileName
+      };
     } catch (error) {
-      console.error('Erreur upload image:', error);
-      throw error;
+      console.error('❌ [uploadImage] Erreur finale:', error);
+      throw new Error(`Upload échoué: ${error.message}`);
     }
   },
 

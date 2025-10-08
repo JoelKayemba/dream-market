@@ -16,69 +16,178 @@ import {
 const { width } = Dimensions.get('window');
 
 // Composant pour les cartes de statistiques
-const StatCard = ({ title, value, subtitle, icon, color, trend }) => (
+const StatCard = ({ title, value, subtitle, icon, color, trend, change }) => (
   <View style={[styles.statCard, { borderLeftColor: color }]}>
     <View style={styles.statHeader}>
-      <Ionicons name={icon} size={24} color={color} />
-      <Text style={styles.statTitle}>{title}</Text>
+      <View style={[styles.iconContainer, { backgroundColor: color + '15' }]}>
+        <Ionicons name={icon} size={24} color={color} />
+      </View>
+      <View style={styles.statInfo}>
+        <Text style={styles.statTitle}>{title}</Text>
+        <Text style={[styles.statValue, { color }]}>{value}</Text>
+      </View>
     </View>
-    <Text style={styles.statValue}>{value}</Text>
     {subtitle && <Text style={styles.statSubtitle}>{subtitle}</Text>}
-    {trend && (
-      <View style={styles.trendContainer}>
+    {change && (
+      <View style={styles.changeContainer}>
         <Ionicons 
-          name={trend.direction === 'up' ? 'trending-up' : 'trending-down'} 
-          size={16} 
-          color={trend.direction === 'up' ? '#4CAF50' : '#F44336'} 
+          name={change.value >= 0 ? 'arrow-up' : 'arrow-down'} 
+          size={14} 
+          color={change.value >= 0 ? '#4CAF50' : '#F44336'} 
         />
         <Text style={[
-          styles.trendText, 
-          { color: trend.direction === 'up' ? '#4CAF50' : '#F44336' }
+          styles.changeText, 
+          { color: change.value >= 0 ? '#4CAF50' : '#F44336' }
         ]}>
-          {trend.value}%
+          {Math.abs(change.value)}% vs période précédente
         </Text>
       </View>
     )}
   </View>
-  );
-
-// Composant pour les graphiques simples (représentation textuelle)
-const SimpleChart = ({ title, data, type = 'bar', showUSD = false }) => (
-  <View style={styles.chartCard}>
-    <Text style={styles.chartTitle}>{title}</Text>
-    <View style={styles.chartContainer}>
-      {data && data.length > 0 ? (
-        data.slice(0, 5).map((item, index) => (
-          <View key={index} style={styles.chartBar}>
-            <View style={styles.barInfo}>
-              <Text style={styles.barLabel}>{item.label}</Text>
-              <View style={styles.barValues}>
-                <Text style={styles.barValue}>{item.value.toLocaleString()} CDF</Text>
-                {showUSD && item.usdValue > 0 && (
-                  <Text style={styles.barValueUSD}>${item.usdValue.toLocaleString()}</Text>
-                )}
-              </View>
-            </View>
-            <View style={styles.barContainer}>
-              <View 
-                style={[
-                  styles.bar, 
-                  { 
-                    width: `${Math.min((item.value / Math.max(...data.map(d => d.value))) * 100, 100)}%`,
-                    backgroundColor: item.color || '#2196F3'
-                  }
-                ]} 
-              />
-            </View>
-          </View>
-        ))
-      ) : (
-        <Text style={styles.noData}>Aucune donnée disponible</Text>
-      )}
-    </View>
-  </View>
 );
 
+// Composant pour graphique en barres verticales amélioré
+const BarChart = ({ title, data, color, showValues = true, height = 200 }) => {
+  if (!data || data.length === 0) {
+    return (
+      <View style={styles.chartCard}>
+        <Text style={styles.chartTitle}>{title}</Text>
+        <Text style={styles.noData}>Aucune donnée disponible</Text>
+      </View>
+    );
+  }
+
+  const maxValue = Math.max(...data.map(d => d.value));
+  
+  return (
+    <View style={styles.chartCard}>
+      <Text style={styles.chartTitle}>{title}</Text>
+      <View style={[styles.barChartContainer, { height }]}>
+        {data.map((item, index) => {
+          const barHeight = maxValue > 0 ? (item.value / maxValue) * (height - 40) : 0;
+          
+          return (
+            <View key={index} style={styles.barColumn}>
+              <View style={styles.barWrapper}>
+                {showValues && item.value > 0 && (
+                  <Text style={styles.barValueText}>
+                    {item.value.toLocaleString()}
+                  </Text>
+                )}
+                <View 
+                  style={[
+                    styles.barVertical, 
+                    { 
+                      height: barHeight,
+                      backgroundColor: item.color || color
+                    }
+                  ]} 
+                />
+              </View>
+              <Text style={styles.barLabelVertical}>{item.label}</Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
+// Composant pour graphique double (CDF + USD)
+const DualBarChart = ({ title, data }) => {
+  if (!data || data.length === 0) {
+    return (
+      <View style={styles.chartCard}>
+        <Text style={styles.chartTitle}>{title}</Text>
+        <Text style={styles.noData}>Aucune donnée disponible</Text>
+      </View>
+    );
+  }
+
+  const maxCDF = Math.max(...data.map(d => d.cdf || 0));
+  const maxUSD = Math.max(...data.map(d => d.usd || 0));
+  
+  return (
+    <View style={styles.chartCard}>
+      <View style={styles.chartHeader}>
+        <Text style={styles.chartTitle}>{title}</Text>
+        <View style={styles.chartLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
+            <Text style={styles.legendText}>CDF</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#FF9800' }]} />
+            <Text style={styles.legendText}>USD</Text>
+          </View>
+        </View>
+      </View>
+      
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.dualChartScroll}
+      >
+        {data.map((item, index) => (
+          <View key={index} style={styles.dualBarGroup}>
+            <View style={styles.dualBarsContainer}>
+              {/* Barre CDF */}
+              <View style={styles.dualBarColumn}>
+                {item.cdf > 0 && (
+                  <Text style={styles.dualBarValue}>{item.cdf.toLocaleString()}</Text>
+                )}
+                <View 
+                  style={[
+                    styles.dualBar, 
+                    { 
+                      height: maxCDF > 0 ? (item.cdf / maxCDF) * 120 : 0,
+                      backgroundColor: '#4CAF50'
+                    }
+                  ]} 
+                />
+              </View>
+              
+              {/* Barre USD */}
+              <View style={styles.dualBarColumn}>
+                {item.usd > 0 && (
+                  <Text style={styles.dualBarValue}>${item.usd.toLocaleString()}</Text>
+                )}
+                <View 
+                  style={[
+                    styles.dualBar, 
+                    { 
+                      height: maxUSD > 0 ? (item.usd / maxUSD) * 120 : 0,
+                      backgroundColor: '#FF9800'
+                    }
+                  ]} 
+                />
+              </View>
+            </View>
+            <Text style={styles.dualBarLabel}>{item.label}</Text>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+};
+
+// Composant pour carte récapitulative
+const SummaryCard = ({ title, items, icon, color }) => (
+  <View style={styles.summaryCard}>
+    <View style={styles.summaryHeader}>
+      <Ionicons name={icon} size={20} color={color} />
+      <Text style={styles.summaryTitle}>{title}</Text>
+    </View>
+    {items.map((item, index) => (
+      <View key={index} style={styles.summaryRow}>
+        <Text style={styles.summaryLabel}>{item.label}</Text>
+        <Text style={[styles.summaryValue, { color: item.color || '#283106' }]}>
+          {item.value}
+        </Text>
+      </View>
+    ))}
+  </View>
+);
 
 export default function AnalyticsDashboard({ navigation }) {
   const dispatch = useDispatch();
@@ -108,26 +217,51 @@ export default function AnalyticsDashboard({ navigation }) {
     dispatch(fetchAllAnalytics());
   };
 
-  // Formater les données pour les graphiques
+  // Formater les données pour les graphiques de revenus (selon la période sélectionnée)
   const formatRevenueData = () => {
     if (!analytics.revenue?.daily_data) return [];
-    return analytics.revenue.daily_data.slice(-7).map(item => ({
+    const daysToShow = selectedPeriod === 7 ? 7 : selectedPeriod === 30 ? 14 : 30;
+    return analytics.revenue.daily_data.slice(-daysToShow).map(item => ({
       label: new Date(item.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }),
-      value: item.cdf || 0,
-      usdValue: item.usd || 0,
-      color: '#4CAF50'
+      cdf: item.cdf || 0,
+      usd: item.usd || 0
     }));
   };
 
+  // Formater les données pour le graphique des commandes
   const formatOrdersData = () => {
     if (!analytics.orders?.daily_data) return [];
-    return analytics.orders.daily_data.slice(-7).map(item => ({
+    const daysToShow = selectedPeriod === 7 ? 7 : selectedPeriod === 30 ? 14 : 30;
+    return analytics.orders.daily_data.slice(-daysToShow).map(item => ({
       label: new Date(item.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }),
       value: item.total || 0,
       color: '#2196F3'
     }));
   };
 
+  // Formater les données pour le graphique par statut
+  const formatOrdersByStatus = () => {
+    if (!analytics.orders) return [];
+    return [
+      { label: 'En attente', value: analytics.orders.pending || 0, color: '#FF9800' },
+      { label: 'Confirmées', value: analytics.orders.confirmed || 0, color: '#2196F3' },
+      { label: 'En préparation', value: analytics.orders.preparing || 0, color: '#9C27B0' },
+      { label: 'Expédiées', value: analytics.orders.shipped || 0, color: '#3F51B5' },
+      { label: 'Livrées', value: analytics.orders.delivered || 0, color: '#4CAF50' },
+    ].filter(item => item.value > 0);
+  };
+
+  // Calculer la moyenne quotidienne
+  const getDailyAverage = () => {
+    if (!analytics.revenue?.daily_data || analytics.revenue.daily_data.length === 0) return { cdf: 0, usd: 0 };
+    const days = selectedPeriod;
+    return {
+      cdf: Math.round((analytics.revenue?.total_cdf || 0) / days),
+      usd: Math.round((analytics.revenue?.total_usd || 0) / days * 100) / 100
+    };
+  };
+
+  const dailyAvg = getDailyAverage();
 
   return (
     <ScreenWrapper style={styles.container}>
@@ -181,70 +315,92 @@ export default function AnalyticsDashboard({ navigation }) {
         {/* Statistiques principales */}
         {analytics.dashboard && (
           <View style={styles.statsSection}>
-            <Text style={styles.sectionTitle}>Vue d'ensemble</Text>
+            <Text style={styles.sectionTitle}>Vue d'ensemble - {selectedPeriod} derniers jours</Text>
             <View style={styles.statsGrid}>
               <StatCard
-                title="Utilisateurs"
-                value={analytics.dashboard.users?.total || 0}
-                subtitle={`+${analytics.dashboard.users?.new_this_month || 0} ce mois`}
-                icon="people-outline"
-                color="#4CAF50"
-                trend={analytics.growth?.users ? {
-                  direction: analytics.growth.users.growth_percent >= 0 ? 'up' : 'down',
-                  value: Math.abs(analytics.growth.users.growth_percent)
-                } : null}
-              />
-              <StatCard
-                title="Commandes"
-                value={analytics.dashboard.orders?.total || 0}
-                subtitle={`${analytics.dashboard.orders?.pending || 0} en attente`}
-                icon="receipt-outline"
-                color="#2196F3"
-                trend={analytics.growth?.orders ? {
-                  direction: analytics.growth.orders.growth_percent >= 0 ? 'up' : 'down',
-                  value: Math.abs(analytics.growth.orders.growth_percent)
-                } : null}
-              />
-              <StatCard
-                title="Revenus"
-                value={`${Math.round(analytics.dashboard.orders?.revenue_total_cdf || 0).toLocaleString()} CDF`}
-                subtitle={`${Math.round(analytics.dashboard.orders?.revenue_total_usd || 0).toLocaleString()} USD`}
+                title="Revenus CDF"
+                value={`${Math.round(analytics.revenue?.total_cdf || 0).toLocaleString()} FC`}
+                subtitle="Commandes livrées"
                 icon="cash-outline"
+                color="#4CAF50"
+              />
+              <StatCard
+                title="Revenus USD"
+                value={`$${Math.round(analytics.revenue?.total_usd || 0).toLocaleString()}`}
+                subtitle="Commandes livrées"
+                icon="logo-usd"
                 color="#FF9800"
               />
               <StatCard
-                title="Produits"
-                value={analytics.dashboard.products?.total || 0}
-                subtitle={`${analytics.dashboard.products?.active || 0} actifs`}
-                icon="leaf-outline"
+                title="Total Commandes"
+                value={analytics.orders?.total_orders || 0}
+                subtitle={`${selectedPeriod} derniers jours`}
+                icon="receipt-outline"
+                color="#2196F3"
+              />
+              <StatCard
+                title="Commandes Livrées"
+                value={analytics.orders?.delivered || 0}
+                subtitle={`${analytics.orders?.pending || 0} en attente`}
+                icon="checkmark-circle-outline"
                 color="#4CAF50"
-                trend={analytics.growth?.products ? {
-                  direction: analytics.growth.products.growth_percent >= 0 ? 'up' : 'down',
-                  value: Math.abs(analytics.growth.products.growth_percent)
-                } : null}
               />
             </View>
           </View>
         )}
 
-        {/* Graphiques */}
-        <View style={styles.chartsSection}>
-          <Text style={styles.sectionTitle}>Évolution récente</Text>
-          
-          <SimpleChart
-            title="Revenus (7 derniers jours)"
-            data={formatRevenueData()}
-            type="bar"
-            showUSD={true}
-          />
-          
-          <SimpleChart
-            title="Commandes (7 derniers jours)"
-            data={formatOrdersData()}
-            type="bar"
-          />
+        {/* Cartes récapitulatives */}
+        <View style={styles.summarySection}>
+          <View style={styles.summaryGrid}>
+            <SummaryCard
+              title="Moyennes Quotidiennes"
+              icon="calendar-outline"
+              color="#2196F3"
+              items={[
+                { label: 'Revenu CDF/jour', value: `${dailyAvg.cdf.toLocaleString()} FC`, color: '#4CAF50' },
+                { label: 'Revenu USD/jour', value: `$${dailyAvg.usd}`, color: '#FF9800' },
+                { label: 'Commandes/jour', value: Math.round((analytics.orders?.total_orders || 0) / selectedPeriod) }
+              ]}
+            />
+            
+            <SummaryCard
+              title="Statistiques Commandes"
+              icon="stats-chart-outline"
+              color="#9C27B0"
+              items={[
+                { label: 'Taux de livraison', value: `${Math.round(((analytics.orders?.delivered || 0) / (analytics.orders?.total_orders || 1)) * 100)}%`, color: '#4CAF50' },
+                { label: 'En cours', value: (analytics.orders?.confirmed || 0) + (analytics.orders?.preparing || 0) + (analytics.orders?.shipped || 0), color: '#FF9800' },
+                { label: 'Annulées', value: analytics.orders?.cancelled || 0, color: '#F44336' }
+              ]}
+            />
+          </View>
         </View>
 
+        {/* Graphiques */}
+        <View style={styles.chartsSection}>
+          <Text style={styles.sectionTitle}>Évolution des Revenus</Text>
+          
+          <DualBarChart
+            title={`Revenus CDF & USD (${selectedPeriod === 7 ? '7' : selectedPeriod === 30 ? '14' : '30'} derniers jours)`}
+            data={formatRevenueData()}
+          />
+          
+          <BarChart
+            title={`Commandes (${selectedPeriod === 7 ? '7' : selectedPeriod === 30 ? '14' : '30'} derniers jours)`}
+            data={formatOrdersData()}
+            color="#2196F3"
+            height={180}
+          />
+
+          {formatOrdersByStatus().length > 0 && (
+            <BarChart
+              title="Répartition par Statut"
+              data={formatOrdersByStatus()}
+              color="#4CAF50"
+              height={180}
+            />
+          )}
+        </View>
 
         {/* Message d'erreur */}
         {error && (
@@ -260,6 +416,8 @@ export default function AnalyticsDashboard({ navigation }) {
             <Text style={styles.loadingText}>Chargement des analytiques...</Text>
           </View>
         )}
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     </ScreenWrapper>
   );
@@ -271,7 +429,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
   },
   header: {
-
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
   },
@@ -348,33 +505,91 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  statTitle: {
-    fontSize: 14,
-    color: '#666',
-    marginLeft: 8,
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#283106',
+  statInfo: {
+    flex: 1,
+  },
+  statTitle: {
+    fontSize: 12,
+    color: '#666',
     marginBottom: 4,
   },
-  statSubtitle: {
-    fontSize: 12,
-    color: '#999',
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
   },
-  trendContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  statSubtitle: {
+    fontSize: 11,
+    color: '#999',
     marginTop: 4,
   },
-  trendText: {
-    fontSize: 12,
-    fontWeight: '600',
+  changeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
+  changeText: {
+    fontSize: 11,
     marginLeft: 4,
+    fontWeight: '500',
+  },
+  summarySection: {
+    padding: 16,
+    paddingTop: 0,
+  },
+  summaryGrid: {
+    gap: 12,
+  },
+  summaryCard: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#283106',
+    marginLeft: 8,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   chartsSection: {
     padding: 16,
+    paddingTop: 0,
   },
   chartCard: {
     backgroundColor: '#FFFFFF',
@@ -387,48 +602,104 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  chartHeader: {
+    marginBottom: 16,
+  },
   chartTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#283106',
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  chartContainer: {
-    gap: 12,
-  },
-  chartBar: {
-    gap: 8,
-  },
-  barInfo: {
+  chartLegend: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 16,
+    marginTop: 8,
+  },
+  legendItem: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  barLabel: {
-    fontSize: 14,
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 6,
+  },
+  legendText: {
+    fontSize: 12,
     color: '#666',
   },
-  barValues: {
+  barChartContainer: {
+    flexDirection: 'row',
     alignItems: 'flex-end',
+    justifyContent: 'space-around',
+    paddingTop: 10,
   },
-  barValue: {
-    fontSize: 14,
+  barColumn: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: 2,
+  },
+  barWrapper: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  barValueText: {
+    fontSize: 10,
     fontWeight: '600',
     color: '#283106',
+    marginBottom: 4,
   },
-  barValueUSD: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#FF9800',
+  barVertical: {
+    width: '80%',
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    minHeight: 5,
   },
-  barContainer: {
-    height: 8,
-    backgroundColor: '#F0F0F0',
-    borderRadius: 4,
+  barLabelVertical: {
+    fontSize: 10,
+    color: '#666',
+    marginTop: 6,
+    textAlign: 'center',
   },
-  bar: {
-    height: '100%',
-    borderRadius: 4,
+  dualChartScroll: {
+    paddingVertical: 10,
+  },
+  dualBarGroup: {
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  dualBarsContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    height: 150,
+    gap: 4,
+  },
+  dualBarColumn: {
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    width: 28,
+  },
+  dualBarValue: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#283106',
+    marginBottom: 4,
+  },
+  dualBar: {
+    width: '100%',
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    minHeight: 5,
+  },
+  dualBarLabel: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
   },
   noData: {
     textAlign: 'center',

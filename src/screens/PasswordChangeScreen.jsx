@@ -90,13 +90,7 @@ export default function PasswordChangeScreen({ navigation }) {
     }
   };
 
-  const handleDemoFill = () => {
-    setFormData({
-      currentPassword: 'password123',
-      newPassword: 'newpassword123',
-      confirmPassword: 'newpassword123'
-    });
-  };
+ 
 
   const getPasswordStrength = (password) => {
     if (password.length === 0) return { strength: 0, text: '', color: '#E0E0E0' };
@@ -255,13 +249,7 @@ export default function PasswordChangeScreen({ navigation }) {
             disabled={isLoading}
           />
 
-          {/* Bouton de démonstration */}
-          <TouchableOpacity
-            style={styles.demoButton}
-            onPress={handleDemoFill}
-          >
-            <Text style={styles.demoButtonText}>Remplir avec des données de démo</Text>
-          </TouchableOpacity>
+          
 
           {/* Conseils de sécurité */}
           <View style={styles.securityTips}>

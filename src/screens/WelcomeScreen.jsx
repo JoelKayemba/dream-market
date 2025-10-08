@@ -1,9 +1,31 @@
-import React from 'react';
-import { View, StyleSheet, Text, Image, TouchableOpacity } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet, Text, Image, TouchableOpacity, BackHandler } from 'react-native';
 import { Container, Button  , ScreenWrapper } from '../components/ui';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function WelcomeScreen({ navigation }) {
+  // Bloquer le retour en arrière sur WelcomeScreen
+  useEffect(() => {
+    const backAction = () => {
+      // Retourner true empêche le retour en arrière
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, []);
+
+  // Empêcher la navigation par swipe
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // Empêcher le retour en arrière par swipe
+      e.preventDefault();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
   return (
     <ScreenWrapper style={styles.container}>
       {/* Header avec logo */}
@@ -89,6 +111,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 100,
+    margin:25
   },
   logoContainer: {
     alignItems: 'center',

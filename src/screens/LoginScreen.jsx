@@ -5,17 +5,10 @@ import { Container, Button  , ScreenWrapper } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 
 export default function LoginScreen({ navigation }) {
-  const { login, isLoading, error, isAuthenticated, clearError } = useAuth();
+  const { login, isLoading, error, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-
-  // Rediriger si déjà connecté
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigation.replace('MainApp');
-    }
-  }, [isAuthenticated, navigation]);
 
   // Effacer les erreurs au changement de navigation
   useEffect(() => {
@@ -23,7 +16,7 @@ export default function LoginScreen({ navigation }) {
       clearError();
     });
     return unsubscribe;
-  }, [navigation]); // Retirer clearError des dépendances
+  }, [navigation]);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -32,7 +25,12 @@ export default function LoginScreen({ navigation }) {
     }
 
     try {
-      await login(email.trim(), password);
+      const result = await login(email.trim(), password);
+      
+      // Si la connexion réussit, naviguer vers MainApp
+      if (result.type.endsWith('/fulfilled')) {
+        navigation.replace('MainApp');
+      }
     } catch (error) {
       console.error('Erreur de connexion:', error);
     }

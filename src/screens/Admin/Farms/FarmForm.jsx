@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Image, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Image, Alert, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { Container, Button , ScreenWrapper } from '../../../components/ui';
 import { addFarm, updateFarm, selectFarmsLoading, selectFarmsUploading, selectFarmsError } from '../../../store/admin/farmSlice';
 import { useImagePicker } from '../../../hooks/useImagePicker';
+import { storageService } from '../../../backend/services/storageService';
 
 export default function FarmForm({ route, navigation }) {
   const { mode = 'add', farm } = route.params || {};
@@ -39,6 +40,7 @@ export default function FarmForm({ route, navigation }) {
 
   const [showCertificationsModal, setShowCertificationsModal] = useState(false);
   const [showPracticesModal, setShowPracticesModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Initialiser les images si on est en mode édition
   React.useEffect(() => {
@@ -94,6 +96,32 @@ export default function FarmForm({ route, navigation }) {
         return;
       }
 
+      if (selectedImages.length === 0) {
+        Alert.alert('Erreur', 'Veuillez ajouter au moins une image');
+        return;
+      }
+
+      setIsUploading(true);
+
+      // 📤 Upload des images vers Supabase
+      const imageUrls = [];
+      for (const image of selectedImages) {
+        // Si l'image commence par "file://", c'est une nouvelle image à uploader
+        if (image.uri.startsWith('file://')) {
+         
+          const uploadResult = await storageService.uploadImage(
+            image.uri,
+            'farms',  // Type de bucket
+            ''        // Pas de dossier spécifique (sera généré avec ID unique)
+          );
+         
+          imageUrls.push(uploadResult.url);
+        } else {
+          // Image déjà sur Supabase (mode édition)
+          imageUrls.push(image.uri);
+        }
+      }
+
       // Préparer les données avec conversion des types
       const farmData = {
         name: formData.name,
@@ -111,8 +139,10 @@ export default function FarmForm({ route, navigation }) {
         certifications: formData.certifications,
         sustainable_practices: formData.sustainable_practices,
         contact: formData.contact,
-        images: selectedImages.map(img => img.uri) // Ce champ sera traité par le slice
+        images: imageUrls  // ✅ URLs Supabase
       };
+
+      
 
       if (mode === 'edit') {
         await dispatch(updateFarm({ id: farm.id, farmData })).unwrap();
@@ -124,7 +154,10 @@ export default function FarmForm({ route, navigation }) {
       
       navigation.goBack();
     } catch (error) {
+      console.error('Erreur sauvegarde ferme:', error);
       Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -398,15 +431,26 @@ export default function FarmForm({ route, navigation }) {
           onPress={() => navigation.goBack()}
           variant="outline"
           style={styles.cancelButton}
+          disabled={isUploading}
         />
         <Button
           title={mode === 'add' ? 'Ajouter' : 'Modifier'}
           onPress={handleSave}
           variant="primary"
           style={styles.saveButton}
-          loading={uploading || loading}
+          loading={uploading || loading || isUploading}
         />
       </View>
+
+      {/* Modal de chargement */}
+      {isUploading && (
+        <View style={styles.uploadModalOverlay}>
+          <View style={styles.uploadModalContent}>
+            <ActivityIndicator size="large" color="#4CAF50" />
+            <Text style={styles.uploadModalText}>Enregistrement...</Text>
+          </View>
+        </View>
+      )}
     </ScreenWrapper>
   );
 }
@@ -562,5 +606,30 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     flex: 1,
+  },
+  uploadModalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  uploadModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    minWidth: 250,
+  },
+  uploadModalText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#283106',
+    marginTop: 12,
+    textAlign: 'center',
   },
 });

@@ -5,7 +5,7 @@ import { Container, Button  , ScreenWrapper } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 
 export default function RegisterScreen({ navigation }) {
-  const { register, isLoading, error, isAuthenticated, clearError } = useAuth();
+  const { register, isLoading, error, clearError } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -18,20 +18,13 @@ export default function RegisterScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Rediriger si déjà connecté
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigation.replace('MainApp');
-    }
-  }, [isAuthenticated, navigation]);
-
   // Effacer les erreurs au changement de navigation
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       clearError();
     });
     return unsubscribe;
-  }, [navigation]); // Retirer clearError des dépendances
+  }, [navigation]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -89,7 +82,12 @@ export default function RegisterScreen({ navigation }) {
         address: formData.address.trim()
       };
       
-      await register(userData);
+      const result = await register(userData);
+      
+      // Si l'inscription réussit, naviguer vers MainApp
+      if (result.type.endsWith('/fulfilled')) {
+        navigation.replace('MainApp');
+      }
     } catch (error) {
       console.error('RegisterScreen - Erreur d\'inscription:', error);
     }

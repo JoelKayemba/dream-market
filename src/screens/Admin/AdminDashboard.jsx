@@ -3,7 +3,6 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl } 
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import Container from '../../components/ui/Container';
-import AdminNotificationManager from '../../components/admin/AdminNotificationManager';
 import AdminNotificationCenter from '../../components/admin/AdminNotificationCenter';
 import { useAuth } from '../../hooks/useAuth';
 import { useAdminNotifications } from '../../hooks/useAdminNotifications';
@@ -31,11 +30,11 @@ export default function AdminDashboard({ navigation }) {
   
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
-    totalUsers: 0,
     totalProducts: 0,
     totalFarms: 0,
     totalOrders: 0,
-    totalRevenue: 0,
+    revenueCDF: 0,
+    revenueUSD: 0,
     pendingOrders: 0,
     pendingFarms: 0
   });
@@ -81,12 +80,16 @@ export default function AdminDashboard({ navigation }) {
     const pendingFarms = farms.filter(f => !f.verified).length;
     const pendingOrders = orderStats.pending || 0;
     
+    // Récupérer les revenus des commandes livrées uniquement
+    const revenueCDF = analyticsStats?.orders?.revenue_total_cdf || 0;
+    const revenueUSD = analyticsStats?.orders?.revenue_total_usd || 0;
+    
     setStats({
-      totalUsers: userStats.total || 0,
       totalProducts: totalProducts,
       totalFarms: totalFarms,
       totalOrders: orderStats.total || 0,
-      totalRevenue: orderStats.totalRevenue || 0,
+      revenueCDF: revenueCDF,
+      revenueUSD: revenueUSD,
       totalServices: serviceStats.total || 0,
       activeProducts: activeProducts,
       verifiedFarms: verifiedFarms,
@@ -143,7 +146,7 @@ export default function AdminDashboard({ navigation }) {
   // Mettre à jour les stats quand les données changent
   useEffect(() => {
     loadDashboardData();
-  }, [products, farms, orderStats, serviceStats, userStats]);
+  }, [products, farms, orderStats, serviceStats, analyticsStats]);
 
   // Actions rapides par ordre de priorité
   const quickActions = [
@@ -168,15 +171,6 @@ export default function AdminDashboard({ navigation }) {
       priority: 1
     },
     {
-      id: 3,
-      title: 'Analytiques',
-      subtitle: 'Graphiques et métriques',
-      icon: 'bar-chart-outline',
-      color: '#9C27B0',
-      route: 'AnalyticsDashboard',
-      priority: 2
-    },
-    {
       id: 4,
       title: 'Gérer les Produits',
       subtitle: `${stats.totalProducts} produits`,
@@ -194,16 +188,7 @@ export default function AdminDashboard({ navigation }) {
       route: 'AdminServicesManagement',
       priority: 3
     },
-    {
-      id: 6,
-      title: 'Test Notifications',
-      subtitle: 'Tester les notifications push',
-      icon: 'notifications-outline',
-      color: '#9C27B0',
-      route: 'TestNotifications',
-      badge: 0,
-      priority: 4
-    }
+   
   ];
   
   const sortedQuickActions = [...quickActions].sort((a, b) => a.priority - b.priority); // Trier par priorité
@@ -305,9 +290,6 @@ export default function AdminDashboard({ navigation }) {
 
   return (
     <ScreenWrapper style={styles.container}>
-      {/* Gestionnaire de notifications admin en arrière-plan */}
-      <AdminNotificationManager />
-      
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -377,35 +359,45 @@ export default function AdminDashboard({ navigation }) {
 
         {/* Statistiques Principales */}
         <Container style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Aperçu Global</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Aperçu Global</Text>
+            <TouchableOpacity 
+              style={styles.analyticsButton}
+              onPress={() => navigation.navigate('AnalyticsDashboard')}
+            >
+              <Ionicons name="bar-chart-outline" size={18} color="#9C27B0" />
+              <Text style={styles.analyticsButtonText}>Analytiques</Text>
+              <Ionicons name="chevron-forward" size={18} color="#9C27B0" />
+            </TouchableOpacity>
+          </View>
           <View style={styles.statsGrid}>
+            <StatCard 
+              title="Revenus CDF" 
+              value={`${Math.round(stats.revenueCDF || 0).toLocaleString()} FC`} 
+              subtitle="Commandes livrées"
+              icon="cash-outline" 
+              color="#4CAF50"
+            />
+            <StatCard 
+              title="Revenus USD" 
+              value={`$${Math.round(stats.revenueUSD || 0).toLocaleString()}`} 
+              subtitle="Commandes livrées"
+              icon="logo-usd" 
+              color="#FF9800"
+            />
             <StatCard 
               title="Commandes Total" 
               value={stats.totalOrders?.toLocaleString() || '0'} 
-              subtitle="Ce mois"
+              subtitle="Toutes les commandes"
               icon="cart-outline" 
-              color="#FF6B35"
-            />
-            <StatCard 
-              title="Utilisateurs" 
-              value={stats.totalUsers?.toLocaleString() || '0'} 
-              subtitle="Inscrits"
-              icon="people-outline" 
-              color="#2196F3" 
+              color="#2196F3"
             />
             <StatCard 
               title="Produits Actifs" 
               value={stats.activeProducts?.toLocaleString() || '0'} 
               subtitle={`sur ${stats.totalProducts}`}
               icon="leaf-outline" 
-              color="#4CAF50" 
-            />
-            <StatCard 
-              title="Fermes Vérifiées" 
-              value={stats.verifiedFarms?.toLocaleString() || '0'} 
-              subtitle={`sur ${stats.totalFarms}`}
-              icon="business-outline" 
-              color="#FF9800" 
+              color="#9C27B0" 
             />
           </View>
         </Container>
@@ -554,6 +546,26 @@ const styles = StyleSheet.create({
   // Sections communes
   statsSection: {
     marginTop: 16,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  analyticsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3E5F5',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  analyticsButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#9C27B0',
   },
   actionsSection: {
     marginTop: 16,

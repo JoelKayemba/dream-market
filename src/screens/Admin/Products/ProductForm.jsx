@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Image, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Image, Alert, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -7,6 +7,7 @@ import { Container, Button , ScreenWrapper } from '../../../components/ui';
 import { addProduct, updateProduct, selectAdminProductsLoading, selectAdminProducts, selectAdminCategories, fetchCategories } from '../../../store/admin/productSlice';
 import { selectAllFarms, fetchFarms } from '../../../store/admin/farmSlice';
 import { useImagePicker } from '../../../hooks/useImagePicker';
+import { storageService } from '../../../backend/services/storageService';
 
 export default function ProductForm({ route, navigation }) {
   const { mode = 'add', product, farmId } = route.params || {};
@@ -36,6 +37,7 @@ export default function ProductForm({ route, navigation }) {
 
   const [showFarmSelector, setShowFarmSelector] = useState(false);
   const [showCategorySelector, setShowCategorySelector] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Charger les fermes et catégories
   React.useEffect(() => {
@@ -43,10 +45,7 @@ export default function ProductForm({ route, navigation }) {
     dispatch(fetchCategories());
   }, [dispatch]);
 
-  // Debug: vérifier les catégories
-  React.useEffect(() => {
-    console.log('📊 Categories loaded:', categories.length, categories);
-  }, [categories]);
+  
 
   // Initialiser les images si on est en mode édition
   React.useEffect(() => {
@@ -58,40 +57,87 @@ export default function ProductForm({ route, navigation }) {
 
   const units = ['kg', 'g', 'L', 'ml', 'pièce', 'sachet', 'boîte', 'bouteille'];
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    
+    
     // Validation
     if (!formData.name || !formData.price || !formData.category_id) {
       Alert.alert('Erreur', 'Veuillez remplir le nom, le prix et la catégorie');
       return;
     }
 
-    const selectedCategory = categories.find(cat => cat.id === formData.category_id);
-    const selectedFarm = farms.find(f => f.id === formData.farm_id);
-
-    const productData = {
-      ...formData,
-      price: parseFloat(formData.price) || 0,
-      old_price: formData.old_price ? parseFloat(formData.old_price) : null,
-      stock: parseInt(formData.stock) || 0,
-      discount: parseInt(formData.discount) || 0,
-      category_id: formData.category_id,
-      farm_id: formData.farm_id,
-      tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
-      images: selectedImages.map(img => img.uri),
-      is_active: true, // Toujours actif par défaut
-      rating: product?.rating || 0,
-      review_count: product?.review_count || 0,
-    };
-
-    if (mode === 'add') {
-      dispatch(addProduct(productData));
-      Alert.alert('Succès', 'Produit ajouté avec succès');
-    } else {
-      dispatch(updateProduct({ id: product.id, productData }));
-      Alert.alert('Succès', 'Produit modifié avec succès');
+    if (selectedImages.length === 0) {
+      Alert.alert('Erreur', 'Veuillez ajouter au moins une image');
+      return;
     }
-    
-    navigation.goBack();
+
+ 
+    setIsUploading(true);
+
+    try {
+      // 📤 Upload des images vers Supabase
+      const imageUrls = [];
+      
+      
+      for (const image of selectedImages) {
+        
+        
+        // Si l'image commence par "file://", c'est une nouvelle image à uploader
+        if (image.uri.startsWith('file://')) {
+          
+          const uploadResult = await storageService.uploadImage(
+            image.uri,
+            'products',  // Type de bucket
+            ''           // Pas de dossier spécifique (sera généré avec ID unique)
+          );
+          
+          imageUrls.push(uploadResult.url);
+        } else {
+          // Image déjà sur Supabase (mode édition)
+          
+          imageUrls.push(image.uri);
+        }
+      }
+
+      
+      const productData = {
+        ...formData,
+        price: parseFloat(formData.price) || 0,
+        old_price: formData.old_price ? parseFloat(formData.old_price) : null,
+        stock: parseInt(formData.stock) || 0,
+        discount: parseInt(formData.discount) || 0,
+        category_id: formData.category_id,
+        farm_id: formData.farm_id,
+        tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
+        images: imageUrls,  // ✅ URLs Supabase
+        is_active: true,
+        rating: product?.rating || 0,
+        review_count: product?.review_count || 0,
+      };
+
+      console.log('💾 [ProductForm] Données produit préparées:', JSON.stringify(productData, null, 2));
+
+      if (mode === 'add') {
+       
+        const result = await dispatch(addProduct(productData)).unwrap();
+        
+        Alert.alert('Succès', 'Produit ajouté avec succès');
+      } else {
+        
+        const result = await dispatch(updateProduct({ id: product.id, productData })).unwrap();
+        
+        Alert.alert('Succès', 'Produit modifié avec succès');
+      }
+      
+      
+      navigation.goBack();
+    } catch (error) {
+      c
+      Alert.alert('Erreur', `Impossible de sauvegarder le produit`);
+    } finally {
+      
+      setIsUploading(false);
+    }
   };
 
   const handleImageSelection = (image) => {
@@ -429,15 +475,26 @@ export default function ProductForm({ route, navigation }) {
           onPress={() => navigation.goBack()}
           variant="outline"
           style={styles.cancelButton}
+          disabled={isUploading}
         />
         <Button
           title={mode === 'add' ? 'Ajouter' : 'Modifier'}
           onPress={handleSave}
           variant="primary"
           style={styles.saveButton}
-          loading={loading}
+          loading={loading || isUploading}
         />
       </View>
+
+      {/* Modal de chargement */}
+      {isUploading && (
+        <View style={styles.uploadModalOverlay}>
+          <View style={styles.uploadModalContent}>
+            <ActivityIndicator size="large" color="#4CAF50" />
+            <Text style={styles.uploadModalText}>Enregistrement...</Text>
+          </View>
+        </View>
+      )}
 
       {/* Modal de sélection de ferme */}
       {showFarmSelector && (
@@ -876,5 +933,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#777E5C',
     fontStyle: 'italic',
+  },
+  uploadModalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  uploadModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    minWidth: 250,
+  },
+  uploadModalText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#283106',
+    marginTop: 12,
+    textAlign: 'center',
   },
 });

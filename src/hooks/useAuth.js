@@ -18,33 +18,8 @@ import { authListenerService } from '../backend/services/authListenerService';
 export const useAuth = () => {
   const dispatch = useDispatch();
   const auth = useSelector((state) => state.auth);
-  const hasLoaded = useRef(false);
 
-  // Charger l'authentification stockée au montage (une seule fois)
-  useEffect(() => {
-    if (!hasLoaded.current) {
-      hasLoaded.current = true;
-      dispatch(loadStoredAuth());
-    }
-  }, [dispatch]);
-
-  // Écouter les changements d'auth Supabase
-  useEffect(() => {
-    const unsubscribe = authListenerService.addListener((event, session) => {
-      
-      
-      if (event === 'SIGNED_OUT') {
-        // Déconnexion automatique
-        dispatch(logout());
-      } else if (event === 'TOKEN_REFRESHED' && session) {
-        // Token rafraîchi, mettre à jour l'état
-       
-        // Pas besoin de faire quoi que ce soit, Supabase gère automatiquement
-      }
-    });
-
-    return unsubscribe;
-  }, [dispatch]);
+  // Plus de listener automatique - évite les boucles
 
   const signIn = async (email, password) => {
     return dispatch(loginUser({ email, password }));

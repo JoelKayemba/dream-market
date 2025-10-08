@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Alert, Modal, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { 
-  Container, 
-  Divider,
   Button,
   ScreenWrapper 
 } from '../components/ui';
@@ -11,6 +9,16 @@ import { useAuth } from '../hooks/useAuth';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [localUser, setLocalUser] = useState(user); // Copie locale pour éviter les erreurs pendant logout
+  
+  // Mettre à jour la copie locale quand user change (sauf si on est en train de se déconnecter)
+  useEffect(() => {
+    if (user && !isLoggingOut) {
+      setLocalUser(user);
+    }
+  }, [user, isLoggingOut]);
+  
   const [quickActions] = useState([
     {
       id: 1,
@@ -87,16 +95,28 @@ export default function ProfileScreen({ navigation }) {
         { 
           text: 'Déconnexion', 
           style: 'destructive',
-          onPress: () => {
-            logout();
-            navigation.replace('Welcome');
+          onPress: async () => {
+            setIsLoggingOut(true);
+            
+            try {
+              // Déconnexion
+              await logout();
+              
+              // Navigation simple vers Welcome
+              navigation.navigate('Welcome');
+            } catch (error) {
+              console.error('Erreur lors de la déconnexion:', error);
+            } finally {
+              // Toujours cacher le modal
+              setIsLoggingOut(false);
+            }
           }
         }
       ]
     );
   };
 
-  if (!user) {
+  if (!user && !isLoggingOut) {
     return (
       <View style={styles.loadingContainer}>
         <Ionicons name="person-circle-outline" size={80} color="#777E5C" />
@@ -108,7 +128,7 @@ export default function ProfileScreen({ navigation }) {
           title="Se reconnecter"
           onPress={() => {
             logout();
-            navigation.replace('Welcome');
+            navigation.navigate('Welcome');
           }}
           variant="outline"
           style={styles.reconnectButton}
@@ -117,8 +137,26 @@ export default function ProfileScreen({ navigation }) {
     );
   }
 
+  // Utiliser localUser pour l'affichage (évite les erreurs pendant logout)
+  const displayUser = localUser || user;
+
   return (
     <ScreenWrapper>
+      {/* Modal de chargement lors de la déconnexion */}
+      <Modal
+        visible={isLoggingOut}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ActivityIndicator size="large" color="#4CAF50" />
+            <Text style={styles.modalText}>Déconnexion en cours...</Text>
+            <Text style={styles.modalSubtext}>Veuillez patienter</Text>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         
         <View style={styles.header}>
@@ -127,7 +165,7 @@ export default function ProfileScreen({ navigation }) {
               <View style={styles.avatar}>
                 <Ionicons name="person" size={32} color="#FFFFFF" />
               </View>
-              {user.role === 'admin' && (
+              {displayUser?.role === 'admin' && (
                 <View style={styles.adminBadge}>
                   <Ionicons name="shield-checkmark" size={12} color="#FFFFFF" />
                 </View>
@@ -135,26 +173,9 @@ export default function ProfileScreen({ navigation }) {
             </View>
             
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{user.firstName} {user.lastName}</Text>
-              <Text style={styles.userEmail}>{user.email}</Text>
-              <Text style={styles.userPhone}>{user.phone}</Text>
-              
-              <View style={styles.statsContainer}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>12</Text>
-                  <Text style={styles.statLabel}>Commandes</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>8</Text>
-                  <Text style={styles.statLabel}>Favoris</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>2</Text>
-                  <Text style={styles.statLabel}>Adresses</Text>
-                </View>
-              </View>
+              <Text style={styles.userName}>{displayUser?.firstName} {displayUser?.lastName}</Text>
+              <Text style={styles.userEmail}>{displayUser?.email}</Text>
+              <Text style={styles.userPhone}>{displayUser?.phone}</Text>
             </View>
           </View>
         </View>
@@ -185,7 +206,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
        
-        {user.role === 'admin' && (
+        {displayUser?.role === 'admin' && (
           <View style={styles.section}>
             <View style={styles.adminSection}>
               <View style={styles.adminHeader}>
@@ -451,5 +472,37 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 20,
+  },
+  // Modal de déconnexion
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    minWidth: 250,
+  },
+  modalText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#283106',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  modalSubtext: {
+    fontSize: 14,
+    color: '#777E5C',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

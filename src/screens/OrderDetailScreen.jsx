@@ -110,14 +110,25 @@ export default function OrderDetailScreen({ navigation, route }) {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!dateString) {
+      return 'Date inconnue';
+    }
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return 'Date invalide';
+      }
+      return date.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Erreur formatage date:', error);
+      return 'Date invalide';
+    }
   };
 
   const handleContactSupport = () => {
@@ -156,7 +167,7 @@ export default function OrderDetailScreen({ navigation, route }) {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Détails de la commande</Text>
-          <Text style={styles.headerSubtitle}>#{order.orderNumber}</Text>
+          <Text style={styles.headerSubtitle}>#{order.order_number}</Text>
         </View>
         <View style={styles.placeholder} />
       </View>
@@ -305,6 +316,13 @@ export default function OrderDetailScreen({ navigation, route }) {
 
         {/* Actions */}
         <Container style={styles.section}>
+          <View style={styles.noticeContainer}>
+            <Ionicons name="information-circle-outline" size={20} color="#FF9800" />
+            <Text style={styles.noticeText}>
+              Pour annuler une commande, veuillez contacter notre équipe
+            </Text>
+          </View>
+          
           <Button
             title="Contacter le support"
             onPress={handleContactSupport}
@@ -556,6 +574,23 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     marginLeft: 8,
     fontWeight: '600',
+  },
+  noticeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9800',
+  },
+  noticeText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#E65100',
+    marginLeft: 8,
+    lineHeight: 20,
   },
   supportButton: {
     marginTop: 8,

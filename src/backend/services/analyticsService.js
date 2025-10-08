@@ -19,24 +19,34 @@ class AnalyticsService {
         supabase.from('services').select('*', { count: 'exact', head: true })
       ]);
 
-      // Récupérer les commandes livrées pour les revenus
+      // Récupérer les commandes livrées pour les revenus (avec items)
       const { data: deliveredOrders, error: ordersError } = await supabase
         .from('orders')
-        .select('totals')
+        .select('items')
         .eq('status', 'delivered');
 
       if (ordersError) {
-        console.error('❌ Erreur lors de la récupération des commandes livrées:', ordersError);
+        console.error(' Erreur lors de la récupération des commandes livrées:', ordersError);
       }
 
-      // Calculer les revenus totaux
+      // Calculer les revenus totaux à partir des items
       let totalRevenueCDF = 0;
       let totalRevenueUSD = 0;
 
       deliveredOrders?.forEach(order => {
-        const totals = order.totals || {};
-        totalRevenueCDF += parseFloat(totals.totalCDF || totals.total || 0);
-        totalRevenueUSD += parseFloat(totals.totalUSD || 0);
+        const items = order.items || [];
+        
+        // Parcourir chaque item et additionner selon la devise
+        items.forEach(item => {
+          const subtotal = parseFloat(item.subtotal || 0);
+          const currency = item.product_currency || 'CDF';
+          
+          if (currency === 'CDF') {
+            totalRevenueCDF += subtotal;
+          } else if (currency === 'USD') {
+            totalRevenueUSD += subtotal;
+          }
+        });
       });
 
       const stats = {
@@ -81,40 +91,45 @@ class AnalyticsService {
   // Récupérer les analytiques de revenus
   async getRevenueAnalytics(periodDays = 30) {
     try {
-      // Récupérer les commandes livrées des derniers jours
+      // Récupérer les commandes livrées des derniers jours (avec items)
       const { data: orders, error } = await supabase
         .from('orders')
-        .select('created_at, totals')
+        .select('created_at, items')
         .eq('status', 'delivered')
         .gte('created_at', new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.error('❌ Erreur lors de la récupération des commandes:', error);
+        console.error(' Erreur lors de la récupération des commandes:', error);
         throw error;
       }
 
-      // Calculer les revenus par jour et par devise
+      // Calculer les revenus par jour et par devise à partir des items
       const dailyRevenue = {};
       let totalCDF = 0;
       let totalUSD = 0;
 
       orders?.forEach(order => {
         const date = new Date(order.created_at).toISOString().split('T')[0];
-        const totals = order.totals || {};
+        const items = order.items || [];
         
         if (!dailyRevenue[date]) {
           dailyRevenue[date] = { cdf: 0, usd: 0 };
         }
 
-        // Calculer selon les devises
-        const cdfAmount = parseFloat(totals.totalCDF || totals.total || 0);
-        const usdAmount = parseFloat(totals.totalUSD || 0);
-        
-        dailyRevenue[date].cdf += cdfAmount;
-        dailyRevenue[date].usd += usdAmount;
-        totalCDF += cdfAmount;
-        totalUSD += usdAmount;
+        // Parcourir chaque item et additionner selon la devise
+        items.forEach(item => {
+          const subtotal = parseFloat(item.subtotal || 0);
+          const currency = item.product_currency || 'CDF';
+          
+          if (currency === 'CDF') {
+            dailyRevenue[date].cdf += subtotal;
+            totalCDF += subtotal;
+          } else if (currency === 'USD') {
+            dailyRevenue[date].usd += subtotal;
+            totalUSD += subtotal;
+          }
+        });
       });
 
       // Transformer en format attendu

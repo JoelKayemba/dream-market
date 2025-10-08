@@ -90,7 +90,7 @@ export default function FarmDetail({ route, navigation }) {
 
   return (
     <ScreenWrapper style={styles.container}>
-      {/* Header */}
+      
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -108,26 +108,36 @@ export default function FarmDetail({ route, navigation }) {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Image de la ferme */}
-        {farm.image && (
+        
+        {(farm.main_image || farm.image) ? (
           <View style={styles.imageSection}>
             <Image
-              source={{ uri: farm.image }}
+              source={{ uri: farm.main_image || farm.image }}
               style={styles.farmImage}
               resizeMode="cover"
             />
-            <View style={styles.statusOverlay}>
+            <View style={styles.imageOverlay}>
               <View style={[styles.statusBadge, { backgroundColor: farm.verified ? '#4CAF50' : '#FF9800' }]}>
+                <Ionicons 
+                  name={farm.verified ? "checkmark-circle" : "time-outline"} 
+                  size={14} 
+                  color="#FFFFFF" 
+                />
                 <Text style={styles.statusText}>
                   {farm.verified ? 'Vérifiée' : 'En attente'}
                 </Text>
               </View>
             </View>
           </View>
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Ionicons name="image-outline" size={64} color="#E0E0E0" />
+            <Text style={styles.placeholderText}>Aucune image</Text>
+          </View>
         )}
 
         <Container style={styles.detailsSection}>
-          {/* Informations principales */}
+         
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Informations Générales</Text>
             
@@ -147,7 +157,7 @@ export default function FarmDetail({ route, navigation }) {
             )}
           </View>
 
-          {/* Description */}
+          
           {farm.description && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Description</Text>
@@ -155,7 +165,7 @@ export default function FarmDetail({ route, navigation }) {
             </View>
           )}
 
-          {/* Histoire */}
+          
           {farm.story && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Histoire</Text>
@@ -163,7 +173,7 @@ export default function FarmDetail({ route, navigation }) {
             </View>
           )}
 
-          {/* Certifications */}
+         
           {farm.certifications && farm.certifications.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Certifications</Text>
@@ -175,7 +185,7 @@ export default function FarmDetail({ route, navigation }) {
             </View>
           )}
 
-          {/* Pratiques durables */}
+        
           {farm.sustainablePractices && farm.sustainablePractices.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Pratiques Durables</Text>
@@ -187,7 +197,7 @@ export default function FarmDetail({ route, navigation }) {
             </View>
           )}
 
-          {/* Services */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Services</Text>
             <View style={styles.servicesContainer}>
@@ -197,7 +207,7 @@ export default function FarmDetail({ route, navigation }) {
             </View>
           </View>
 
-          {/* Contact */}
+         
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Contact</Text>
             {farm.contact?.phone && (
@@ -211,7 +221,7 @@ export default function FarmDetail({ route, navigation }) {
             )}
           </View>
 
-          {/* Statistiques */}
+         
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Statistiques</Text>
             <View style={styles.statsContainer}>
@@ -232,7 +242,7 @@ export default function FarmDetail({ route, navigation }) {
         </Container>
       </ScrollView>
 
-      {/* Actions en bas */}
+      
       <View style={styles.actionsContainer}>
         <TouchableOpacity
           style={styles.productsButton}
@@ -299,25 +309,50 @@ const styles = StyleSheet.create({
   },
   imageSection: {
     position: 'relative',
-    height: 200,
+    height: 250,
+    marginBottom: 16,
+    borderRadius: 0,
+    overflow: 'hidden',
+    backgroundColor: '#F5F5F5',
   },
   farmImage: {
     width: '100%',
     height: '100%',
   },
-  statusOverlay: {
+  imagePlaceholder: {
+    height: 250,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: '#777E5C',
+    marginTop: 12,
+  },
+  imageOverlay: {
     position: 'absolute',
-    top: 16,
-    right: 16,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'flex-end',
+    padding: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 20,
+    gap: 6,
   },
   statusText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   detailsSection: {

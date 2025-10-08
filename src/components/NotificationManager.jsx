@@ -11,8 +11,12 @@ import {
 import { 
   loadPersistedNotificationsData
 } from '../store/notificationsSlice';
+import { 
+  fetchOrders
+} from '../store/admin/ordersSlice';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../hooks/useNotifications';
+import { useAdminNotifications } from '../hooks/useAdminNotifications';
 
 const NotificationManager = () => {
   const dispatch = useDispatch();
@@ -20,6 +24,9 @@ const NotificationManager = () => {
   
   // Initialiser le hook de notifications (pour générer les notifications automatiquement)
   const { unreadCount, configurePushNotifications } = useNotifications();
+  
+  // Initialiser les notifications admin si l'utilisateur est admin
+  const { isInitialized: adminNotifInitialized } = useAdminNotifications();
 
   // Charger toutes les données nécessaires pour les notifications au démarrage de l'app
   useEffect(() => {
@@ -46,7 +53,7 @@ const NotificationManager = () => {
         await Promise.all(promises);
         
       } catch (error) {
-        console.error('❌ [NotificationManager] Erreur lors de l\'initialisation des notifications:', error);
+        console.error(' [NotificationManager] Erreur lors de l\'initialisation des notifications:', error);
       }
     };
 
@@ -63,13 +70,37 @@ const NotificationManager = () => {
         try {
           await dispatch(fetchUserOrders(user.id));
         } catch (error) {
-          console.error('❌ [NotificationManager] Erreur lors du rechargement des données:', error);
+          console.error(' [NotificationManager] Erreur lors du rechargement des données:', error);
         }
       };
 
       reloadDataForNewUser();
     }
   }, [user?.id, dispatch]);
+
+  // 🔔 GESTION DES NOTIFICATIONS ADMIN - Actif partout dans l'app
+  useEffect(() => {
+    // Vérifier si l'utilisateur est admin
+    const isAdmin = user?.role === 'admin';
+    
+    if (!isAdmin || !adminNotifInitialized) return;
+
+    const loadOrdersForAdminNotifications = async () => {
+      try {
+        await dispatch(fetchOrders());
+      } catch (error) {
+        console.error('[NotificationManager] Erreur lors du chargement des commandes admin:', error);
+      }
+    };
+
+    // Charger immédiatement
+    loadOrdersForAdminNotifications();
+    
+    // Recharger toutes les 5 minutes pour détecter les nouvelles commandes
+    const interval = setInterval(loadOrdersForAdminNotifications, 300000); // 5 minutes
+    
+    return () => clearInterval(interval);
+  }, [adminNotifInitialized, user?.role, dispatch]);
 
   // Ce composant ne rend rien, il gère juste les notifications en arrière-plan
   return null;

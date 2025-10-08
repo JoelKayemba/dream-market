@@ -8,6 +8,9 @@ import { Provider } from 'react-redux';
 import { store } from './src/store';
 import NotificationManager from './src/components/NotificationManager';
 import BackgroundNotificationService from './src/services/backgroundNotificationService';
+import ErrorBoundary from './src/components/ErrorBoundary';
+import GlobalErrorHandler from './src/components/GlobalErrorHandler';
+import { supabase } from './src/backend/config/supabase';
 
 // Écrans d'authentification
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -37,168 +40,229 @@ import AdminNavigator from './src/screens/Admin/AdminNavigator';
 const Stack = createStackNavigator();
 
 export default function App() {
-  // Initialiser le service de notifications en arrière-plan
+  const [isReady, setIsReady] = React.useState(false);
+  const [initialRoute, setInitialRoute] = React.useState('Welcome');
+
+  // Initialiser l'application
   React.useEffect(() => {
-    BackgroundNotificationService.initialize();
+    initializeApp();
   }, []);
 
+  const initializeApp = async () => {
+    try {
+      // Vérifier s'il y a une session valide
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        // Récupérer le profil utilisateur
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        // Charger la session dans Redux
+        store.dispatch({
+          type: 'auth/loadStoredAuth/fulfilled',
+          payload: {
+            user: {
+              id: session.user.id,
+              email: session.user.email,
+              role: profile?.role || 'customer',
+              firstName: profile?.first_name || '',
+              lastName: profile?.last_name || '',
+              phone: profile?.phone || '',
+              address: profile?.address || '',
+              avatarUrl: profile?.avatar_url || '',
+            },
+            token: session.access_token,
+            refreshToken: session.refresh_token
+          }
+        });
+
+        // Utilisateur déjà connecté, aller directement à MainApp
+        setInitialRoute('MainApp');
+      } else {
+        // Pas de session, commencer par Welcome
+        setInitialRoute('Welcome');
+      }
+
+      // Initialiser le service de notifications en arrière-plan
+      BackgroundNotificationService.initialize();
+    } catch (error) {
+      console.error('Erreur lors de l\'initialisation:', error);
+      setInitialRoute('Welcome');
+    } finally {
+      setIsReady(true);
+    }
+  };
+
+  if (!isReady) {
+    return null; // Ou un splash screen
+  }
+
   return (
-    <SafeAreaProvider>
-      <Provider store={store}>
-        <NotificationManager />
-        <NavigationContainer>
-          <Stack.Navigator
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
-            {/* Écrans d'authentification */}
-            <Stack.Screen
-              name="Welcome"
-              component={WelcomeScreen}
-              options={{
-                title: 'Bienvenue'
-              }}
-            />
-            <Stack.Screen
-              name="Login"
-              component={LoginScreen}
-              options={{
-                title: 'Connexion'
-              }}
-            />
-            <Stack.Screen
-              name="Register"
-              component={RegisterScreen}
-              options={{
-                title: 'Inscription'
-              }}
-            />
-            <Stack.Screen
-              name="ForgotPassword"
-              component={ForgotPasswordScreen}
-              options={{
-                title: 'Mot de passe oublié'
-              }}
-            />
-            
-            {/* Application principale */}
-            <Stack.Screen
-              name="MainApp"
-              component={AppNavigator}
-              options={{
-                title: 'Dream Market'
-              }}
-            />
+    <ErrorBoundary>
+      <GlobalErrorHandler>
+        <SafeAreaProvider>
+          <Provider store={store}>
+            <NotificationManager />
+            <NavigationContainer>
+              <Stack.Navigator
+                initialRouteName={initialRoute}
+                screenOptions={{
+                  headerShown: false,
+                }}
+              >
+                {/* Écrans d'authentification */}
+                <Stack.Screen
+                  name="Welcome"
+                  component={WelcomeScreen}
+                  options={{
+                    title: 'Bienvenue'
+                  }}
+                />
+                <Stack.Screen
+                  name="Login"
+                  component={LoginScreen}
+                  options={{
+                    title: 'Connexion'
+                  }}
+                />
+                <Stack.Screen
+                  name="Register"
+                  component={RegisterScreen}
+                  options={{
+                    title: 'Inscription'
+                  }}
+                />
+                <Stack.Screen
+                  name="ForgotPassword"
+                  component={ForgotPasswordScreen}
+                  options={{
+                    title: 'Mot de passe oublié'
+                  }}
+                />
+                
+                {/* Application principale */}
+                <Stack.Screen
+                  name="MainApp"
+                  component={AppNavigator}
+                  options={{
+                    title: 'Dream Market'
+                  }}
+                />
 
-            {/* Écrans de recherche et détails */}
-            <Stack.Screen
-              name="Search"
-              component={SearchScreen}
-              options={{
-                title: 'Recherche'
-              }}
-            />
+                {/* Écrans de recherche et détails */}
+                <Stack.Screen
+                  name="Search"
+                  component={SearchScreen}
+                  options={{
+                    title: 'Recherche'
+                  }}
+                />
 
-            {/* Écrans de navigation depuis l'accueil */}
-            <Stack.Screen
-              name="Notifications"
-              component={NotificationsScreen}
-              options={{
-                title: 'Notifications'
-              }}
-            />
-            <Stack.Screen
-              name="CategoryProducts"
-              component={CategoryProductsScreen}
-              options={{
-                title: 'Produits par catégorie'
-              }}
-            />
-            <Stack.Screen
-              name="AllProducts"
-              component={AllProductsScreen}
-              options={{
-                title: 'Tous nos produits'
-              }}
-            />
-            <Stack.Screen
-              name="ProductDetail"
-              component={ProductDetailScreen}
-              options={{
-                title: 'Détails du produit'
-              }}
-            />
-            <Stack.Screen
-              name="Cart"
-              component={CartScreen}
-              options={{
-                title: 'Panier'
-              }}
-            />
-            <Stack.Screen
-              name="FarmDetail"
-              component={FarmDetailScreen}
-              options={{
-                title: 'Détails de la ferme'
-              }}
-            />
-            <Stack.Screen
-              name="ServiceDetail"
-              component={ServiceDetailScreen}
-              options={{
-                title: 'Détails du service'
-              }}
-            />
-            <Stack.Screen
-              name="AllFarms"
-              component={AllFarmsScreen}
-              options={{
-                title: 'Toutes les fermes'
-              }}
-            />
-            <Stack.Screen
-              name="AllServices"
-              component={AllServicesScreen}
-              options={{
-                title: 'Tous les services'
-              }}
-            />
-            <Stack.Screen
-              name="Checkout"
-              component={CheckoutScreen}
-              options={{
-                title: 'Finaliser la commande'
-              }}
-            />
-            <Stack.Screen
-              name="Orders"
-              component={OrderScreen}
-              options={{
-                title: 'Mes Commandes'
-              }}
-            />
-            <Stack.Screen
-              name="OrderDetail"
-              component={OrderDetailScreen}
-              options={{
-                title: 'Détails de la commande'
-              }}
-            />
+                {/* Écrans de navigation depuis l'accueil */}
+                <Stack.Screen
+                  name="Notifications"
+                  component={NotificationsScreen}
+                  options={{
+                    title: 'Notifications'
+                  }}
+                />
+                <Stack.Screen
+                  name="CategoryProducts"
+                  component={CategoryProductsScreen}
+                  options={{
+                    title: 'Produits par catégorie'
+                  }}
+                />
+                <Stack.Screen
+                  name="AllProducts"
+                  component={AllProductsScreen}
+                  options={{
+                    title: 'Tous nos produits'
+                  }}
+                />
+                <Stack.Screen
+                  name="ProductDetail"
+                  component={ProductDetailScreen}
+                  options={{
+                    title: 'Détails du produit'
+                  }}
+                />
+                <Stack.Screen
+                  name="Cart"
+                  component={CartScreen}
+                  options={{
+                    title: 'Panier'
+                  }}
+                />
+                <Stack.Screen
+                  name="FarmDetail"
+                  component={FarmDetailScreen}
+                  options={{
+                    title: 'Détails de la ferme'
+                  }}
+                />
+                <Stack.Screen
+                  name="ServiceDetail"
+                  component={ServiceDetailScreen}
+                  options={{
+                    title: 'Détails du service'
+                  }}
+                />
+                <Stack.Screen
+                  name="AllFarms"
+                  component={AllFarmsScreen}
+                  options={{
+                    title: 'Toutes les fermes'
+                  }}
+                />
+                <Stack.Screen
+                  name="AllServices"
+                  component={AllServicesScreen}
+                  options={{
+                    title: 'Tous les services'
+                  }}
+                />
+                <Stack.Screen
+                  name="Checkout"
+                  component={CheckoutScreen}
+                  options={{
+                    title: 'Finaliser la commande'
+                  }}
+                />
+                <Stack.Screen
+                  name="Orders"
+                  component={OrderScreen}
+                  options={{
+                    title: 'Mes Commandes'
+                  }}
+                />
+                <Stack.Screen
+                  name="OrderDetail"
+                  component={OrderDetailScreen}
+                  options={{
+                    title: 'Détails de la commande'
+                  }}
+                />
 
-            {/* Écrans d'administration */}
-            <Stack.Screen
-              name="AdminDashboard"
-              component={AdminNavigator}
-              options={{
-                title: 'Administration',
-                headerShown: false
-              }}
-            />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </Provider>
-    </SafeAreaProvider>
+                {/* Écrans d'administration */}
+                <Stack.Screen
+                  name="AdminDashboard"
+                  component={AdminNavigator}
+                  options={{
+                    title: 'Administration',
+                    headerShown: false
+                  }}
+                />
+              </Stack.Navigator>
+            </NavigationContainer>
+          </Provider>
+        </SafeAreaProvider>
+      </GlobalErrorHandler>
+    </ErrorBoundary>
   );
 }
 
@@ -208,5 +272,3 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
 });
-
-
