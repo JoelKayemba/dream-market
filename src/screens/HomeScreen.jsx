@@ -122,7 +122,7 @@ export default function HomeScreen({ navigation }) {
         <Container style={styles.headerContent}>
           <View style={styles.logoContainer}>
             <Image 
-              source={{ uri: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4' }}
+              source={require('../../assets/Dream_logo.png')}
               style={styles.logo}
             />
             <View style={styles.logoText}>
@@ -207,7 +207,7 @@ export default function HomeScreen({ navigation }) {
                 />
               </View>
               <Image 
-                source={{ uri: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4' }}
+                source={require('../../assets/Dream_logo.png')}
                 style={styles.heroImage}
               />
             </View>

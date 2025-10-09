@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -97,8 +97,22 @@ export default function App() {
     }
   };
 
+  // Écran de chargement avec logo
   if (!isReady) {
-    return null; // Ou un splash screen
+    return (
+      <View style={styles.splashContainer}>
+        <Image
+          source={require('./assets/Dream_logo.png')}
+          style={styles.splashLogo}
+          resizeMode="contain"
+        />
+        <ActivityIndicator 
+          size="large" 
+          color="#4CAF50" 
+          style={styles.splashLoader}
+        />
+      </View>
+    );
   }
 
   return (
@@ -270,5 +284,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  splashContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  splashLogo: {
+    width: 200,
+    height: 200,
+    marginBottom: 30,
+  },
+  splashLoader: {
+    marginTop: 20,
   },
 });

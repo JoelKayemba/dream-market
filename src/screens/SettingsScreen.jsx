@@ -143,13 +143,8 @@ export default function SettingsScreen({ navigation }) {
           title="Notifications"
           subtitle="Gérer vos préférences de notification"
           onPress={handleNotificationsSettings}
-          rightComponent={
-            <View style={styles.notificationBadge}>
-              <Text style={styles.badgeText}>
-                {Object.values(notifications).filter(Boolean).length}
-              </Text>
-            </View>
-          }
+         
+          
         />
       </Container>
 
@@ -169,13 +164,6 @@ export default function SettingsScreen({ navigation }) {
      
       </Container>
 
-      
-        
-        
-        
-       
-        
-    
 
       {/* Danger Zone */}
       <Container style={styles.section}>
