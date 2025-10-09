@@ -372,7 +372,8 @@ export const useNotifications = () => {
       // Configuration du comportement des notifications
       await Notifications.setNotificationHandler({
         handleNotification: async () => ({
-          shouldShowAlert: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
           shouldPlaySound: true,
           shouldSetBadge: true,
         }),
