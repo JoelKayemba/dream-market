@@ -30,7 +30,7 @@ export const passwordResetService = {
           body: JSON.stringify({
             from: 'Dream Market <onboarding@resend.dev>', // Email de test Resend
             to: email,
-            subject: '🔐 Code de réinitialisation Dream Market',
+            subject: 'Code de réinitialisation Dream Market',
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
                 <!-- Header -->
