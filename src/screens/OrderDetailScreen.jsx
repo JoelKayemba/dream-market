@@ -33,6 +33,22 @@ export default function OrderDetailScreen({ navigation, route }) {
   const loading = useSelector(selectOrdersLoading);
   const error = useSelector(selectOrdersError);
 
+  // Vérifier que orderId est valide
+  if (!orderId) {
+    console.error('🔔 [OrderDetailScreen] Pas d\'orderId fourni dans les paramètres');
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={80} color="#F44336" />
+          <Text style={styles.errorTitle}>Erreur de navigation</Text>
+          <Text style={styles.errorSubtitle}>
+            Aucun ID de commande fourni
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   // Charger la commande au montage
   useEffect(() => {
     if (orderId) {
@@ -50,40 +66,70 @@ export default function OrderDetailScreen({ navigation, route }) {
     }
   }, [error, dispatch]);
 
-  // État de chargement
+  // État de chargement - Version simplifiée pour debug
   if (loading) {
     return (
-    <View style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Ionicons name="hourglass-outline" size={80} color="#4CAF50" />
           <Text style={styles.loadingTitle}>Chargement...</Text>
           <Text style={styles.loadingSubtitle}>
             Récupération des détails de la commande
           </Text>
         </View>
       </View>
-  );
+    );
   }
 
-  // Commande introuvable
+  // Commande introuvable - Version simplifiée pour debug
   if (!order) {
     return (
       <View style={styles.container}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={80} color="#F44336" />
           <Text style={styles.errorTitle}>Commande introuvable</Text>
           <Text style={styles.errorSubtitle}>
             Cette commande n'existe pas ou a été supprimée
           </Text>
-          <Button
-            title="Retour aux commandes"
-            onPress={() => navigation.goBack()}
-            style={styles.errorButton}
-          />
         </View>
       </View>
     );
   }
+
+  const normalizeCustomerField = (value) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value.trim();
+    return String(value);
+  };
+
+  const pickCustomerValue = (...values) => {
+    for (const value of values) {
+      const normalized = normalizeCustomerField(value);
+      if (normalized) return normalized;
+    }
+    return '';
+  };
+
+  const customerFirstName = pickCustomerValue(order.profiles?.first_name, order.customer_first_name, order.customerFirstName);
+  const customerLastName = pickCustomerValue(order.profiles?.last_name, order.customer_last_name, order.customerLastName);
+  const customerEmail = pickCustomerValue(order.profiles?.email, order.customer_email, order.customerEmail);
+  const customerDisplayName = (customerFirstName || customerLastName)
+    ? [customerFirstName, customerLastName].filter(Boolean).join(' ')
+    : customerEmail || 'Non renseigné';
+
+  const deliveryFeeAmount = Number(order.delivery_fee_amount ?? order.deliveryFeeAmount ?? 0) || 0;
+  const deliveryFeeCurrency = pickCustomerValue(order.delivery_fee_currency, order.deliveryFeeCurrency) || 'CDF';
+  const deliveryFeeDisplay = deliveryFeeAmount > 0
+    ? formatPrice(deliveryFeeAmount, deliveryFeeCurrency)
+    : 'Gratuit';
+
+  const totalsWithDelivery = order?.totalsWithDelivery
+    ? order.totalsWithDelivery
+    : (() => {
+        const baseTotals = { ...(order.totals || {}) };
+        if (deliveryFeeAmount > 0) {
+          baseTotals[deliveryFeeCurrency] = (baseTotals[deliveryFeeCurrency] || 0) + deliveryFeeAmount;
+        }
+        return baseTotals;
+      })();
 
   const getStatusColor = (status) => {
     const colors = {
@@ -131,6 +177,7 @@ export default function OrderDetailScreen({ navigation, route }) {
     }
   };
 
+  // Log avant le rendu principal
   const handleContactSupport = () => {
     Alert.alert(
       'Contacter le support',
@@ -214,9 +261,17 @@ export default function OrderDetailScreen({ navigation, route }) {
           <View style={styles.itemsContainer}>
             {Array.isArray(order.items) && order.items.map((item, index) => (
               <View key={index} style={styles.itemCard}>
-                <View style={styles.itemImagePlaceholder}>
-                  <Ionicons name="image-outline" size={40} color="#777E5C" />
-                </View>
+                {item.product_image ? (
+                  <Image
+                    source={{ uri: item.product_image }}
+                    style={styles.itemImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.itemImagePlaceholder}>
+                    <Ionicons name="image-outline" size={32} color="#9E9E9E" />
+                  </View>
+                )}
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemName}>{item.product_name || 'Produit'}</Text>
                   <Text style={styles.itemFarm}>Dream Market</Text>
@@ -234,19 +289,29 @@ export default function OrderDetailScreen({ navigation, route }) {
           </View>
         </Container>
 
-        {/* Informations de livraison */}
+        {/* Informations du client */}
         <Container style={styles.section}>
           <SectionHeader
-            title="Informations de livraison"
-            subtitle="Adresse et contact"
+            title="Informations du client"
+            subtitle="Détails du commanditaire"
           />
           
           <View style={styles.deliveryCard}>
             <View style={styles.deliveryItem}>
-              <Ionicons name="location-outline" size={20} color="#4CAF50" />
+              <Ionicons name="person-outline" size={20} color="#4CAF50" />
               <View style={styles.deliveryDetails}>
-                <Text style={styles.deliveryLabel}>Adresse de livraison</Text>
-                <Text style={styles.deliveryValue}>{order.delivery_address}</Text>
+                <Text style={styles.deliveryLabel}>Nom du client</Text>
+                <Text style={styles.deliveryValue}>
+                  {customerDisplayName}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.deliveryItem}>
+              <Ionicons name="mail-outline" size={20} color="#4CAF50" />
+              <View style={styles.deliveryDetails}>
+                <Text style={styles.deliveryLabel}>Email</Text>
+                <Text style={styles.deliveryValue}>{customerEmail || 'Non renseigné'}</Text>
               </View>
             </View>
             
@@ -255,6 +320,24 @@ export default function OrderDetailScreen({ navigation, route }) {
               <View style={styles.deliveryDetails}>
                 <Text style={styles.deliveryLabel}>Téléphone de contact</Text>
                 <Text style={styles.deliveryValue}>{order.phone_number}</Text>
+              </View>
+            </View>
+          </View>
+        </Container>
+
+        {/* Informations de livraison */}
+        <Container style={styles.section}>
+          <SectionHeader
+            title="Informations de livraison"
+            subtitle="Adresse et instructions"
+          />
+          
+          <View style={styles.deliveryCard}>
+            <View style={styles.deliveryItem}>
+              <Ionicons name="location-outline" size={20} color="#4CAF50" />
+              <View style={styles.deliveryDetails}>
+                <Text style={styles.deliveryLabel}>Adresse de livraison</Text>
+                <Text style={styles.deliveryValue}>{order.delivery_address}</Text>
               </View>
             </View>
             
@@ -281,7 +364,7 @@ export default function OrderDetailScreen({ navigation, route }) {
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Sous-total</Text>
               <Text style={styles.summaryValue}>
-                {Object.entries(order.totals).map(([currency, amount]) => 
+                {Object.entries(order.totals || {}).map(([currency, amount]) => 
                   `${formatPrice(amount, currency)}`
                 ).join(' + ')}
               </Text>
@@ -289,7 +372,7 @@ export default function OrderDetailScreen({ navigation, route }) {
             
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Frais de livraison</Text>
-              <Text style={styles.summaryValue}>Gratuit</Text>
+              <Text style={[styles.summaryValue, deliveryFeeAmount === 0 && styles.summaryValueFree]}>{deliveryFeeDisplay}</Text>
             </View>
             
             <Divider style={styles.summaryDivider} />
@@ -297,7 +380,7 @@ export default function OrderDetailScreen({ navigation, route }) {
             <View style={styles.summaryRow}>
               <Text style={styles.summaryTotalLabel}>Total</Text>
               <View style={styles.summaryTotalValue}>
-                {order.totals && Object.entries(order.totals).map(([currency, amount]) => (
+                {totalsWithDelivery && Object.entries(totalsWithDelivery).map(([currency, amount]) => (
                   <Text key={currency} style={styles.totalText}>
                     {formatPrice(amount, currency)}
                   </Text>
@@ -547,6 +630,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#283106',
+  },
+  summaryValueFree: {
+    color: '#4CAF50',
   },
   summaryDivider: {
     marginVertical: 12,

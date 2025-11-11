@@ -37,8 +37,6 @@ export default function AdminSettings({ navigation }) {
   };
 
   const handleSaveSettings = () => {
-    // TODO: Implémenter la sauvegarde
-    console.log('Sauvegarde des paramètres:', settings);
     Alert.alert('Succès', 'Paramètres sauvegardés avec succès');
   };
 
@@ -53,7 +51,6 @@ export default function AdminSettings({ navigation }) {
           style: 'destructive',
           onPress: () => {
             // TODO: Implémenter la réinitialisation
-            console.log('Réinitialisation des paramètres');
             Alert.alert('Succès', 'Paramètres réinitialisés');
           }
         }
@@ -73,7 +70,7 @@ export default function AdminSettings({ navigation }) {
         trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
         thumbColor={value ? '#FFFFFF' : '#FFFFFF'}
       />
-    </ScreenWrapper>
+    </View>
   );
 
   const SettingInput = ({ title, subtitle, value, onChangeText, keyboardType }) => (
@@ -243,7 +240,7 @@ export default function AdminSettings({ navigation }) {
           style={styles.saveButton}
         />
       </View>
-    </View>
+    </ScreenWrapper>
   );
 }
 

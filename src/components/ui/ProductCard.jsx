@@ -2,14 +2,14 @@ import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import Badge from './Badge';
 import { toggleCartItem, selectIsInCart } from '../../store/cartSlice';
 import { useFavorites } from '../../hooks/useFavorites';
 import { formatPrice } from '../../utils/currency';
+import { farmService } from '../../backend';
 
-export default function ProductCard({ 
-  product, 
-  variant = 'default', 
+export default function ProductCard({
+  product,
+  variant = 'default',
   size = 'medium',
   fullWidth = false,
   onPress,
@@ -21,168 +21,197 @@ export default function ProductCard({
   const isFavorite = isProductFavorite(product.id);
 
   const handlePress = () => {
-    if (onPress) {
-      onPress();
-    } else if (navigation && product) {
-      navigation.navigate('ProductDetail', { product });
-    }
+    if (onPress) onPress();
+    else if (navigation && product) navigation.navigate('ProductDetail', { product });
   };
 
   const handleAddToCart = (e) => {
-    e.stopPropagation(); // Empêcher la navigation vers ProductDetail
+    e.stopPropagation();
     const wasInCart = isInCart;
     dispatch(toggleCartItem({ product, quantity: 1 }));
-    
-    // Afficher une notification différente selon l'action
+
     if (wasInCart) {
-      Alert.alert(
-        'Produit retiré du panier',
-        `${product.name} a été retiré de votre panier.`,
-        [{ text: 'OK', style: 'default' }]
-      );
+      Alert.alert('Produit retiré du panier', `${product.name} a été retiré de votre panier.`);
     } else {
       Alert.alert(
         'Produit ajouté au panier !',
         `${product.name} a été ajouté à votre panier.`,
         [
           { text: 'Continuer', style: 'cancel' },
-          { 
-            text: 'Voir le panier', 
-            onPress: () => navigation.navigate('Cart'),
-            style: 'default'
-          }
+          navigation
+            ? { text: 'Voir le panier', onPress: () => navigation.navigate('Cart') }
+            : { text: 'Fermer', style: 'default' },
         ]
       );
     }
   };
 
   const handleToggleFavorite = (e) => {
-    e.stopPropagation(); // Empêcher la navigation vers ProductDetail
+    e.stopPropagation();
     const wasFavorite = isFavorite;
     toggleProductFavorite(product);
-    
-    // Afficher une notification différente selon l'action
-    if (wasFavorite) {
-      Alert.alert(
-        'Retiré des favoris',
-        `${product.name} a été retiré de vos favoris.`,
-        [{ text: 'OK', style: 'default' }]
-      );
-    } else {
-      Alert.alert(
-        'Ajouté aux favoris !',
-        `${product.name} a été ajouté à vos favoris.`,
-        [{ text: 'OK', style: 'default' }]
-      );
+    Alert.alert(
+      wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris !',
+      wasFavorite
+        ? `${product.name} a été retiré de vos favoris.`
+        : `${product.name} a été ajouté à vos favoris.`
+    );
+  };
+
+  const imageSource = product.images?.[0] || product.image;
+  const imageHeight = size === 'small' ? 120 : size === 'large' ? 200 : 150;
+  const ratingValue = product.rating ? Number(product.rating).toFixed(1) : '—';
+  const reviewCount = product.review_count || 0;
+  const rawFarmName = product.farms?.name;
+  const farmName = rawFarmName || 'Dream Market';
+  const isDreamMarket =
+    (rawFarmName || '').trim().toLowerCase() === 'dream market' ||
+    (!product.farms && !product.farm_id);
+
+  const openFarmDetail = async () => {
+    if (!navigation || isDreamMarket) return;
+    try {
+      let farm = product.farms;
+      const farmId = farm?.id || product.farm_id;
+
+      if (farmId) {
+        const hasExtendedData =
+          farm &&
+          (farm.description ||
+            (Array.isArray(farm.certifications) && farm.certifications.length > 0) ||
+            typeof farm.rating === 'number' ||
+            typeof farm.review_count === 'number');
+
+        if (!hasExtendedData) {
+          const fetched = await farmService.getFarmById(farmId);
+          if (fetched) {
+            farm = fetched;
+          }
+        }
+      }
+
+      navigation.navigate('FarmDetail', {
+        farm: farm || product.farms || (farmId ? { id: farmId } : null),
+      });
+    } catch (error) {
+      console.error('[ProductCard] Impossible de charger les détails de la ferme:', error);
+      if (product.farms || product.farm_id) {
+        navigation.navigate('FarmDetail', {
+          farm: product.farms || { id: product.farm_id },
+        });
+      }
     }
   };
 
-  const getCardStyles = () => {
-    const baseStyles = [styles.card, styles[variant], styles[size]];
-    
-    if (fullWidth) {
-      baseStyles.push(styles.fullWidth);
-    }
-    
-    return baseStyles;
-  };
-
-  const getImageStyles = () => {
-    const baseStyles = [styles.image, styles[`${size}Image`]];
-    
-    if (fullWidth) {
-      baseStyles.push(styles.fullWidthImage);
-    }
-    
-    return baseStyles;
-  };
+  const highlightChips = [
+    product.is_new && 'Nouveau',
+    product.is_organic && 'Bio',
+    product.discount && `-${product.discount}%`,
+  ].filter(Boolean);
 
   return (
     <TouchableOpacity
-      style={getCardStyles()}
+      style={[
+        styles.cardShell,
+        fullWidth && styles.cardShellFullWidth,
+      ]}
       onPress={handlePress}
-      activeOpacity={0.9}
+      activeOpacity={0.92}
     >
-      <View style={styles.imageContainer}>
-        <Image source={{ uri: product.images?.[0] || product.image }} style={getImageStyles()} />
-        
-        {/* Badges */}
-        <View style={styles.badges}>
-          {product.discount > 0 && (
-            <Badge text={`-${product.discount}%`} variant="discount" size="small" />
-          )}
-          {product.is_new && (
-            <Badge text="Nouveau" variant="new" size="small" />
-          )}
-          {product.is_organic && (
-            <Badge text="Bio" variant="organic" size="small" />
-          )}
-        </View>
-
-        {/* Bouton Favori */}
-        <TouchableOpacity
-          style={styles.favoriteButton}
-          onPress={handleToggleFavorite}
-        >
-          <Ionicons 
-            name={isFavorite ? "heart" : "heart-outline"} 
-            size={20} 
-            color={isFavorite ? "#FF6B6B" : "#FFFFFF"} 
+      <View style={styles.card}>
+        {/* Media */}
+        <View style={styles.media}>
+          <Image
+            source={{ uri: imageSource }}
+            style={[styles.image, { height: imageHeight }]}
+            resizeMode="cover"
           />
-        </TouchableOpacity>
-      </View>
 
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.name} numberOfLines={2}>
-            {product.name}
-          </Text>
-          <View style={styles.priceContainer}>
-            {product.old_price && (
-              <Text style={styles.oldPrice}>{formatPrice(product.old_price, product.currency)}</Text>
-            )}
-            <Text style={styles.price}>{formatPrice(product.price, product.currency)}</Text>
-          </View>
-        </View>
-        
-        <TouchableOpacity 
-          onPress={() => {
-            if (product.farms && navigation) {
-              navigation.navigate('FarmDetail', { farm: product.farms });
-            }
-          }}
-          style={styles.farmContainer}
-        >
-          <Text style={styles.farm} numberOfLines={1}>
-            🏡 {product.farms?.name || 'Dream Market'}
-          </Text>
-        </TouchableOpacity>
-        
-        <Text style={styles.description} numberOfLines={2}>
-          {product.description}
-        </Text>
-        
-        <View style={styles.footer}>
-          <View style={styles.ratingContainer}>
-            <View style={styles.rating}>
-              <Ionicons name="star" size={14} color="#FFD700" />
-              <Text style={styles.ratingText}>{product.rating || 'N/A'}</Text>
-            </View>
-            {product.review_count > 0 && (
-              <Text style={styles.reviewCount}>({product.review_count})</Text>
-            )}
-          </View>
-          
+          {/* Bouton favori discret */}
           <TouchableOpacity
-            style={[styles.addToCartButton, isInCart && styles.addToCartButtonActive]}
-            onPress={handleAddToCart}
+            style={styles.favoriteBtn}
+            onPress={handleToggleFavorite}
+            activeOpacity={0.85}
           >
-            <Ionicons 
-              name={isInCart ? "checkmark" : "add"} 
-              size={16} 
-              color="#FFFFFF" 
+            <Ionicons
+              name={isFavorite ? 'heart' : 'heart-outline'}
+              size={18}
+              color={isFavorite ? '#DC2626' : '#111827'}
             />
           </TouchableOpacity>
+
+          {/* Chips neutres */}
+          {highlightChips.length > 0 && (
+            <View style={styles.chipsRow}>
+              {highlightChips.map((label, idx) => (
+                <View key={`${label}-${idx}`} style={styles.chip}>
+                  <Text style={styles.chipText}>{label}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Corps */}
+        <View style={styles.body}>
+          {/* Titre + Prix */}
+          <View style={styles.headerRow}>
+            <Text style={styles.name} numberOfLines={2}>
+              {product.name}
+            </Text>
+            <View style={styles.priceBox}>
+              <Text style={styles.priceText}>{formatPrice(product.price, product.currency)}</Text>
+            </View>
+          </View>
+
+          {product.old_price ? (
+            <Text style={styles.oldPrice}>{formatPrice(product.old_price, product.currency)}</Text>
+          ) : null}
+
+          {/* Ferme */}
+          <TouchableOpacity
+            onPress={openFarmDetail}
+            activeOpacity={isDreamMarket ? 1 : 0.85}
+            style={[styles.farmRow, isDreamMarket && styles.farmRowDisabled]}
+            disabled={isDreamMarket}
+          >
+            <Ionicons name="leaf-outline" size={14} color={isDreamMarket ? '#9CA3AF' : '#374151'} />
+            <Text style={[styles.farmText, isDreamMarket && styles.farmTextDisabled]} numberOfLines={1}>
+              {farmName}
+            </Text>
+            {!isDreamMarket && <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />}
+          </TouchableOpacity>
+
+          {/* Meta : note + qty */}
+          <View style={styles.metaRow}>
+            
+
+            {product.stock ? (
+              <View style={styles.qtyPill}>
+                <Ionicons name="cube-outline" size={12} color="#374151" />
+                <Text style={styles.qtyText}>{product.stock}</Text>
+              </View>
+            ) : null}
+             {/* Action */}
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={[styles.cartBtn, isInCart ? styles.cartBtnFilled : styles.cartBtnOutline]}
+                  onPress={handleAddToCart}
+                  activeOpacity={0.9}
+                >
+                  <Ionicons
+                    name={isInCart ? 'checkmark-circle-outline' : 'cart-outline'}
+                    size={16}
+                    color={isInCart ? '#FFFFFF' : '#111827'}
+                  />
+                  <Text style={[styles.cartBtnText, isInCart && styles.cartBtnTextFilled]}>
+                    {isInCart ? 'Dans le panier' : 'Ajouter'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+          </View>
+
+         
         </View>
       </View>
     </TouchableOpacity>
@@ -190,163 +219,199 @@ export default function ProductCard({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  // shell
+  cardShell: {
+    width: 220,
+    marginRight: 12,
     marginBottom: 16,
-    marginRight: 8,
   },
-  default: {
+  cardShellFullWidth: {
     width: '100%',
+    marginRight: 0,
   },
-  featured: {
-    width: '100%',
-    borderWidth: 2,
-    borderColor: '#4CAF50',
+
+  // card container
+  card: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(17,24,39,0.06)', // gris très léger
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  compact: {
-    width: '100%',
-  },
-  small: {
-    minWidth: 140,
-    maxWidth: 180,
-  },
-  medium: {
-    minWidth: 180,
-    maxWidth: 220,
-  },
-  large: {
-    minWidth: 220,
-    maxWidth: 300,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-  imageContainer: {
+
+  // media
+  media: {
     position: 'relative',
+    backgroundColor: '#F3F4F6',
   },
   image: {
     width: '100%',
-    resizeMode: 'cover',
   },
-  smallImage: {
-    height: 100,
-  },
-  mediumImage: {
-    height: 140,
-  },
-  largeImage: {
-    height: 180,
-  },
-  fullWidthImage: {
-    height: 160,
-  },
-  badges: {
+  favoriteBtn: {
     position: 'absolute',
-    top: 8,
-    left: 8,
-    gap: 4,
-  },
-  favoriteButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 32,
+    top: 10,
+    right: 10,
     height: 32,
+    width: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(17,24,39,0.08)',
   },
-  content: {
-    padding: 16,
-  },
-  header: {
+  chipsRow: {
+    position: 'absolute',
+    left: 10,
+    bottom: 10,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+    gap: 6,
+    flexWrap: 'wrap',
   },
-  name: {
-    fontSize: 16,
+  chip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(17,24,39,0.1)',
+  },
+  chipText: {
+    fontSize: 11,
+    color: '#374151',
     fontWeight: '600',
-    color: '#283106',
-    flex: 1,
-    marginRight: 8,
-    lineHeight: 20,
   },
-  priceContainer: {
-    alignItems: 'flex-end',
-  },
-  price: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-  },
-  oldPrice: {
-    fontSize: 14,
-    color: '#999',
-    textDecorationLine: 'line-through',
-    marginBottom: 2,
-  },
-  farmContainer: {
-    marginBottom: 8,
-  },
-  farm: {
-    fontSize: 14,
-    color: '#4CAF50',
-    fontWeight: '500',
-  },
-  description: {
-    fontSize: 14,
-    color: '#555',
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+
+  // body
+  body: {
+    padding: 12,
     gap: 8,
   },
-  rating: {
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  name: {
+    flex: 1,
+    fontSize: 14.5,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  priceBox: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: 'rgba(17,24,39,0.06)',
+  },
+  priceText: {
+    color: '#111827',
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  oldPrice: {
+    fontSize: 12,
+    color: '#6B7280',
+    textDecorationLine: 'line-through',
+  },
+
+  farmRow: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: 'rgba(17,24,39,0.06)',
+  },
+  farmText: {
+    color: '#374151',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  farmRowDisabled: {
+    opacity: 0.6,
+  },
+  farmTextDisabled: {
+    color: '#9CA3AF',
+  },
+
+  metaRow: {
+    marginTop: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  reviewCount: {
+  ratingValue: {
+    color: '#111827',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  ratingCount: {
+    color: '#6B7280',
     fontSize: 12,
-    color: '#999',
   },
-  addToCartButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#4CAF50',
-    justifyContent: 'center',
+  qtyPill: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: 'rgba(17,24,39,0.06)',
   },
-  addToCartButtonActive: {
-    backgroundColor: '#FF6B6B',
+  qtyText: {
+    fontSize: 11.5,
+    color: '#374151',
+    fontWeight: '600',
   },
-  ratingText: {
-    fontSize: 14,
-    color: '#777E5C',
-    fontWeight: '500',
+
+  // actions
+  actionRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  cartBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+  cartBtnOutline: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(17,24,39,0.12)',
+  },
+  cartBtnFilled: {
+    backgroundColor: '#111827',
+  },
+  cartBtnText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  cartBtnTextFilled: {
+    color: '#FFFFFF',
   },
 });

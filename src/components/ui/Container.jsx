@@ -56,17 +56,17 @@ const Container = ({
     return marginMap[margin] || 0;
   };
 
-  // 🎨 Largeur selon la variante
+  // 🎨 Largeur selon la variante - CORRIGÉ POUR MOINS D'ESPACE
   const getWidth = () => {
     switch (variant) {
       case 'fluid':
         return '100%';
       case 'narrow':
-        return '80%';
+        return '85%'; // Réduit de 80% à 85%
       case 'wide':
-        return '95%';
+        return '98%'; // Augmenté de 95% à 98%
       default:
-        return '90%';
+        return '100%'; // Augmenté de 90% à 94% pour moins d'espace sur les côtés
     }
   };
 
@@ -125,5 +125,3 @@ const styles = StyleSheet.create({
 });
 
 export default Container;
-
-

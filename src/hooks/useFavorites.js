@@ -124,8 +124,7 @@ export const useFavorites = () => {
       // 2. Synchronisation avec le backend (en arrière-plan)
       dispatch(toggleFavoriteBackend({ userId: user.id, itemType: 'product', itemId: product.id }))
         .unwrap()
-        .then((result) => {
-          console.log('✅ Backend sync success:', result);
+        .then(() => {
           // Si le backend confirme, on garde l'état local
         })
         .catch((error) => {
@@ -156,8 +155,8 @@ export const useFavorites = () => {
       // 2. Synchronisation avec le backend (en arrière-plan)
       dispatch(toggleFavoriteBackend({ userId: user.id, itemType: 'farm', itemId: farm.id }))
         .unwrap()
-        .then((result) => {
-          console.log('✅ Backend sync success:', result);
+        .then(() => {
+          // Sync réussie
         })
         .catch((error) => {
           console.error('❌ Backend sync failed, rolling back:', error);
@@ -187,8 +186,8 @@ export const useFavorites = () => {
       // 2. Synchronisation avec le backend (en arrière-plan)
       dispatch(toggleFavoriteBackend({ userId: user.id, itemType: 'service', itemId: service.id }))
         .unwrap()
-        .then((result) => {
-          console.log('✅ Backend sync success:', result);
+        .then(() => {
+          // Sync réussie
         })
         .catch((error) => {
           console.error('❌ Backend sync failed, rolling back:', error);

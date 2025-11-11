@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, Alert, Image } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -111,7 +111,7 @@ export default function OrdersManagement({ navigation }) {
   };
 
   const handleViewOrder = (order) => {
-    navigation.navigate('OrderDetail', { order });
+    navigation.navigate('OrderDetailAdmin', { order });
   };
 
   const handleUpdateStatus = (order, newStatus) => {
@@ -204,6 +204,31 @@ export default function OrdersManagement({ navigation }) {
           </Text>
         </View>
       </View>
+
+      {order.items && order.items.length > 0 && (
+        <View style={styles.productsPreview}>
+          {order.items.slice(0, 4).map((item, index) => (
+            <View key={`${order.id}-preview-${index}`} style={styles.previewItem}>
+              {item.product_image ? (
+                <Image
+                  source={{ uri: item.product_image }}
+                  style={styles.previewImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.previewPlaceholder}>
+                  <Ionicons name="image-outline" size={18} color="#9E9E9E" />
+                </View>
+              )}
+            </View>
+          ))}
+          {order.items.length > 4 && (
+            <View style={styles.previewMore}>
+              <Text style={styles.previewMoreText}>+{order.items.length - 4}</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       <View style={styles.orderActions}>
         <TouchableOpacity 
@@ -316,10 +341,7 @@ export default function OrdersManagement({ navigation }) {
               <Text style={styles.statNumber}>{stats.delivered}</Text>
               <Text style={styles.statLabel}>Livrées</Text>
             </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{formatPrice(stats.totalRevenue)}</Text>
-              <Text style={styles.statLabel}>Chiffre d'affaires</Text>
-            </View>
+           
           </View>
         </Container>
 
@@ -606,6 +628,46 @@ const styles = StyleSheet.create({
   orderDetails: {
     marginBottom: 12,
   },
+  productsPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    marginTop: 4,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  previewItem: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#F1F1F1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  previewPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewMore: {
+    paddingHorizontal: 10,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#E8F5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4CAF50',
+  },
   orderItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -649,6 +711,43 @@ const styles = StyleSheet.create({
   },
   deliverButton: {
     backgroundColor: '#E8F5E8',
+  },
+  // Produits prévisualisation
+  productsPreview: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  previewItem: {
+    width: '25%', // Affiche 4 produits par ligne
+    aspectRatio: 1,
+    margin: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  previewPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F0F0F0',
+  },
+  previewMore: {
+    width: '25%', // Affiche 4 produits par ligne
+    aspectRatio: 1,
+    margin: 2,
+    borderRadius: 8,
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewMoreText: {
+    fontSize: 12,
+    color: '#777E5C',
   },
   // État vide
   emptyContainer: {

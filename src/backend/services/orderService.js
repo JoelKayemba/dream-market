@@ -78,6 +78,13 @@ export const orderService = {
   // Créer une nouvelle commande
   createOrder: async (orderData) => {
     try {
+      
+      // Vérifier que user_id est présent
+      if (!orderData.user_id) {
+        console.error('❌ [orderService] user_id manquant dans orderData');
+        throw new Error('user_id est requis pour créer une commande');
+      }
+      
       // Générer un numéro de commande unique
       const orderNumber = `DM-${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
 
@@ -90,7 +97,17 @@ export const orderService = {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [orderService] Erreur Supabase:', error);
+        throw error;
+      }
+      
+      try {
+        await supabase.rpc('notify_admin_new_order', { order_id: data.id });
+      } catch (rpcError) {
+        console.error('[orderService] RPC notify_admin_new_order failed:', rpcError);
+      }
+
       return data;
     } catch (error) {
       throw error;
@@ -120,6 +137,7 @@ export const orderService = {
   // Mettre à jour le statut d'une commande
   updateOrderStatus: async (orderId, status) => {
     try {
+      
       const { data, error } = await supabase
         .from('orders')
         .update({ 
@@ -130,9 +148,23 @@ export const orderService = {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('🔔 [orderService] Erreur Supabase:', error);
+        throw error;
+      }
+      
+      try {
+        await supabase.rpc('notify_client_order_status', {
+          order_id: data.id,
+          new_status: status
+        });
+      } catch (rpcError) {
+        console.error('[orderService] RPC notify_client_order_status failed:', rpcError);
+      }
+
       return data;
     } catch (error) {
+      console.error('🔔 [orderService] Erreur lors de la mise à jour:', error);
       throw error;
     }
   },

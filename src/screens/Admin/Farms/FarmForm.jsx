@@ -103,7 +103,7 @@ export default function FarmForm({ route, navigation }) {
 
       setIsUploading(true);
 
-      // 📤 Upload des images vers Supabase
+      //  Upload des images vers Supabase
       const imageUrls = [];
       for (const image of selectedImages) {
         // Si l'image commence par "file://", c'est une nouvelle image à uploader

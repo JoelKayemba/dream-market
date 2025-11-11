@@ -41,7 +41,6 @@ export default function UsersManagement({ navigation }) {
           text: newStatus === 'active' ? 'Activer' : 'Désactiver', 
           onPress: () => {
             // TODO: Implémenter le changement de statut
-            console.log('Changement de statut:', user.id, newStatus);
           }
         }
       ]

@@ -142,7 +142,7 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <ScreenWrapper>
-      {/* Modal de chargement lors de la déconnexion */}
+    
       <Modal
         visible={isLoggingOut}
         transparent={true}

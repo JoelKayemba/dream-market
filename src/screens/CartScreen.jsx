@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,7 @@ import {
   selectCartError
 } from '../store/cartSlice';
 import { formatPrice, getCurrencySymbol } from '../utils/currency';
+import { useDeliveryFee } from '../hooks/useDeliveryFee';
 
 export default function CartScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -26,6 +27,26 @@ export default function CartScreen({ navigation }) {
   const loading = useSelector(selectCartLoading);
   const error = useSelector(selectCartError);
   const [isProcessing, setIsProcessing] = useState(false);
+  const { fee: deliveryFee, loading: deliveryFeeLoading } = useDeliveryFee();
+
+  const totalsWithDelivery = useMemo(() => {
+    const baseTotals = { ...(cartTotals || {}) };
+    if (deliveryFee?.amount && deliveryFee.amount > 0) {
+      const currency = deliveryFee.currency || 'CDF';
+      baseTotals[currency] = (baseTotals[currency] || 0) + deliveryFee.amount;
+    }
+    return baseTotals;
+  }, [cartTotals, deliveryFee]);
+
+  const deliveryFeeLabel = useMemo(() => {
+    if (deliveryFeeLoading) {
+      return 'Calcul...';
+    }
+    if (deliveryFee?.amount && deliveryFee.amount > 0) {
+      return formatPrice(deliveryFee.amount, deliveryFee.currency);
+    }
+    return 'Gratuite';
+  }, [deliveryFee, deliveryFeeLoading]);
 
   // Charger le panier depuis AsyncStorage au montage
   useEffect(() => {
@@ -195,9 +216,9 @@ export default function CartScreen({ navigation }) {
             ))}
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Livraison</Text>
-              <Text style={styles.totalValue}>Gratuite</Text>
+              <Text style={[styles.totalValue, deliveryFeeLabel === 'Gratuite' && styles.totalValueFree]}>{deliveryFeeLabel}</Text>
             </View>
-            {Object.entries(cartTotals).map(([currency, total]) => (
+            {Object.entries(totalsWithDelivery).map(([currency, total]) => (
               <View key={`total-${currency}`} style={[styles.totalRow, styles.finalTotal]}>
                 <Text style={styles.finalTotalLabel}>Total ({getCurrencySymbol(currency)})</Text>
                 <Text style={styles.finalTotalValue}>{formatPrice(total, currency)}</Text>
@@ -382,6 +403,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#283106',
     fontWeight: '500',
+  },
+  totalValueFree: {
+    color: '#4CAF50',
+    fontWeight: '600',
   },
   finalTotal: {
     borderTopWidth: 1,

@@ -34,7 +34,6 @@ export default function UserForm({ route, navigation }) {
     }
 
     // TODO: Implémenter la sauvegarde
-    console.log('Sauvegarde de l\'utilisateur:', formData);
     Alert.alert('Succès', 'Utilisateur sauvegardé avec succès');
     navigation.goBack();
   };
@@ -171,7 +170,7 @@ export default function UserForm({ route, navigation }) {
           style={styles.saveButton}
         />
       </View>
-    </View>
+    </ScreenWrapper>
   );
 }
 

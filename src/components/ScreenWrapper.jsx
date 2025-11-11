@@ -2,10 +2,10 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-/**
- * Wrapper pour tous les écrans de l'application
- * Applique automatiquement les safe area insets
- */
+
+ //Wrapper pour tous les écrans de l'application
+ //Applique automatiquement les safe area insets
+ 
 const ScreenWrapper = ({ 
   children, 
   style,

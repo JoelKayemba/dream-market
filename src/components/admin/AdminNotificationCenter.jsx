@@ -1,32 +1,51 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Modal, TouchableOpacity, Text, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Modal, ScrollView, Alert, TouchableOpacity, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button } from '../ui';
+import { Container, NotificationItem, NotificationHeader, EmptyNotifications } from '../ui';
 import { useAdminNotifications } from '../../hooks/useAdminNotifications';
 
 export default function AdminNotificationCenter({ navigation }) {
   const { 
     adminNotifications, 
-    unreadAdminNotifications, 
     unreadAdminCount, 
-    markAsRead 
+    markAsRead,
+    markAllAsRead
   } = useAdminNotifications();
   
   const [isVisible, setIsVisible] = useState(false);
 
-  const handleNotificationPress = (notification) => {
-    // Marquer comme lue
-    markAsRead(notification.id);
-    
-    // Naviguer vers la commande
-    if (notification.data?.orderId) {
-      navigation.navigate('OrderDetail', { 
-        orderId: notification.data.orderId,
-        order: notification.data.order 
-      });
+
+ 
+  const handleNotificationPress = async (notification) => {
+    try {
+      
+      
+      // Marquer comme lue
+      markAsRead(notification.id);
+      
+      // Récupérer l'objet order complet depuis Supabase
+      if (notification.data?.order_id || notification.data?.orderId) {
+        const orderId = notification.data?.order_id || notification.data?.orderId;
+       
+        
+        // Importer orderService pour récupérer la commande complète
+        const { orderService } = await import('../../backend/services/orderService');
+        const order = await orderService.getOrderById(orderId);
+        
+        
+        
+        // Naviguer vers OrderDetailAdmin avec l'objet order complet (comme OrdersManagement)
+        navigation.navigate('OrderDetailAdmin', { order });
+      } else {
+        
+        Alert.alert('Erreur', 'Impossible de trouver l\'ID de la commande');
+      }
+      
+      setIsVisible(false);
+    } catch (error) {
+      console.error('[AdminNotificationCenter] Erreur lors de la navigation:', error);
+      Alert.alert('Erreur', 'Impossible d\'ouvrir cette notification');
     }
-    
-    setIsVisible(false);
   };
 
   const handleMarkAllAsRead = () => {
@@ -38,80 +57,12 @@ export default function AdminNotificationCenter({ navigation }) {
         { 
           text: 'Confirmer', 
           onPress: () => {
-            unreadAdminNotifications.forEach(notification => {
-              markAsRead(notification.id);
-            });
+            markAllAsRead();
           }
         }
       ]
     );
   };
-
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'admin_order':
-        return 'add-circle';
-      case 'admin_pending':
-        return 'time';
-      default:
-        return 'notifications';
-    }
-  };
-
-  const getNotificationColor = (type, urgent = false) => {
-    if (urgent) return '#FF5722'; // Rouge pour urgent
-    switch (type) {
-      case 'admin_order':
-        return '#4CAF50'; // Vert pour nouvelles commandes
-      case 'admin_pending':
-        return '#FF9800'; // Orange pour en attente
-      default:
-        return '#2196F3'; // Bleu par défaut
-    }
-  };
-
-  const NotificationItem = ({ notification }) => (
-    <TouchableOpacity 
-      style={[
-        styles.notificationItem,
-        !notification.isRead && styles.unreadNotification
-      ]}
-      onPress={() => handleNotificationPress(notification)}
-    >
-      <View style={styles.notificationHeader}>
-        <View style={styles.notificationIconContainer}>
-          <Ionicons 
-            name={getNotificationIcon(notification.type)} 
-            size={20} 
-            color={getNotificationColor(notification.type, notification.data?.urgent)} 
-          />
-        </View>
-        <View style={styles.notificationContent}>
-          <Text style={[
-            styles.notificationTitle,
-            !notification.isRead && styles.unreadText
-          ]}>
-            {notification.title}
-          </Text>
-          <Text style={styles.notificationMessage}>
-            {notification.message}
-          </Text>
-          <Text style={styles.notificationTime}>
-            {notification.time}
-          </Text>
-        </View>
-        {!notification.isRead && (
-          <View style={styles.unreadDot} />
-        )}
-      </View>
-      
-      {notification.data?.urgent && (
-        <View style={styles.urgentBadge}>
-          <Text style={styles.urgentText}>URGENT</Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
 
   return (
     <>
@@ -139,48 +90,29 @@ export default function AdminNotificationCenter({ navigation }) {
       >
         <View style={styles.modalContainer}>
           {/* Header du modal */}
-          <View style={styles.modalHeader}>
-            <View style={styles.headerLeft}>
-              <Text style={styles.modalTitle}>Notifications Admin</Text>
-              <Text style={styles.modalSubtitle}>
-                {unreadAdminCount} non lue(s) • {adminNotifications.length} total
-              </Text>
-            </View>
-            <View style={styles.headerRight}>
-              {unreadAdminCount > 0 && (
-                <TouchableOpacity 
-                  style={styles.markAllButton}
-                  onPress={handleMarkAllAsRead}
-                >
-                  <Text style={styles.markAllText}>Tout marquer</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={() => setIsVisible(false)}
-              >
-                <Ionicons name="close" size={24} color="#777E5C" />
-              </TouchableOpacity>
-            </View>
-          </View>
+          <NotificationHeader
+            title="Notifications Admin"
+            subtitle={`${adminNotifications.length} total`}
+            unreadCount={unreadAdminCount}
+            onBack={() => setIsVisible(false)}
+            onMarkAllAsRead={handleMarkAllAsRead}
+            showMarkAllButton={unreadAdminCount > 0}
+            variant="modal"
+          />
 
           {/* Liste des notifications */}
           <ScrollView style={styles.notificationsList}>
             {adminNotifications.length > 0 ? (
               adminNotifications.map((notification) => (
-                <NotificationItem 
-                  key={notification.id} 
-                  notification={notification} 
+                <NotificationItem
+                  key={notification.id}
+                  notification={notification}
+                  onPress={handleNotificationPress}
+                  variant="admin"
                 />
               ))
             ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="notifications-off-outline" size={80} color="#777E5C" />
-                <Text style={styles.emptyTitle}>Aucune notification</Text>
-                <Text style={styles.emptySubtitle}>
-                  Vous serez notifié des nouvelles commandes et actions importantes
-                </Text>
-              </View>
+              <EmptyNotifications variant="admin" />
             )}
           </ScrollView>
 
@@ -231,139 +163,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#283106',
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#777E5C',
-    marginTop: 2,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  markAllButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#4CAF50',
-    borderRadius: 6,
-  },
-  markAllText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  closeButton: {
-    padding: 4,
-  },
   notificationsList: {
     flex: 1,
-  },
-  notificationItem: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginVertical: 4,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  unreadNotification: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
-  },
-  notificationHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  notificationIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F5F5F5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  notificationContent: {
-    flex: 1,
-  },
-  notificationTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#283106',
-    marginBottom: 4,
-  },
-  unreadText: {
-    fontWeight: 'bold',
-  },
-  notificationMessage: {
-    fontSize: 14,
-    color: '#777E5C',
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  notificationTime: {
-    fontSize: 12,
-    color: '#999',
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#4CAF50',
-    marginTop: 6,
-  },
-  urgentBadge: {
-    backgroundColor: '#FF5722',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginTop: 8,
-  },
-  urgentText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#283106',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: '#777E5C',
-    textAlign: 'center',
-    lineHeight: 22,
   },
   quickActions: {
     paddingVertical: 16,

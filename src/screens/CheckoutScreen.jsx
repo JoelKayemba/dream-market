@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -38,6 +38,7 @@ import {
 } from '../store/ordersSlice';
 import { useAuth } from '../hooks/useAuth';
 import { formatPrice, getCurrencySymbol } from '../utils/currency';
+import { useDeliveryFee } from '../hooks/useDeliveryFee';
 
 export default function CheckoutScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -50,6 +51,7 @@ export default function CheckoutScreen({ navigation }) {
   const ordersLoading = useSelector(selectOrdersLoading);
   const ordersError = useSelector(selectOrdersError);
   const [isProcessing, setIsProcessing] = useState(false);
+  const { fee: deliveryFee, loading: deliveryFeeLoading } = useDeliveryFee();
   
   // États pour les formulaires - pré-remplis avec les données utilisateur
   const [deliveryAddress, setDeliveryAddress] = useState(user?.address || '');
@@ -58,18 +60,41 @@ export default function CheckoutScreen({ navigation }) {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cash');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // Calculer les totaux par devise
-  const getTotalsByCurrency = () => {
-    const totals = {};
-    cartItems.forEach(item => {
-      const currency = item.product.currency || 'EUR';
-      if (!totals[currency]) {
-        totals[currency] = 0;
-      }
-      totals[currency] += item.product.price * item.quantity;
-    });
-    return totals;
+  const sanitizeValue = (value) => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+    return null;
   };
+
+  const customerFirstName = sanitizeValue(user?.firstName) ?? sanitizeValue(user?.profile?.first_name);
+  const customerLastName = sanitizeValue(user?.lastName) ?? sanitizeValue(user?.profile?.last_name);
+  const customerEmail = sanitizeValue(user?.email) ?? sanitizeValue(user?.profile?.email);
+
+  // Calculer les totaux par devise
+  const subtotalByCurrency = useMemo(() => {
+    return cartTotals || {};
+  }, [cartTotals]);
+
+  const totalsWithDelivery = useMemo(() => {
+    const baseTotals = { ...(cartTotals || {}) };
+    if (deliveryFee && deliveryFee.amount > 0) {
+      const currency = deliveryFee.currency || 'CDF';
+      baseTotals[currency] = (baseTotals[currency] || 0) + deliveryFee.amount;
+    }
+    return baseTotals;
+  }, [cartTotals, deliveryFee]);
+
+  const deliveryFeeText = useMemo(() => {
+    if (deliveryFeeLoading) {
+      return 'Calcul...';
+    }
+    if (deliveryFee && deliveryFee.amount > 0) {
+      return formatPrice(deliveryFee.amount, deliveryFee.currency);
+    }
+    return 'Gratuite';
+  }, [deliveryFee, deliveryFeeLoading]);
 
   const handlePlaceOrder = async () => {
     // Validation des données avant d'afficher la confirmation
@@ -94,7 +119,7 @@ export default function CheckoutScreen({ navigation }) {
     }
 
     // Calculer le total pour l'afficher dans la confirmation
-    const totalsText = Object.entries(cartTotals)
+    const totalsText = Object.entries(totalsWithDelivery)
       .map(([currency, amount]) => formatPrice(amount, currency))
       .join(' + ');
 
@@ -128,7 +153,7 @@ export default function CheckoutScreen({ navigation }) {
       const estimatedDelivery = new Date();
       estimatedDelivery.setHours(estimatedDelivery.getHours() + 24);
 
-      // Créer la commande avec le backend
+      // Créer la commande avec le backend (tous les champs existent dans la table orders)
       const orderData = {
         user_id: user.id,
         items: cartItems.map(item => ({
@@ -136,6 +161,7 @@ export default function CheckoutScreen({ navigation }) {
           product_name: item.product.name,
           product_price: item.product.price,
           product_currency: item.product.currency || 'CDF',
+          product_image: item.product.images?.[0] || item.product.image || null,
           quantity: item.quantity,
           subtotal: item.product.price * item.quantity
         })),
@@ -144,7 +170,13 @@ export default function CheckoutScreen({ navigation }) {
         notes,
         payment_method: selectedPaymentMethod,
         totals: cartTotals,
-        estimated_delivery: estimatedDelivery.toISOString()
+        estimated_delivery: estimatedDelivery.toISOString(),
+        status: 'pending',
+        delivery_fee_amount: deliveryFee?.amount || 0,
+        delivery_fee_currency: deliveryFee?.currency || 'CDF',
+        customer_first_name: customerFirstName,
+        customer_last_name: customerLastName,
+        customer_email: customerEmail
       };
       
       
@@ -179,7 +211,7 @@ export default function CheckoutScreen({ navigation }) {
   };
 
   // Calculer les totaux pour l'affichage
-  const totalsByCurrency = cartTotals;
+  const totalsByCurrency = subtotalByCurrency;
 
   return (
     <ScreenWrapper style={styles.container}>
@@ -214,7 +246,7 @@ export default function CheckoutScreen({ navigation }) {
               {cartItems.map((item) => (
                 <View key={item.product.id} style={styles.orderItem}>
                   <Image 
-                    source={{ uri: item.product.image }} 
+                    source={{ uri: item.product.images?.[0] }} 
                     style={styles.itemImage}
                     resizeMode="cover"
                   />
@@ -235,10 +267,32 @@ export default function CheckoutScreen({ navigation }) {
             <Divider style={styles.divider} />
 
             <View style={styles.totalContainer}>
-              <Text style={styles.totalLabel}>Total de la commande</Text>
+              <Text style={styles.totalLabel}>Sous-total</Text>
               <View style={styles.totalAmounts}>
                 {Object.entries(totalsByCurrency).map(([currency, amount]) => (
-                  <Text key={currency} style={styles.totalAmount}>
+                  <Text key={`subtotal-${currency}`} style={styles.totalAmount}>
+                    {formatPrice(amount, currency)}
+                  </Text>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.totalContainer}>
+              <Text style={styles.totalLabel}>Frais de livraison</Text>
+              <View style={styles.totalAmounts}>
+                <Text style={[styles.totalAmount, deliveryFeeText === 'Gratuite' && styles.totalAmountFree]}>
+                  {deliveryFeeText}
+                </Text>
+              </View>
+            </View>
+
+            <Divider style={styles.totalDivider} />
+
+            <View style={[styles.totalContainer, styles.totalContainerFinal]}>
+              <Text style={styles.totalLabel}>Total à payer</Text>
+              <View style={styles.totalAmounts}>
+                {Object.entries(totalsWithDelivery).map(([currency, amount]) => (
+                  <Text key={`total-${currency}`} style={styles.totalAmountFinal}>
                     {formatPrice(amount, currency)}
                   </Text>
                 ))}
@@ -384,10 +438,10 @@ export default function CheckoutScreen({ navigation }) {
               <Ionicons name="checkmark-circle" size={60} color="#4CAF50" />
             </View>
             
-            <Text style={styles.modalTitle}>Commande confirmée ! 🎉</Text>
+            <Text style={styles.modalTitle}>Commande enregistrée ! 📝</Text>
             
             <Text style={styles.modalMessage}>
-              Votre commande a été enregistrée avec succès. Notre équipe vous contactera sur WhatsApp dans les plus brefs délais pour finaliser les détails. Le paiement se fera après livraison.
+              Votre commande a été enregistrée avec succès. Notre équipe vous contactera sur WhatsApp dans les plus brefs délais pour confirmer votre commande et organiser la livraison. Le paiement se fera uniquement après réception de vos produits.
             </Text>
             
             <View style={styles.modalButtons}>
@@ -523,6 +577,22 @@ const styles = StyleSheet.create({
   },
   totalAmount: {
     fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  totalAmountFree: {
+    color: '#4CAF50',
+  },
+  totalDivider: {
+    marginVertical: 16,
+  },
+  totalContainerFinal: {
+    borderTopWidth: 1,
+    borderTopColor: '#E8E8E8',
+    paddingTop: 16,
+  },
+  totalAmountFinal: {
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#4CAF50',
   },

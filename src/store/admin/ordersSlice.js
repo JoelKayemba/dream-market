@@ -27,34 +27,75 @@ const initialState = {
   isEditing: false
 };
 
+const normalizeString = (value) => {
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+  return value ?? '';
+};
+
+const buildCustomerSnapshot = (order = {}) => {
+  const firstName = normalizeString(order.customer_first_name) || normalizeString(order.profiles?.first_name);
+  const lastName = normalizeString(order.customer_last_name) || normalizeString(order.profiles?.last_name);
+  const email = normalizeString(order.customer_email) || normalizeString(order.profiles?.email);
+  const phone = normalizeString(order.customer_phone) || normalizeString(order.phone_number);
+
+  const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+
+  return {
+    firstName,
+    lastName,
+    email,
+    phone,
+    fullName: fullName || email || phone || 'Client inconnu',
+  };
+};
+
+const transformOrder = (order) => {
+  if (!order) return null;
+
+  const snapshot = buildCustomerSnapshot(order);
+  const deliveryFeeAmount = Number(order.delivery_fee_amount) || 0;
+  const deliveryFeeCurrency = (order.delivery_fee_currency || 'CDF').trim();
+
+  const totalsWithDelivery = { ...(order.totals || {}) };
+  if (deliveryFeeAmount > 0) {
+    totalsWithDelivery[deliveryFeeCurrency] = (totalsWithDelivery[deliveryFeeCurrency] || 0) + deliveryFeeAmount;
+  }
+
+  return {
+    ...order,
+    orderNumber: order.order_number,
+    customerFirstName: snapshot.firstName,
+    customerLastName: snapshot.lastName,
+    customerEmail: snapshot.email,
+    customerPhone: snapshot.phone,
+    customerName: snapshot.fullName,
+    date: order.created_at,
+    deliveryAddress: order.delivery_address,
+    phoneNumber: order.phone_number,
+    paymentMethod: order.payment_method,
+    estimatedDelivery: order.estimated_delivery,
+    lastUpdated: order.last_updated,
+    createdAt: order.created_at,
+    items: Array.isArray(order.items) ? order.items : [],
+    deliveryFeeAmount,
+    deliveryFeeCurrency,
+    totalsWithDelivery,
+  };
+};
+
+const transformOrders = (orders = []) => orders
+  .map(transformOrder)
+  .filter(Boolean);
+
 // Actions asynchrones pour les commandes
 export const fetchOrders = createAsyncThunk(
   'adminOrders/fetchOrders',
   async (params = {}, { rejectWithValue }) => {
     try {
       const orders = await orderService.getAllOrders();
-      
-      // Transformer les données pour correspondre au format attendu
-      const transformedOrders = orders.map(order => ({
-        id: order.id,
-        orderNumber: order.order_number,
-        customerName: order.profiles ? `${order.profiles.first_name || ''} ${order.profiles.last_name || ''}`.trim() : 'Client inconnu',
-        customerPhone: order.phone_number,
-        customerEmail: order.profiles?.email || '',
-        date: order.created_at,
-        status: order.status,
-        items: order.items || [],
-        deliveryAddress: order.delivery_address,
-        phoneNumber: order.phone_number,
-        notes: order.notes || '',
-        paymentMethod: order.payment_method,
-        totals: order.totals || {},
-        estimatedDelivery: order.estimated_delivery,
-        lastUpdated: order.last_updated,
-        createdAt: order.created_at
-      }));
-      
-      return transformedOrders;
+      return transformOrders(orders);
     } catch (error) {
       console.error('❌ [AdminOrdersSlice] Error fetching orders:', error);
       return rejectWithValue(error.message);
@@ -68,7 +109,7 @@ export const updateOrderStatus = createAsyncThunk(
   async ({ orderId, status }, { rejectWithValue }) => {
     try {
       const updatedOrder = await orderService.updateOrderStatus(orderId, status);
-      return updatedOrder;
+      return transformOrder(updatedOrder);
     } catch (error) {
       return rejectWithValue(error.message);
     }

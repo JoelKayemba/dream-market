@@ -7,10 +7,11 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { Provider } from 'react-redux';
 import { store } from './src/store';
 import NotificationManager from './src/components/NotificationManager';
-import BackgroundNotificationService from './src/services/backgroundNotificationService';
+import BackgroundNotificationService from './src/services/backgroundNotificationServiceNew';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import GlobalErrorHandler from './src/components/GlobalErrorHandler';
 import { supabase } from './src/backend/config/supabase';
+import { authListenerService } from './src/backend/services/authListenerService';
 
 // Écrans d'authentification
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -46,6 +47,46 @@ export default function App() {
   // Initialiser l'application
   React.useEffect(() => {
     initializeApp();
+    
+    // Démarrer le listener pour les changements d'auth state
+    const unsubscribe = authListenerService.addListener(async (event, session) => {
+      if (event === 'TOKEN_REFRESHED' && session) {
+        // Mettre à jour le token dans Redux quand il est rafraîchi
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        store.dispatch({
+          type: 'auth/loadStoredAuth/fulfilled',
+          payload: {
+            user: {
+              id: session.user.id,
+              email: session.user.email,
+              role: profile?.role || 'customer',
+              firstName: profile?.first_name || '',
+              lastName: profile?.last_name || '',
+              phone: profile?.phone || '',
+              address: profile?.address || '',
+              avatarUrl: profile?.avatar_url || '',
+            },
+            token: session.access_token,
+            refreshToken: session.refresh_token
+          }
+        });
+      } else if (event === 'SIGNED_OUT') {
+        // Déconnecter l'utilisateur dans Redux
+        store.dispatch({
+          type: 'auth/logout/fulfilled'
+        });
+      }
+    });
+
+    // Cleanup lors du démontage
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   const initializeApp = async () => {

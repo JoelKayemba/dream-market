@@ -18,14 +18,12 @@ export const storageService = {
   // Convertir une URI React Native en Blob/ArrayBuffer pour upload
   uriToBlob: async (uri) => {
     try {
-      console.log('🔄 [uriToBlob] Conversion de:', uri);
       
       // Pour React Native, on utilise FormData ou on lit directement le fichier
       // Créer un objet File-like compatible avec Supabase
       const response = await fetch(uri);
       const blob = await response.blob();
       
-      console.log('✅ [uriToBlob] Blob créé, taille:', blob.size);
       return blob;
     } catch (error) {
       console.error('❌ [uriToBlob] Erreur:', error);
@@ -33,7 +31,6 @@ export const storageService = {
       try {
         const response = await fetch(uri);
         const buffer = await response.arrayBuffer();
-        console.log('✅ [uriToBlob] ArrayBuffer créé, taille:', buffer.byteLength);
         return buffer;
       } catch (bufferError) {
         console.error('❌ [uriToBlob] Erreur arrayBuffer:', bufferError);
@@ -45,7 +42,6 @@ export const storageService = {
   // Upload une image générique (pour React Native)
   uploadImage: async (imageUri, bucketType = 'farms', folderPrefix = '') => {
     try {
-      console.log('📤 [uploadImage] Début upload, URI:', imageUri.substring(0, 50) + '...');
       
       // Générer un nom de fichier unique
       const timestamp = Date.now();
@@ -53,8 +49,7 @@ export const storageService = {
       const fileName = `${randomId}_${timestamp}.jpg`;
       const fullPath = folderPrefix ? `${folderPrefix}/${fileName}` : fileName;
 
-      console.log('📤 [uploadImage] Nom fichier:', fullPath);
-
+      
       // Déterminer le bucket
       let bucket;
       switch (bucketType) {
@@ -73,14 +68,12 @@ export const storageService = {
           break;
       }
 
-      console.log('📤 [uploadImage] Bucket cible:', bucket);
-
+      
       // Pour React Native, utiliser FormData ou ArrayBuffer
       let fileData;
       
       // Méthode 1 : Essayer avec fetch + arrayBuffer (plus compatible React Native)
       try {
-        console.log('📤 [uploadImage] Tentative fetch de l\'image...');
         const response = await fetch(imageUri);
         
         if (!response.ok) {
@@ -88,7 +81,6 @@ export const storageService = {
         }
         
         const arrayBuffer = await response.arrayBuffer();
-        console.log('✅ [uploadImage] ArrayBuffer obtenu, taille:', arrayBuffer.byteLength);
         fileData = arrayBuffer;
       } catch (fetchError) {
         console.error('❌ [uploadImage] Erreur fetch:', fetchError);
@@ -96,7 +88,6 @@ export const storageService = {
       }
 
       // Upload vers Supabase
-      console.log('📤 [uploadImage] Upload vers Supabase...');
       const { data, error } = await supabase.storage
         .from(bucket)
         .upload(fullPath, fileData, {
@@ -110,14 +101,11 @@ export const storageService = {
         throw new Error(`Erreur Supabase: ${error.message}`);
       }
 
-      console.log('✅ [uploadImage] Upload réussi:', data);
-
+      
       // Récupérer l'URL publique
       const { data: urlData } = supabase.storage
         .from(bucket)
         .getPublicUrl(fullPath);
-
-      console.log('✅ [uploadImage] URL publique:', urlData.publicUrl);
 
       return {
         path: fullPath,

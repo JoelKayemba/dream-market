@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Dimensions, Alert } from 'react-native';
-
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button, Badge , ScreenWrapper } from '../components/ui';
+import { Button, ScreenWrapper, ImagePreviewModal } from '../components/ui';
 import { useFavorites } from '../hooks/useFavorites';
 
 const { width } = Dimensions.get('window');
@@ -12,6 +12,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
   const [isContactPressed, setIsContactPressed] = useState(false);
   const { toggleServiceFavorite, isServiceFavorite } = useFavorites();
   const isFavorite = isServiceFavorite(service.id);
+  const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
 
   // Vérification de sécurité
   if (!service) {
@@ -55,164 +56,252 @@ export default function ServiceDetailScreen({ route, navigation }) {
     }
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return '—';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  };
+
+  const heroSubtitle = service.tagline || 'Service premium Dream Market';
+  const priceDetails = service.price_details || service.priceDetails;
+  const deliveryTime = service.delivery_time || service.deliveryTime;
+  const minOrder = service.min_order || service.minOrder;
+  const reviewCount = service.review_count || service.reviewCount || 0;
+
+  const highlightChips = [
+    service.category ? { label: service.category, icon: 'layers-outline', color: '#1E88E5' } : null,
+    deliveryTime ? { label: deliveryTime, icon: 'time-outline', color: '#2F8F46' } : null,
+    service.coverage ? { label: service.coverage, icon: 'navigate-outline', color: '#9BE7AA' } : null,
+  ].filter(Boolean);
+
+  const metricsData = [
+    { icon: 'cash-outline', label: 'Tarif', value: service.price || '—' },
+
+  ];
+
+  const orderInfoItems = [
+    { icon: 'cart-outline', label: 'Commande minimum', value: minOrder },
+    { icon: 'timer-outline', label: 'Disponibilité', value: service.availability || 'Immédiate' },
+  ].filter((item) => item.value);
+
+  const contactRows = [
+    { icon: 'call-outline', label: 'Téléphone', value: service.contact?.phone },
+    { icon: 'mail-outline', label: 'Email', value: service.contact?.email },
+  ].filter((item) => item.value);
+
+  const featureList = Array.isArray(service.features) ? service.features : [];
+
+  const ratingValue = service.rating ? Number(service.rating).toFixed(1) : null;
+
+  const FeatureItem = ({ feature }) => (
+    <View style={styles.featureChip}>
+      <Ionicons name="checkmark-circle-outline" size={12} color="#2F8F46" />
+      <Text style={styles.featureChipText}>{feature}</Text>
+    </View>
+  );
+
   return (
     <ScreenWrapper style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+      <ExpoLinearGradient
+        colors={['#1B3A28', '#2F8F46']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
         <TouchableOpacity
-          style={styles.backButton}
+          style={styles.headerButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#283106" />
+          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
         
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>{service.name}</Text>
-          <Text style={styles.headerSubtitle}>{service.category}</Text>
+          {service.category ? (
+            <Text style={styles.headerSubtitle}>{service.category}</Text>
+          ) : null}
         </View>
 
         <TouchableOpacity
-          style={[styles.favoriteButton, isFavorite && styles.favoriteButtonActive]}
+          style={[styles.headerButton, isFavorite && styles.headerButtonActive]}
           onPress={handleFavoriteToggle}
+          activeOpacity={0.85}
         >
           <Ionicons 
             name={isFavorite ? 'heart' : 'heart-outline'} 
-            size={24} 
-            color={isFavorite ? "#FF6B6B" : "#777E5C"}
+            size={20} 
+            color="#FFFFFF"
           />
         </TouchableOpacity>
-      </View>
+      </ExpoLinearGradient>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Container style={styles.containerContent}>
-          {/* Image du service */}
-          <View style={styles.imageContainer}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.imageSection}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => setImagePreviewVisible(true)}
+          >
             <Image source={{ uri: service.image }} style={styles.serviceImage} />
-            <View style={styles.iconOverlay}>
-              <Text style={styles.serviceIcon}>{service.icon}</Text>
+          </TouchableOpacity>
+          <ExpoLinearGradient
+            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.65)']}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={styles.imageGradient}
+          >
+            <View style={styles.imageChipRow}>
+              {highlightChips.map((chip, index) => (
+                <View
+                  key={`${chip.label}-${index}`}
+                  style={[styles.imageChip, { borderColor: chip.color, backgroundColor: `${chip.color}1A` }]}
+                >
+                  <Ionicons name={chip.icon} size={14} color={chip.color} />
+                  <Text style={[styles.imageChipText, { color: chip.color }]}>{chip.label}</Text>
+                </View>
+              ))}
+            </View>
+          </ExpoLinearGradient>
+        </View>
+
+        <View style={styles.heroWrapper}>
+          <ExpoLinearGradient
+            colors={['#2F8F46', '#3FB15A', '#59C06C']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroCard}
+          >
+            <Text style={styles.heroTitle}>{service.name}</Text>
+            <Text style={styles.heroSubtitle}>{heroSubtitle}</Text>
+            <View style={styles.heroMetaRow}>
+              {service.price ? (
+                <View style={styles.heroMetaChip}>
+                  <Ionicons name="cash-outline" size={16} color="#E8F9EC" />
+                  <Text style={styles.heroMetaText}>{service.price}</Text>
+                </View>
+              ) : null}
+              {priceDetails ? (
+                <View style={styles.heroMetaChip}>
+                  <Ionicons name="pricetag-outline" size={16} color="#E8F9EC" />
+                  <Text style={styles.heroMetaText}>{priceDetails}</Text>
+                </View>
+              ) : null}
+            </View>
+          </ExpoLinearGradient>
+        </View>
+
+        <View style={styles.metricsRow}>
+          {metricsData.map((metric, index) => (
+            <View key={`${metric.label}-${index}`} style={styles.metricCard}>
+              <View style={styles.metricIcon}>
+                <Ionicons name={metric.icon} size={18} color="#2F8F46" />
+              </View>
+              <Text style={styles.metricValue}>{metric.value}</Text>
+              <Text style={styles.metricLabel}>{metric.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {service.description ? (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionHeading}>À propos</Text>
+            <Text style={styles.sectionBodyText}>{service.description}</Text>
+          </View>
+        ) : null}
+
+        {featureList.length > 0 ? (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionHeading}>Fonctionnalités</Text>
+            <View style={styles.featuresGrid}>
+              {featureList.map((feature, index) => (
+                <FeatureItem key={`${feature}-${index}`} feature={feature} />
+              ))}
             </View>
           </View>
+        ) : null}
 
-          {/* Informations principales */}
-          <View style={styles.serviceInfo}>
-            <Text style={styles.serviceName}>{service.name}</Text>
-            <Text style={styles.serviceDescription}>{service.description}</Text>
-            
-            <View style={styles.priceContainer}>
-              <Text style={styles.priceLabel}>Tarif :</Text>
-              <Text style={styles.priceValue}>{service.price}</Text>
-              {(service.price_details || service.priceDetails) && (
-                <Text style={styles.priceDetails}>{service.price_details || service.priceDetails}</Text>
-              )}
-            </View>
-
-            {/* Badge de catégorie */}
-            <View style={styles.categoryContainer}>
-              <Badge text={service.category} variant="primary" size="medium" />
+        {service.coverage ? (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionHeading}>Zone de couverture</Text>
+            <View style={styles.sectionRow}>
+              <View style={styles.sectionRowLeft}>
+                <Ionicons name="location-outline" size={16} color="#6B8E6F" />
+                <Text style={styles.sectionRowLabel}>Zones desservies</Text>
+              </View>
+              <Text style={styles.sectionRowValue}>{service.coverage}</Text>
             </View>
           </View>
+        ) : null}
 
-          {/* Fonctionnalités */}
-          {service.features && service.features.length > 0 && (
-            <View style={styles.featuresSection}>
-              <Text style={styles.sectionTitle}>Fonctionnalités</Text>
-              <View style={styles.featuresList}>
-                {service.features.map((feature, index) => (
-                  <View key={index} style={styles.featureItem}>
-                    <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                    <Text style={styles.featureText}>{feature}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* Informations de couverture */}
-          {service.coverage && (
-            <View style={styles.coverageSection}>
-              <Text style={styles.sectionTitle}>Zone de couverture</Text>
-              <View style={styles.coverageItem}>
-                <Ionicons name="location-outline" size={20} color="#777E5C" />
-                <Text style={styles.coverageText}>{service.coverage}</Text>
-              </View>
-            </View>
-          )}
-
-          {/* Informations de commande */}
-          <View style={styles.orderInfoSection}>
-            <Text style={styles.sectionTitle}>Informations de commande</Text>
-            <View style={styles.orderInfoGrid}>
-              {(service.min_order || service.minOrder) && (
-                <View style={styles.orderInfoItem}>
-                  <Ionicons name="cart-outline" size={20} color="#4CAF50" />
-                  <Text style={styles.orderInfoLabel}>Commande minimum</Text>
-                  <Text style={styles.orderInfoValue}>{service.min_order || service.minOrder}</Text>
+        {orderInfoItems.length > 0 ? (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionHeading}>Informations de commande</Text>
+            {orderInfoItems.map((item, index) => (
+              <View
+                key={`${item.label}-${index}`}
+                style={[styles.sectionRow, index === orderInfoItems.length - 1 && styles.sectionRowLast]}
+              >
+                <View style={styles.sectionRowLeft}>
+                  <Ionicons name={item.icon} size={16} color="#6B8E6F" />
+                  <Text style={styles.sectionRowLabel}>{item.label}</Text>
                 </View>
-              )}
-              {(service.delivery_time || service.deliveryTime) && (
-                <View style={styles.orderInfoItem}>
-                  <Ionicons name="time-outline" size={20} color="#4CAF50" />
-                  <Text style={styles.orderInfoLabel}>Délai de livraison</Text>
-                  <Text style={styles.orderInfoValue}>{service.delivery_time || service.deliveryTime}</Text>
-                </View>
-              )}
-            </View>
+                <Text style={styles.sectionRowValue}>{item.value}</Text>
+              </View>
+            ))}
           </View>
+        ) : null}
 
-          {/* Contact */}
-          {service.contact && (
-            <View style={styles.contactSection}>
-              <Text style={styles.sectionTitle}>Contact</Text>
-              <View style={styles.contactInfo}>
-                {service.contact.phone && (
-                  <View style={styles.contactItem}>
-                    <Ionicons name="call-outline" size={20} color="#777E5C" />
-                    <Text style={styles.contactText}>{service.contact.phone}</Text>
-                  </View>
-                )}
-                {service.contact.email && (
-                  <View style={styles.contactItem}>
-                    <Ionicons name="mail-outline" size={20} color="#777E5C" />
-                    <Text style={styles.contactText}>{service.contact.email}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
-
-          {/* Évaluation */}
-          {service.rating && (
-            <View style={styles.ratingSection}>
-              <Text style={styles.sectionTitle}>Évaluation</Text>
-              <View style={styles.ratingContainer}>
-                <View style={styles.ratingStars}>
-                  {[...Array(5)].map((_, index) => (
-                    <Ionicons
-                      key={index}
-                      name={index < Math.floor(service.rating) ? "star" : "star-outline"}
-                      size={20}
-                      color="#FFD700"
-                    />
-                  ))}
+        {contactRows.length > 0 ? (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionHeading}>Contact</Text>
+            {contactRows.map((item, index) => (
+              <View
+                key={`${item.label}-${index}`}
+                style={[styles.sectionRow, index === contactRows.length - 1 && styles.sectionRowLast]}
+              >
+                <View style={styles.sectionRowLeft}>
+                  <Ionicons name={item.icon} size={16} color="#6B8E6F" />
+                  <Text style={styles.sectionRowLabel}>{item.label}</Text>
                 </View>
-                <Text style={styles.ratingValue}>{service.rating}/5</Text>
-                <Text style={styles.ratingCount}>({service.review_count || service.reviewCount || 0} avis)</Text>
+                <Text style={styles.sectionRowValue}>{item.value}</Text>
               </View>
-            </View>
-          )}
-        </Container>
+            ))}
+          </View>
+        ) : null}
+
+        
+
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* Footer avec bouton de contact */}
       <View style={styles.footer}>
-        <Button
-          title={isContactPressed ? "Demande envoyée !" : "Nous contacter"}
+        <TouchableOpacity
+          style={[styles.footerButton, isContactPressed && styles.footerButtonDisabled]}
           onPress={handleContact}
-          variant="primary"
-          style={styles.contactButton}
+          activeOpacity={0.85}
           disabled={isContactPressed}
-        />
+        >
+          <Ionicons
+            name={isContactPressed ? 'checkmark-circle-outline' : 'chatbubbles-outline'}
+            size={18}
+            color={isContactPressed ? '#1F392A' : '#0F2A17'}
+          />
+          <Text style={[styles.footerButtonText, isContactPressed && styles.footerButtonTextDisabled]}>
+            {isContactPressed ? 'Demande envoyée !' : 'Nous contacter'}
+          </Text>
+        </TouchableOpacity>
       </View>
+      <ImagePreviewModal
+        visible={imagePreviewVisible}
+        images={[service.image]}
+        initialIndex={0}
+        onClose={() => setImagePreviewVisible(false)}
+        title={service.name}
+      />
     </ScreenWrapper>
   );
 }
@@ -220,221 +309,302 @@ export default function ServiceDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F3F7F4',
   },
-  header: {
+  headerGradient: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 16,
-   
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    paddingTop: 18,
+    paddingBottom: 22,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-  backButton: {
-    padding: 8,
-    marginRight: 8,
+  headerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerButtonActive: {
+    backgroundColor: 'rgba(255, 107, 107, 0.35)',
   },
   headerContent: {
     flex: 1,
-  },
-  favoriteButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
-  favoriteButtonActive: {
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-    borderRadius: 20,
+    alignItems: 'center',
+    gap: 4,
   },
   headerTitle: {
+    color: '#FFFFFF',
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#283106',
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: '#777E5C',
-    marginTop: 2,
+    color: 'rgba(255, 255, 255, 0.78)',
+    fontSize: 13,
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
-  content: {
+  scrollView: {
     flex: 1,
   },
-  containerContent: {
-    paddingVertical: 16,
-  },
-  imageContainer: {
+  imageSection: {
     position: 'relative',
-    marginBottom: 20,
+    height: 240,
+    overflow: 'hidden',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   serviceImage: {
     width: '100%',
-    height: 200,
-    borderRadius: 12,
+    height: '100%',
   },
-  iconOverlay: {
+  imageGradient: {
     position: 'absolute',
-    top: 10,
-    right: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 20,
-    padding: 8,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
   },
-  serviceIcon: {
-    fontSize: 24,
-  },
-  serviceInfo: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  serviceName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#283106',
-    marginBottom: 8,
-  },
-  serviceDescription: {
-    fontSize: 16,
-    color: '#555',
-    lineHeight: 24,
-    marginBottom: 16,
-  },
-  priceContainer: {
-    marginBottom: 16,
-  },
-  priceLabel: {
-    fontSize: 16,
-    color: '#777E5C',
-    marginBottom: 4,
-  },
-  priceValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-  },
-  priceDetails: {
-    fontSize: 14,
-    color: '#777E5C',
-    marginTop: 4,
-  },
-  categoryContainer: {
-    marginTop: 8,
-  },
-  featuresSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#283106',
-    marginBottom: 12,
-  },
-  featuresList: {
-    gap: 8,
-  },
-  featureItem: {
+  imageChipRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  featureText: {
-    fontSize: 14,
-    color: '#555',
-    flex: 1,
-  },
-  coverageSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  coverageItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  coverageText: {
-    fontSize: 14,
-    color: '#555',
-  },
-  orderInfoSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  orderInfoGrid: {
+    flexWrap: 'wrap',
     gap: 12,
   },
-  orderInfoItem: {
+  imageChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    backgroundColor: 'rgba(47, 143, 70, 0.12)',
   },
-  orderInfoLabel: {
+  imageChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  heroWrapper: {
+    paddingHorizontal: 16,
+    marginTop: -38,
+  },
+  heroCard: {
+    borderRadius: 28,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  heroTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  heroSubtitle: {
+    color: 'rgba(247, 255, 249, 0.85)',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  heroMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 20,
+  },
+  heroMetaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(13, 52, 25, 0.35)',
+  },
+  heroMetaText: {
+    color: '#E8F9EC',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    paddingHorizontal: 16,
+    marginTop: 20,
+  },
+  metricCard: {
+    flex: 1,
+    minWidth: (width - 16 * 2 - 12 * 2) / 3,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(47, 143, 70, 0.1)',
+    shadowColor: '#214D31',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  metricIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: 'rgba(47, 143, 70, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  metricValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A3B1F',
+  },
+  metricLabel: {
+    fontSize: 12,
+    color: '#6B8E6F',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  sectionCard: {
+    marginTop: 18,
+    marginHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(47, 143, 70, 0.08)',
+    shadowColor: '#214D31',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  sectionHeading: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A3B1F',
+    marginBottom: 12,
+    letterSpacing: 0.3,
+  },
+  sectionBodyText: {
     fontSize: 14,
-    color: '#777E5C',
+    color: '#405243',
+    lineHeight: 22,
+    letterSpacing: 0.2,
+  },
+  sectionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(209, 213, 219, 0.45)',
+    gap: 14,
+  },
+  sectionRowLast: {
+    borderBottomWidth: 0,
+    paddingBottom: 0,
+  },
+  sectionRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     flex: 1,
   },
-  orderInfoValue: {
-    fontSize: 14,
+  sectionRowLabel: {
+    fontSize: 13,
     fontWeight: '600',
-    color: '#4CAF50',
+    color: '#3B4F40',
   },
-  contactSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+  sectionRowValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1F2937',
+    textAlign: 'right',
+    flexShrink: 1,
   },
-  contactInfo: {
-    gap: 8,
+  featuresGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
   },
-  contactItem: {
+  featureChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(47, 143, 70, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(47, 143, 70, 0.18)',
   },
-  contactText: {
-    fontSize: 14,
-    color: '#555',
+  featureChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2F8F46',
   },
-  ratingSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  ratingContainer: {
+  statsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
-  ratingStars: {
-    flexDirection: 'row',
-    gap: 2,
+  statCard: {
+    flex: 1,
+    backgroundColor: 'rgba(47, 143, 70, 0.06)',
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'flex-start',
+    gap: 6,
   },
-  ratingValue: {
+  statValue: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#283106',
+    fontWeight: '700',
+    color: '#1A3B1F',
   },
-  ratingCount: {
-    fontSize: 14,
-    color: '#777E5C',
+  statLabel: {
+    fontSize: 11,
+    color: '#5F7164',
+    fontWeight: '600',
+  },
+  bottomSpacer: {
+    height: 32,
   },
   footer: {
-    padding: 10,
+    padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: 'rgba(47, 143, 70, 0.12)',
+    backgroundColor: '#FFFFFF',
   },
-  contactButton: {
-    width: '100%',
+  footerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
     paddingVertical: 16,
+    borderRadius: 18,
+    backgroundColor: '#9BE7AC',
+  },
+  footerButtonDisabled: {
+    backgroundColor: 'rgba(155, 231, 172, 0.45)',
+  },
+  footerButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F2A17',
+    letterSpacing: 0.3,
+  },
+  footerButtonTextDisabled: {
+    color: '#1F392A',
   },
   errorContainer: {
     flex: 1,

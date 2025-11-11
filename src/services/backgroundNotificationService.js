@@ -1,3 +1,18 @@
+/**
+ * ⚠️ SERVICE DÉSACTIVÉ ⚠️
+ * 
+ * Ce service a été désactivé car il interfère avec la nouvelle architecture
+ * de notifications basée sur Supabase. Les notifications sont maintenant
+ * gérées par :
+ * - notificationService.js (source unique de vérité)
+ * - useNotifications.js (pour les clients)
+ * - useAdminNotifications.js (pour les admins)
+ * - Triggers SQL automatiques dans Supabase
+ * 
+ * Si vous avez besoin de notifications en arrière-plan, utilisez plutôt
+ * le système de triggers SQL de Supabase qui est plus fiable et cohérent.
+ */
+
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,26 +39,8 @@ class BackgroundNotificationService {
 
   // Initialiser le service de notifications en arrière-plan
   async initialize() {
-    if (this.isInitialized) return;
-
-    try {
-      // Demander les permissions
-      await this.requestPermissions();
-      
-      // Configurer la tâche de notification en arrière-plan
-      this.configureBackgroundTask();
-      
-      // Enregistrer la tâche de notification en arrière-plan
-      await this.registerBackgroundTask();
-      
-      // Démarrer le polling en arrière-plan
-      this.startBackgroundPolling();
-      
-      this.isInitialized = true;
-      console.log('✅ [BackgroundNotificationService] Service initialisé');
-    } catch (error) {
-      console.error('❌ [BackgroundNotificationService] Erreur lors de l\'initialisation:', error);
-    }
+    console.warn('⚠️ [BackgroundNotificationService] Service désactivé - utilisez notificationService.js à la place');
+    return false; // Service désactivé
   }
 
   // Demander les permissions de notification

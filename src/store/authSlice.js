@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { supabase } from '../backend/config/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { translateError } from '../utils/errorTranslations';
 
 // Actions asynchrones
@@ -32,10 +31,8 @@ export const loginUser = createAsyncThunk(
         throw profileError;
       }
 
-      // Sauvegarder le token dans AsyncStorage
-      await AsyncStorage.setItem('auth_token', data.session.access_token);
-      await AsyncStorage.setItem('user_id', data.user.id);
-
+      // Ne pas stocker manuellement - Supabase le fait avec persistSession: true
+      
       return {
         user: {
           id: data.user.id,
@@ -83,11 +80,7 @@ export const registerUser = createAsyncThunk(
 
       if (error) throw error;
 
-      // Sauvegarder le token dans AsyncStorage si on a une session
-      if (data.session) {
-        await AsyncStorage.setItem('auth_token', data.session.access_token);
-        await AsyncStorage.setItem('user_id', data.user.id);
-      }
+      // Ne pas stocker manuellement - Supabase le fait avec persistSession: true
 
       // Le profil sera créé automatiquement par le trigger
       // On retourne les données de base
@@ -153,11 +146,7 @@ export const logout = createAsyncThunk(
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // Supprimer TOUS les tokens et données utilisateur de l'AsyncStorage
-      await AsyncStorage.removeItem('auth_token');
-      await AsyncStorage.removeItem('user_id');
-      await AsyncStorage.removeItem('refresh_token');
-      await AsyncStorage.removeItem('user_role');
+      // Supabase nettoie automatiquement le stockage lors du signOut
       
       return true;
     } catch (error) {
@@ -241,21 +230,10 @@ export const loadStoredAuth = createAsyncThunk(
   'auth/loadStoredAuth',
   async (_, { rejectWithValue }) => {
     try {
-      // Vérifier s'il y a un token stocké
-      const storedToken = await AsyncStorage.getItem('auth_token');
-      const storedUserId = await AsyncStorage.getItem('user_id');
-      
-      if (!storedToken || !storedUserId) {
-        return null;
-      }
-
-      // Vérifier si la session Supabase est toujours valide
+      // Récupérer la session depuis Supabase (qui la charge automatiquement depuis AsyncStorage)
       const { data: { session }, error } = await supabase.auth.getSession();
       
-      if (error || !session || session.access_token !== storedToken) {
-        // Session invalide ou token différent, nettoyer le stockage
-        await AsyncStorage.removeItem('auth_token');
-        await AsyncStorage.removeItem('user_id');
+      if (error || !session) {
         return null;
       }
 
@@ -285,9 +263,6 @@ export const loadStoredAuth = createAsyncThunk(
         refreshToken: session.refresh_token
       };
     } catch (error) {
-      // En cas d'erreur, nettoyer le stockage
-      await AsyncStorage.removeItem('auth_token');
-      await AsyncStorage.removeItem('user_id');
       return null;
     }
   }

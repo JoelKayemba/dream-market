@@ -138,8 +138,7 @@ export default function OrderScreen({ navigation }) {
   const renderOrderItem = ({ item: order }) => {
     // Vérification de sécurité pour l'objet order
     if (!order || typeof order !== 'object') {
-      console.warn('Order item is invalid:', order);
-      return null;
+      return false;
     }
     
     return (
@@ -332,12 +331,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
-    
+    maxHeight: 72,
   },
   filterTabsContent: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    justifyContent: 'center',
+    paddingVertical: 12,
     alignItems: 'center',
   },
   filterTab: {
@@ -346,9 +344,9 @@ const styles = StyleSheet.create({
     marginRight: 12,
     borderRadius: 20,
     backgroundColor: '#F5F5F5',
-    height: 40,
+    minHeight: 36,
     justifyContent: 'center',
-
+    alignItems: 'center',
   },
   activeFilterTab: {
     backgroundColor: '#4CAF50',

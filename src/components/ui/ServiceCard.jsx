@@ -3,357 +3,337 @@ import {
   TouchableOpacity,
   View,
   StyleSheet,
-  Dimensions,
   Image,
   Text,
-  Alert
+  Alert,
 } from 'react-native';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import Badge from './Badge';
-import Rating from './Rating';
-import Button from './Button';
 import { useFavorites } from '../../hooks/useFavorites';
-
-const { width } = Dimensions.get('window');
 
 export default function ServiceCard({ 
   service, 
   onPress, 
   onContact, 
-  variant = 'default', // 'default', 'featured', 'compact'
-  fullWidth = false, // Nouvelle prop pour permettre l'élargissement
+  variant = 'default',
+  fullWidth = false,
   style 
 }) {
   const { toggleServiceFavorite, isServiceFavorite } = useFavorites();
   const isFavorite = isServiceFavorite(service.id);
-  const getCardStyle = () => {
-    let baseStyle;
-    switch (variant) {
-      case 'featured':
-        baseStyle = styles.featuredCard;
-        break;
-      case 'compact':
-        baseStyle = styles.compactCard;
-        break;
-      default:
-        baseStyle = styles.defaultCard;
-    }
 
-    // Si fullWidth est true, on force la largeur à 100%
-    if (fullWidth) {
-      return [baseStyle, styles.fullWidthCard];
-    }
+  const highlightChips = [
+    service.isActive ? { label: 'Disponible', icon: 'flash-outline', color: '#9BE7AC' } : { label: 'Indisponible', icon: 'time-outline', color: '#FF6B6B' },
+    service.category ? { label: service.category, icon: 'layers-outline', color: '#82D7FF' } : null,
+    service.price ? { label: service.price, icon: 'cash-outline', color: '#E8F9EC' } : null,
+  ].filter(Boolean);
 
-    return baseStyle;
-  };
+  const metrics = [
+    { icon: 'stats-chart-outline', label: `${service.reviewCount || 0} avis` },
+    service.deliveryTime ? { icon: 'time-outline', label: service.deliveryTime } : null,
+    service.coverage ? { icon: 'navigate-outline', label: service.coverage } : null,
+  ].filter(Boolean);
 
-  const getImageStyle = () => {
-    switch (variant) {
-      case 'featured':
-        return styles.featuredImage;
-      case 'compact':
-        return styles.compactImage;
-      default:
-        return styles.defaultImage;
-    }
-  };
+  const gradientByVariant = {
+    default: ['#12291B', '#1F4730'],
+    featured: ['#20314A', '#2F8F46'],
+    compact: ['#1B1F2E', '#324463'],
+  }[variant] || ['#12291B', '#1F4730'];
+
+  const description = service.description || service.shortDescription;
+  const limitedFeatures = Array.isArray(service.features) ? service.features.slice(0, 3) : [];
 
   const handleToggleFavorite = (e) => {
-    e.stopPropagation(); // Empêcher la navigation vers ServiceDetail
+    e.stopPropagation();
     const wasFavorite = isFavorite;
     toggleServiceFavorite(service);
-    
-    // Afficher une notification différente selon l'action
-    if (wasFavorite) {
-      Alert.alert(
-        'Retiré des favoris',
-        `${service.name} a été retiré de vos favoris.`,
-        [{ text: 'OK', style: 'default' }]
-      );
-    } else {
-      Alert.alert(
-        'Ajouté aux favoris !',
-        `${service.name} a été ajouté à vos favoris.`,
-        [{ text: 'OK', style: 'default' }]
-      );
-    }
+
+    Alert.alert(
+      wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris !',
+      wasFavorite
+        ? `${service.name} a été retiré de vos favoris.`
+        : `${service.name} a été ajouté à vos favoris.`
+    );
   };
 
   return (
     <TouchableOpacity
       onPress={() => onPress(service)}
       activeOpacity={0.9}
-      style={[styles.serviceCardContainer, style]}
+      style={[
+        styles.cardShell,
+        fullWidth && styles.cardShellFullWidth,
+        style,
+      ]}
     >
-      <View style={[styles.serviceCard, getCardStyle()]}>
-        {/* Image du service */}
-        <View style={styles.imageContainer}>
+      <ExpoLinearGradient
+        colors={gradientByVariant}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.card}
+      >
+        <View style={styles.mediaRow}>
           <Image
             source={{ uri: service.image }}
-            style={[styles.image, getImageStyle()]}
+            style={styles.mediaImage}
             resizeMode="cover"
           />
-          
-          {/* Badges */}
-          <View style={styles.badgesContainer}>
-            {service.isPopular && (
-              <Badge text="Populaire" variant="success" size="small" style={styles.badge} />
-            )}
-            {service.isNew && (
-              <Badge text="Nouveau" variant="primary" size="small" style={styles.badge} />
-            )}
-            <Badge 
-              text={service.isActive ? 'Disponible' : 'Indisponible'} 
-              variant={service.isActive ? 'success' : 'error'}
-              size="small" 
-              style={styles.badge} 
-            />
-          </View>
 
-          {/* Note et avis */}
-          <View style={styles.ratingContainer}>
-            <Rating value={service.rating} size="small" />
-            <Text style={styles.reviewCount}>({service.reviewCount})</Text>
-          </View>
+          <View style={styles.headerOverlay}>
+            <View style={styles.chipRow}>
+              {highlightChips.map((chip, index) => (
+                <View key={`${chip.label}-${index}`} style={[styles.chip, { borderColor: chip.color }]}>
+                  <Ionicons name={chip.icon} size={13} color={chip.color} />
+                  <Text style={[styles.chipText, { color: chip.color }]}>{chip.label}</Text>
+                </View>
+              ))}
+            </View>
 
-          {/* Bouton Favori */}
-          <TouchableOpacity
-            style={styles.favoriteButton}
-            onPress={handleToggleFavorite}
-          >
-            <Ionicons 
-              name={isFavorite ? "heart" : "heart-outline"} 
-              size={20} 
-              color={isFavorite ? "#FF6B6B" : "#FFFFFF"} 
-            />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.favoriteButton}
+              onPress={handleToggleFavorite}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name={isFavorite ? 'heart' : 'heart-outline'}
+                size={20}
+                color="#FFFFFF"
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Informations du service */}
-        <View style={styles.content}>
-          <View style={styles.header}>
+        <View style={styles.body}>
+          <View style={styles.titleRow}>
             <Text style={styles.serviceName} numberOfLines={1}>
               {service.name}
             </Text>
-            <Text style={styles.serviceShortDesc} numberOfLines={1}>
-              {service.shortDescription}
-            </Text>
+            {service.priceDetails ? (
+              <Text style={styles.priceDetails} numberOfLines={1}>
+                {service.priceDetails}
+              </Text>
+            ) : null}
           </View>
 
-          {/* Description */}
-          {variant !== 'compact' && (
-            <Text style={styles.description} numberOfLines={2}>
-              {service.description}
+          {description ? (
+            <Text style={styles.description} numberOfLines={3}>
+              {description}
             </Text>
-          )}
+          ) : null}
 
-          {/* Prix */}
-          {variant !== 'compact' && (
-            <View style={styles.priceContainer}>
-              <Text style={styles.price}>{service.price}</Text>
-              <Text style={styles.priceDetails}>{service.priceDetails}</Text>
+          {limitedFeatures.length > 0 ? (
+            <View style={styles.featuresRow}>
+              {limitedFeatures.map((feature, index) => (
+                <View key={`${feature}-${index}`} style={styles.featurePill}>
+                  <Ionicons name="checkmark-circle-outline" size={12} color="#9BE7AC" />
+                  <Text style={styles.featureText}>{feature}</Text>
+                </View>
+              ))}
+              {service.features && service.features.length > limitedFeatures.length ? (
+                <Text style={styles.moreIndicator}>
+                  +{service.features.length - limitedFeatures.length} autres
+                </Text>
+              ) : null}
             </View>
-          )}
+          ) : null}
 
-          {/* Fonctionnalités */}
-          {variant !== 'compact' && (
-            <View style={styles.featuresContainer}>
-              <Text style={styles.featuresTitle}>Fonctionnalités :</Text>
-              <View style={styles.featuresList}>
-                {service.features.slice(0, 2).map((feature, index) => (
-                  <Text key={index} style={styles.feature}>
-                    ✓ {feature}
-                  </Text>
-                ))}
-                {service.features.length > 2 && (
-                  <Text style={styles.feature}>
-                    +{service.features.length - 2} autres
-                  </Text>
-                )}
-              </View>
+          {metrics.length > 0 ? (
+            <View style={styles.metricsRow}>
+              {metrics.map((metric, index) => (
+                <View key={`${metric.label}-${index}`} style={styles.metricItem}>
+                  <Ionicons name={metric.icon} size={12} color="#E8F9EC" />
+                  <Text style={styles.metricLabel}>{metric.label}</Text>
+                </View>
+              ))}
             </View>
-          )}
+          ) : null}
 
-          {/* Actions */}
-          {variant !== 'compact' && (
-            <View style={styles.actions}>
-              <Button
-                title="Voir détails"
-                onPress={() => onPress(service)}
-                variant="outline"
-                size="small"
-                style={styles.detailsButton}
-              />
-              <Button
-                title="Nous contacter"
-                onPress={() => onContact(service)}
-                variant="primary"
-                size="small"
-                style={styles.contactButton}
-              />
-            </View>
-          )}
+          <View style={styles.footerRow}>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => onPress(service)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="eye-outline" size={16} color="#E8F9EC" />
+              <Text style={styles.secondaryButtonText}>Voir détails</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={() => onContact(service)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="chatbubbles-outline" size={16} color="#0F2A17" />
+              <Text style={styles.primaryButtonText}>Nous contacter</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </ExpoLinearGradient>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  serviceCardContainer: {
-    margin: 2,
+  cardShell: {
+    width: 300,
+    marginRight: 16,
+    marginBottom: 18,
   },
-  serviceCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-  },
-  defaultCard: {
-    width: 320,
-    minHeight: 280,
-  },
-  featuredCard: {
-    width: 350,
-    minHeight: 320,
-  },
-  compactCard: {
-    width: 280,
-    minHeight: 200,
-  },
-  fullWidthCard: {
+  cardShellFullWidth: {
     width: '100%',
+    marginRight: 0,
   },
-  imageContainer: {
+  card: {
+    borderRadius: 26,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    shadowColor: '#102618',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  mediaRow: {
     position: 'relative',
   },
-  image: {
+  mediaImage: {
     width: '100%',
-    height: 140,
-  },
-  featuredImage: {
     height: 160,
   },
-  compactImage: {
-    height: 100,
-  },
-  badgesContainer: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    gap: 4,
-  },
-  badge: {
-    marginBottom: 4,
-  },
-  ratingContainer: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  favoriteButton: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  reviewCount: {
-    color: '#777E5C',
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  content: {
+  headerOverlay: {
+    ...StyleSheet.absoluteFillObject,
     padding: 16,
-    flex: 1,
     justifyContent: 'space-between',
   },
-  header: {
-    marginBottom: 8,
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  chipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  favoriteButton: {
+    alignSelf: 'flex-end',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    padding: 8,
+    borderRadius: 16,
+  },
+  body: {
+    padding: 20,
+    gap: 14,
+  },
+  titleRow: {
+    gap: 6,
   },
   serviceName: {
-    color: '#283106',
-    fontWeight: 'bold',
-    marginBottom: 4,
+    color: '#FFFFFF',
     fontSize: 18,
-    lineHeight: 22,
-  },
-  serviceShortDesc: {
-    color: '#777E5C',
-    fontSize: 14,
-    fontStyle: 'italic',
-    lineHeight: 18,
-  },
-  description: {
-    color: '#555',
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  priceContainer: {
-    marginBottom: 12,
-  },
-  price: {
-    color: '#4CAF50',
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 2,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   priceDetails: {
-    color: '#777E5C',
+    color: 'rgba(232, 249, 236, 0.75)',
     fontSize: 12,
-    fontStyle: 'italic',
+    fontWeight: '500',
   },
-  featuresContainer: {
-    marginBottom: 16,
+  description: {
+    color: 'rgba(232, 249, 236, 0.8)',
+    fontSize: 13,
+    lineHeight: 19,
   },
-  featuresTitle: {
-    color: '#777E5C',
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  featuresList: {
-    gap: 2,
-  },
-  feature: {
-    color: '#555',
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  actions: {
+  featuresRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
-  detailsButton: {
-    flex: 1,
+  featurePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: 'rgba(155, 231, 172, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(155, 231, 172, 0.28)',
   },
-  contactButton: {
+  featureText: {
+    color: '#9BE7AC',
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  moreIndicator: {
+    color: 'rgba(232, 249, 236, 0.65)',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  metricItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(232, 249, 236, 0.12)',
+  },
+  metricLabel: {
+    color: '#E8F9EC',
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  secondaryButton: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(232, 249, 236, 0.28)',
+    borderRadius: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(232, 249, 236, 0.1)',
+  },
+  secondaryButtonText: {
+    color: '#E8F9EC',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  primaryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 16,
+    paddingVertical: 12,
+    backgroundColor: '#9BE7AC',
+  },
+  primaryButtonText: {
+    color: '#0F2A17',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

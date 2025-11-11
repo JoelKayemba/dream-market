@@ -51,12 +51,7 @@ class ErrorBoundary extends React.Component {
               <Text style={styles.buttonText}>Réessayer</Text>
             </TouchableOpacity>
 
-            {__DEV__ && this.state.error && (
-              <View style={styles.debugContainer}>
-                <Text style={styles.debugTitle}>Debug Info:</Text>
-                <Text style={styles.debugText}>{this.state.error.toString()}</Text>
-              </View>
-            )}
+           
           </View>
         </View>
       );

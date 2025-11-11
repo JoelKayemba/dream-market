@@ -44,7 +44,6 @@ export default function FarmVerification({ navigation }) {
           style: approved ? 'default' : 'destructive',
           onPress: () => {
             // TODO: Implémenter la vérification
-            console.log(`${approved ? 'Approbation' : 'Rejet'} de la ferme:`, farm.id);
             setPendingFarms(pendingFarms.filter(f => f.id !== farm.id));
             Alert.alert('Succès', `Ferme ${approved ? 'approuvée' : 'rejetée'} avec succès`);
           }

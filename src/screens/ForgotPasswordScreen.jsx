@@ -267,17 +267,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         {/* Contenu */}
         {step === 'email' ? renderEmailStep() : renderCodeStep()}
 
-        {/* Navigation */}
-        {step === 'email' && (
-          <View style={styles.navigation}>
-            <TouchableOpacity
-              style={styles.navLink}
-              onPress={() => navigation.navigate('Login')}
-            >
-              <Text style={styles.navLinkText}>Retour à la connexion</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+       
       </Container>
     </KeyboardAvoidingView>
   );
@@ -287,7 +277,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    marginHorizontal: -20,
+
    
   },
   content: {

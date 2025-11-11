@@ -1,5 +1,4 @@
 import { supabase } from '../config/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 class AuthListenerService {
   constructor() {
@@ -76,37 +75,20 @@ class AuthListenerService {
 
   // Gérer la connexion
   async handleSignIn(session) {
-    try {
-      // Sauvegarder les tokens
-      await AsyncStorage.setItem('auth_token', session.access_token);
-      await AsyncStorage.setItem('user_id', session.user.id);
-      await AsyncStorage.setItem('refresh_token', session.refresh_token);
-    } catch (error) {
-      console.error('Error saving tokens:', error);
-    }
+    // Supabase gère automatiquement le stockage avec persistSession: true
+    // Pas besoin de stocker manuellement
   }
 
   // Gérer la déconnexion
   async handleSignOut() {
-    try {
-      // Supprimer les tokens
-      await AsyncStorage.removeItem('auth_token');
-      await AsyncStorage.removeItem('user_id');
-      await AsyncStorage.removeItem('refresh_token');
-    } catch (error) {
-      console.error('Error clearing tokens:', error);
-    }
+    // Supabase gère automatiquement le nettoyage avec signOut()
+    // Pas besoin de nettoyer manuellement
   }
 
   // Gérer le refresh du token
   async handleTokenRefresh(session) {
-    try {
-      // Mettre à jour les tokens
-      await AsyncStorage.setItem('auth_token', session.access_token);
-      await AsyncStorage.setItem('refresh_token', session.refresh_token);
-    } catch (error) {
-      console.error('Error refreshing tokens:', error);
-    }
+    // Supabase gère automatiquement la mise à jour du token
+    // Pas besoin de mettre à jour manuellement
   }
 
   // Vérifier la session actuelle

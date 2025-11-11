@@ -17,6 +17,43 @@ export default function OrderDetail({ route, navigation }) {
   // Récupérer la commande mise à jour depuis le store
   const order = useSelector(selectOrderById(initialOrder.id)) || initialOrder;
 
+  const getTrimmedValue = (value) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value.trim();
+    return String(value);
+  };
+
+  const customerFirstName = getTrimmedValue(order?.customerFirstName) || getTrimmedValue(order?.customer_first_name) || getTrimmedValue(order?.profiles?.first_name);
+  const customerLastName = getTrimmedValue(order?.customerLastName) || getTrimmedValue(order?.customer_last_name) || getTrimmedValue(order?.profiles?.last_name);
+  const customerEmail = getTrimmedValue(order?.customerEmail) || getTrimmedValue(order?.customer_email) || getTrimmedValue(order?.profiles?.email);
+  const customerPhone = getTrimmedValue(order?.customerPhone) || getTrimmedValue(order?.phone_number);
+  const customerName = [customerFirstName, customerLastName].filter(Boolean).join(' ').trim() || customerEmail || customerPhone || 'Client inconnu';
+
+  const formatPrice = (amount, currency = 'CDF') => {
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return currency === 'USD' ? '$0.00' : '0 FC';
+    }
+    if (currency === 'USD') {
+      return `$${parseFloat(amount).toFixed(2)}`;
+    }
+    return `${parseFloat(amount).toFixed(0)} FC`;
+  };
+
+  const deliveryFeeAmount = Number(order?.deliveryFeeAmount ?? order?.delivery_fee_amount ?? 0) || 0;
+  const deliveryFeeCurrency = getTrimmedValue(order?.deliveryFeeCurrency) || getTrimmedValue(order?.delivery_fee_currency) || 'CDF';
+  const deliveryFeeValue = deliveryFeeAmount > 0
+    ? formatPrice(deliveryFeeAmount, deliveryFeeCurrency)
+    : 'Gratuit';
+
+  const totalsWithDelivery = React.useMemo(() => {
+    if (order?.totalsWithDelivery) return order.totalsWithDelivery;
+    const baseTotals = { ...(order?.totals || {}) };
+    if (deliveryFeeAmount > 0) {
+      baseTotals[deliveryFeeCurrency] = (baseTotals[deliveryFeeCurrency] || 0) + deliveryFeeAmount;
+    }
+    return baseTotals;
+  }, [order?.totalsWithDelivery, order?.totals, deliveryFeeAmount, deliveryFeeCurrency]);
+
   const getStatusColor = (status) => {
     const colors = {
       pending: '#FF9800',
@@ -58,16 +95,6 @@ export default function OrderDetail({ route, navigation }) {
     }
   };
 
-  const formatPrice = (amount, currency = 'CDF') => {
-    if (amount === null || amount === undefined || isNaN(amount)) {
-      return currency === 'USD' ? '$0.00' : '0 FC';
-    }
-    if (currency === 'USD') {
-      return `$${parseFloat(amount).toFixed(2)}`;
-    }
-    return `${parseFloat(amount).toFixed(0)} FC`;
-  };
-
   const handleUpdateStatus = (newStatus) => {
     Alert.alert(
       'Changer le statut',
@@ -76,14 +103,19 @@ export default function OrderDetail({ route, navigation }) {
         { text: 'Annuler', style: 'cancel' },
         { 
           text: 'Confirmer', 
-          onPress: () => {
-            dispatch(updateOrderStatus({ 
-              orderId: order.id, 
-              status: newStatus,
-              notes: `Statut changé vers "${getStatusLabel(newStatus)}" par l'admin`
-            }));
-            setShowStatusModal(false);
-            Alert.alert('Succès', 'Statut mis à jour avec succès');
+          onPress: async () => {
+            try {
+              const result = await dispatch(updateOrderStatus({ 
+                orderId: order.id, 
+                status: newStatus,
+                notes: `Statut changé vers "${getStatusLabel(newStatus)}" par l'admin`
+              })).unwrap();
+              setShowStatusModal(false);
+              Alert.alert('Succès', 'Statut mis à jour avec succès');
+            } catch (error) {
+              console.error('🔔 [OrderDetailAdmin] Erreur lors de la mise à jour:', error);
+              Alert.alert('Erreur', `Impossible de mettre à jour le statut: ${error}`);
+            }
           }
         }
       ]
@@ -91,8 +123,8 @@ export default function OrderDetail({ route, navigation }) {
   };
 
   const handleContactCustomer = (method) => {
-    const phone = order.customerPhone || order.phone_number;
-    const email = order.customerEmail || order.profiles?.email;
+    const phone = customerPhone;
+    const email = customerEmail;
     const orderNumber = order.orderNumber || order.order_number;
     
     const actions = {
@@ -189,35 +221,19 @@ export default function OrderDetail({ route, navigation }) {
         {/* Informations client */}
         <Container style={styles.section}>
           <Text style={styles.sectionTitle}>Informations client</Text>
-          
-          <View style={styles.customerCard}>
-            <View style={styles.customerItem}>
-              <Ionicons name="person-outline" size={20} color="#4CAF50" />
-              <View style={styles.customerDetails}>
-                <Text style={styles.customerLabel}>Nom</Text>
-                <Text style={styles.customerValue}>{order.customerName || 'Client inconnu'}</Text>
-              </View>
+          <View style={styles.customerInfos}>
+            <View style={styles.customerRow}>
+              <Text style={styles.customerLabel}>Nom</Text>
+              <Text style={styles.customerValue}>{customerName}</Text>
             </View>
-            
-            <View style={styles.customerItem}>
-              <Ionicons name="call-outline" size={20} color="#4CAF50" />
-              <View style={styles.customerDetails}>
-                <Text style={styles.customerLabel}>Téléphone</Text>
-                <TouchableOpacity onPress={() => handleContactCustomer('call')}>
-                  <Text style={[styles.customerValue, styles.contactValue]}>{order.customerPhone || order.phone_number}</Text>
-                </TouchableOpacity>
-              </View>
+            <View style={styles.customerRow}>
+              <Text style={styles.customerLabel}>Téléphone</Text>
+              <Text style={[styles.customerValue, styles.contactValue]}>{customerPhone || 'Non renseigné'}</Text>
             </View>
-            
-            {(order.customerEmail || order.profiles?.email) && (
-              <View style={styles.customerItem}>
-                <Ionicons name="mail-outline" size={20} color="#4CAF50" />
-                <View style={styles.customerDetails}>
-                  <Text style={styles.customerLabel}>Email</Text>
-                  <TouchableOpacity onPress={() => handleContactCustomer('email')}>
-                    <Text style={[styles.customerValue, styles.contactValue]}>{order.customerEmail || order.profiles?.email}</Text>
-                  </TouchableOpacity>
-                </View>
+            {customerEmail && (
+              <View style={styles.customerRow}>
+                <Text style={styles.customerLabel}>Email</Text>
+                <Text style={[styles.customerValue, styles.contactValue]}>{customerEmail}</Text>
               </View>
             )}
           </View>
@@ -291,7 +307,7 @@ export default function OrderDetail({ route, navigation }) {
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Sous-total</Text>
               <Text style={styles.summaryValue}>
-                {Object.entries(order.totals).map(([currency, amount]) => 
+                {Object.entries(order.totals || {}).map(([currency, amount]) => 
                   formatPrice(amount, currency)
                 ).join(' + ')}
               </Text>
@@ -299,7 +315,7 @@ export default function OrderDetail({ route, navigation }) {
             
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Frais de livraison</Text>
-              <Text style={styles.summaryValue}>Gratuit</Text>
+              <Text style={[styles.summaryValue, deliveryFeeAmount === 0 && styles.summaryValueFree]}>{deliveryFeeValue}</Text>
             </View>
             
             <View style={styles.summaryDivider} />
@@ -307,7 +323,7 @@ export default function OrderDetail({ route, navigation }) {
             <View style={styles.summaryRow}>
               <Text style={styles.summaryTotalLabel}>Total</Text>
               <Text style={styles.summaryTotalValue}>
-                {Object.entries(order.totals).map(([currency, amount]) => 
+                {Object.entries(totalsWithDelivery).map(([currency, amount]) => 
                   formatPrice(amount, currency)
                 ).join(' + ')}
               </Text>
@@ -643,6 +659,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#283106',
   },
+  summaryValueFree: {
+    color: '#4CAF50',
+  },
   summaryDivider: {
     height: 1,
     backgroundColor: '#E0E0E0',
@@ -746,5 +765,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#283106',
     fontWeight: '500',
+  },
+  customerInfos: {
+    marginTop: 8,
+  },
+  customerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  customerLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#283106',
+  },
+  customerValue: {
+    fontSize: 14,
+    color: '#777E5C',
+    textAlign: 'right',
+  },
+  customerName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#283106',
   },
 });

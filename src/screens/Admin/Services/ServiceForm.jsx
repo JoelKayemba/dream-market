@@ -63,7 +63,7 @@ export default function ServiceForm({ route, navigation }) {
     setIsUploading(true);
 
     try {
-      // 📤 Upload de l'image vers Supabase
+      //  Upload de l'image vers Supabase
       let imageUrl = selectedImages[0]?.uri;
       
       // Si l'image commence par "file://", c'est une nouvelle image à uploader
@@ -80,7 +80,7 @@ export default function ServiceForm({ route, navigation }) {
 
       const serviceData = {
         ...formData,
-        image: imageUrl,  // ✅ URL Supabase
+        image: imageUrl,  // URL Supabase
         min_order: formData.min_order ? parseInt(formData.min_order) : null,
         features: formData.features ? formData.features.split('\n').filter(f => f.trim()) : [],
         icon: '🔧',

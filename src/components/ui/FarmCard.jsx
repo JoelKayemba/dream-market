@@ -4,18 +4,13 @@ import {
   View, 
   StyleSheet, 
   Animated, 
-  Dimensions,
   Image,
   Text,
   Alert
 } from 'react-native';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import Badge from './Badge';
-import Rating from './Rating';
-import Button from './Button';
 import { useFavorites } from '../../hooks/useFavorites';
-
-const { width } = Dimensions.get('window');
 
 export default function FarmCard({ 
   farm, 
@@ -24,27 +19,44 @@ export default function FarmCard({
   onContact,
   navigation,
   style,
-  variant = 'default' // 'default', 'featured', 'compact'
+  variant = 'default'
 }) {
   const [scaleValue] = useState(new Animated.Value(1));
-  const [isPressed, setIsPressed] = useState(false);
   const { toggleFarmFavorite, isFarmFavorite } = useFavorites();
   const isFavorite = isFarmFavorite(farm.id);
 
-  const handlePressIn = () => {
-    setIsPressed(true);
-    Animated.spring(scaleValue, {
-      toValue: 0.98,
-      useNativeDriver: true,
-    }).start();
-  };
+  const highlightChips = [
+    farm.specialty ? { label: formatSpecialtyLabel(farm.specialty), icon: 'leaf-outline', color: '#9BE7AC' } : null,
+    farm.location ? { label: farm.location, icon: 'navigate-outline', color: '#82D7FF' } : null,
+    farmProductsCount(farm) ? { label: `${farmProductsCount(farm)} produits`, icon: 'basket-outline', color: '#E8F9EC' } : null,
+  ].filter(Boolean);
 
-  const handlePressOut = () => {
-    setIsPressed(false);
-    Animated.spring(scaleValue, {
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
+  const metrics = [
+    { icon: 'star-outline', label: farm.rating ? `${Number(farm.rating).toFixed(1)} / 5` : '—' },
+    farm.established ? { icon: 'time-outline', label: `${new Date().getFullYear() - farm.established} ans d’activité` } : null,
+    farm.contact?.phone ? { icon: 'call-outline', label: 'Contact rapide' } : null,
+  ].filter(Boolean);
+
+  const gradientByVariant = {
+    default: ['#102818', '#1F3B28'],
+    featured: ['#18293A', '#215F3A'],
+    compact: ['#171B2B', '#2E3F5C'],
+  }[variant] || ['#102818', '#1F3B28'];
+
+  const description = farm.description;
+  const certifications = Array.isArray(farm.certifications) ? farm.certifications.slice(0, 3) : [];
+
+  const handleToggleFavorite = (e) => {
+    e.stopPropagation();
+    const wasFavorite = isFavorite;
+    toggleFarmFavorite(farm);
+
+    Alert.alert(
+      wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris !',
+      wasFavorite
+        ? `${farm.name} a été retiré de vos favoris.`
+        : `${farm.name} a été ajouté à vos favoris.`
+    );
   };
 
   const handlePress = () => {
@@ -65,427 +77,309 @@ export default function FarmCard({
 
   const handleContact = () => {
     if (navigation) {
-      // Pour l'instant, on navigue vers les détails de la ferme
       navigation.navigate('FarmDetail', { farm });
     } else {
       onContact && onContact(farm);
     }
   };
 
-  const handleToggleFavorite = (e) => {
-    e.stopPropagation(); // Empêcher la navigation vers FarmDetail
-    const wasFavorite = isFavorite;
-    toggleFarmFavorite(farm);
-    
-    // Afficher une notification différente selon l'action
-    if (wasFavorite) {
-      Alert.alert(
-        'Retiré des favoris',
-        `${farm.name} a été retiré de vos favoris.`,
-        [{ text: 'OK', style: 'default' }]
-      );
-    } else {
-      Alert.alert(
-        'Ajouté aux favoris !',
-        `${farm.name} a été ajouté à vos favoris.`,
-        [{ text: 'OK', style: 'default' }]
-      );
-    }
-  };
-
-  const getCardStyle = () => {
-    switch (variant) {
-      case 'featured':
-        return styles.featuredCard;
-      case 'compact':
-        return styles.compactCard;
-      default:
-        return styles.defaultCard;
-    }
-  };
-
-  const getImageStyle = () => {
-    switch (variant) {
-      case 'featured':
-        return styles.featuredImage;
-      case 'compact':
-        return styles.compactImage;
-      default:
-        return styles.defaultImage;
-    }
-  };
-
-  const getSpecialtyIcon = (specialty) => {
-    const icons = {
-      organic: '🌱',
-      fruits: '🍎',
-      cereals: '🌾',
-      dairy: '🥛',
-      wine: '🍷',
-      herbs: '🌿'
-    };
-    return icons[specialty] || '🏡';
-  };
-
-  const getSpecialtyColor = (specialty) => {
-    const colors = {
-      organic: '#4CAF50',
-      fruits: '#FF9800',
-      cereals: '#8BC34A',
-      dairy: '#2196F3',
-      wine: '#9C27B0',
-      herbs: '#795548'
-    };
-    return colors[specialty] || '#777E5C';
-  };
-
   return (
     <TouchableOpacity
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
+      onPressIn={() => animateScale(scaleValue, 0.97)}
+      onPressOut={() => animateScale(scaleValue, 1)}
       onPress={handlePress}
-      activeOpacity={0.9}
-      style={[styles.container, style]}
+      activeOpacity={0.92}
+      style={[styles.cardShell, style]}
     >
-      <Animated.View 
-        style={[
-          styles.card,
-          getCardStyle(),
-          { transform: [{ scale: scaleValue }] }
-        ]}
-      >
-        {/* Image de la ferme */}
-        <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: farm.main_image }}
-            style={[styles.image, getImageStyle()]}
-            resizeMode="cover"
-          />
-          
-          {/* Badge de spécialité */}
-          <View style={[styles.specialtyBadge, { backgroundColor: getSpecialtyColor(farm.specialty) }]}>
-            <Text style={styles.specialtyText}>
-              {getSpecialtyIcon(farm.specialty)} {farm.specialty === 'organic' ? 'Bio' : 
-                farm.specialty === 'fruits' ? 'Fruits' :
-                farm.specialty === 'cereals' ? 'Céréales' :
-                farm.specialty === 'dairy' ? 'Laitiers' :
-                farm.specialty === 'wine' ? 'Vins' :
-                farm.specialty === 'herbs' ? 'Herbes' : 'Ferme'}
-            </Text>
-          </View>
-
-          {/* Note et avis */}
-          <View style={styles.ratingContainer}>
-            <Rating value={farm.rating} size="small" />
-            <Text style={styles.reviewCount}>({farm.review_count || 0})</Text>
-          </View>
-
-          {/* Bouton Favori */}
-          <TouchableOpacity
-            style={styles.favoriteButton}
-            onPress={handleToggleFavorite}
-          >
-            <Ionicons 
-              name={isFavorite ? "heart" : "heart-outline"} 
-              size={20} 
-              color={isFavorite ? "#FF6B6B" : "#FFFFFF"} 
+      <Animated.View style={[styles.animatedContainer, { transform: [{ scale: scaleValue }] }]}>
+        <ExpoLinearGradient
+          colors={gradientByVariant}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.card}
+        >
+          <View style={styles.mediaRow}>
+            <Image
+              source={{ uri: farm.main_image }}
+              style={styles.mediaImage}
             />
-          </TouchableOpacity>
-        </View>
+            <ExpoLinearGradient
+              colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.65)']}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.mediaOverlay}
+            >
+              <View style={styles.chipRow}>
+                {highlightChips.map((chip, index) => (
+                  <View key={`${chip.label}-${index}`} style={[styles.chip, { borderColor: chip.color }]}>
+                    <Ionicons name={chip.icon} size={13} color={chip.color} />
+                    <Text style={[styles.chipText, { color: chip.color }]}>{chip.label}</Text>
+                  </View>
+                ))}
+              </View>
 
-        {/* Informations de la ferme */}
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.farmName} numberOfLines={1}>
-              {farm.name}
-            </Text>
-            <Text style={styles.farmLocation} numberOfLines={1}>
-              📍 {farm.location}
-            </Text>
+              <TouchableOpacity
+                style={styles.favoriteButton}
+                onPress={handleToggleFavorite}
+                activeOpacity={0.85}
+              >
+                <Ionicons
+                  name={isFavorite ? 'heart' : 'heart-outline'}
+                  size={20}
+                  color="#FFFFFF"
+                />
+              </TouchableOpacity>
+            </ExpoLinearGradient>
           </View>
 
-          {/* Description */}
-          {variant !== 'compact' && (
-            <Text style={styles.description} numberOfLines={2}>
-              {farm.description}
-            </Text>
-          )}
-
-          {/* Certifications */}
-          {variant !== 'compact' && farm.certifications && (
-            <View style={styles.certificationsContainer}>
-              {farm.certifications.slice(0, 3).map((cert, index) => (
-                <Badge 
-                  key={index} 
-                  text={cert} 
-                  variant="success" 
-                  size="small"
-                  style={styles.certificationBadge}
-                />
-              ))}
-              {farm.certifications.length > 3 && (
-                <Text style={styles.moreCerts}>
-                  +{farm.certifications.length - 3}
-                </Text>
-              )}
+          <View style={styles.body}>
+            <View style={styles.titleRow}>
+              <Text style={styles.farmName} numberOfLines={1}>{farm.name}</Text>
+              {farm.location ? (
+                <View style={styles.locationBadge}>
+                  <Ionicons name="navigate-outline" size={12} color="#E8F9EC" />
+                  <Text style={styles.locationText} numberOfLines={1}>{farm.location}</Text>
+                </View>
+              ) : null}
             </View>
-          )}
 
-          {/* Services disponibles */}
-          {variant !== 'compact' && (
-            <View style={styles.servicesContainer}>
-              {farm.delivery && (
-                <View style={styles.serviceItem}>
-                  <Ionicons name="car" size={16} color="#4CAF50" />
-                  <Text style={styles.serviceText}>Livraison</Text>
-                </View>
-              )}
-              {farm.pickup && (
-                <View style={styles.serviceItem}>
-                  <Ionicons name="storefront" size={16} color="#2196F3" />
-                  <Text style={styles.serviceText}>Retrait</Text>
-                </View>
-              )}
-              {farm.farmShop && (
-                <View style={styles.serviceItem}>
-                  <Ionicons name="home" size={16} color="#FF9800" />
-                  <Text style={styles.serviceText}>Boutique</Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* Produits principaux */}
-          {variant !== 'compact' && farm.products && (
-            <View style={styles.productsContainer}>
-              <Text style={styles.productsTitle}>
-                Produits principaux :
+            {description ? (
+              <Text style={styles.description} numberOfLines={3}>
+                {description}
               </Text>
-              <View style={styles.productsList}>
-                {farm.products.slice(0, 3).map((product, index) => (
-                  <Text key={index} style={styles.productItem}>
-                    • {product}
-                  </Text>
-                ))}
-                {farm.products.length > 3 && (
-                  <Text style={styles.productItem}>
-                    +{farm.products.length - 3} autres
-                  </Text>
-                )}
-              </View>
-            </View>
-          )}
+            ) : null}
 
-          {/* Actions */}
-          {variant !== 'compact' && (
-            <View style={styles.actions}>
-              <Button
-                title="Voir détails"
-                onPress={handlePress}
-                variant="outline"
-                size="small"
-                style={styles.detailsButton}
-              />
-              <Button
-                title="Voir produits"
+            
+
+          
+
+            <View style={styles.actionsRow}>
+              <TouchableOpacity
+                style={styles.secondaryButton}
                 onPress={handleViewProducts}
-                variant="primary"
-                size="small"
-                style={styles.productsButton}
-              />
+                activeOpacity={0.85}
+              >
+                <Ionicons name="basket-outline" size={15} color="#E8F9EC" />
+                <Text style={styles.secondaryButtonText}>Produits</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={handlePress}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="eye-outline" size={16} color="#0F2A17" />
+                <Text style={styles.primaryButtonText}>Découvrir</Text>
+              </TouchableOpacity>
             </View>
-          )}
-        </View>
-
-        {/* Indicateur de sélection */}
-        {isPressed && (
-          <Animated.View style={styles.selectionIndicator} />
-        )}
+          </View>
+        </ExpoLinearGradient>
       </Animated.View>
     </TouchableOpacity>
   );
 }
 
+const animateScale = (animatedValue, toValue) => {
+  Animated.spring(animatedValue, {
+    toValue,
+    useNativeDriver: true,
+    friction: 6,
+  }).start();
+};
+
+const farmProductsCount = (farm) => {
+  if (Array.isArray(farm.products)) return farm.products.length;
+  if (typeof farm.productCount === 'number') return farm.productCount;
+  return null;
+};
+
+const formatSpecialtyLabel = (specialty) => {
+  if (!specialty) return 'Spécialité';
+  const map = {
+    organic: 'Bio',
+    fruits: 'Fruits',
+    cereals: 'Céréales',
+    dairy: 'Laitiers',
+    wine: 'Vins',
+    herbs: 'Herbes',
+  };
+  return map[specialty.toLowerCase()] || specialty;
+};
+
 const styles = StyleSheet.create({
-  container: {
-    margin: 2,
+  cardShell: {
+    width: 320,
+    marginRight: 16,
+    marginBottom: 20,
+  },
+  animatedContainer: {
+    borderRadius: 28,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 28,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
     borderWidth: 1,
-    borderColor: '#E8E8E8',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    shadowColor: '#0F1E13',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 7,
   },
-  defaultCard: {
-    width: width * 0.85,
-    minHeight: 280,
-  },
-  featuredCard: {
-    width: width * 0.9,
-    minHeight: 320,
-  },
-  compactCard: {
-    width: width * 0.75,
-    minHeight: 200,
-  },
-  imageContainer: {
+  mediaRow: {
     position: 'relative',
   },
-  image: {
+  mediaImage: {
     width: '100%',
-    height: 140,
+    height: 180,
   },
-  featuredImage: {
-    height: 160,
-  },
-  compactImage: {
-    height: 100,
-  },
-  specialtyBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  specialtyText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  ratingContainer: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  favoriteButton: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  reviewCount: {
-    color: '#777E5C',
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  content: {
+  mediaOverlay: {
+    ...StyleSheet.absoluteFillObject,
     padding: 16,
-    flex: 1,
     justifyContent: 'space-between',
   },
-  header: {
-    marginBottom: 8,
-  },
-  farmName: {
-    color: '#283106',
-    fontWeight: 'bold',
-    marginBottom: 4,
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  farmLocation: {
-    color: '#777E5C',
-    fontSize: 14,
-    lineHeight: 18,
-  },
-  description: {
-    color: '#555',
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  certificationsContainer: {
+  chipRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
     flexWrap: 'wrap',
+    gap: 10,
   },
-  certificationBadge: {
-    marginRight: 4,
-  },
-  moreCerts: {
-    color: '#777E5C',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  servicesContainer: {
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    marginBottom: 12,
+    gap: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  serviceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  serviceText: {
-    color: '#777E5C',
-    fontSize: 12,
-  },
-  productsContainer: {
-    marginBottom: 16,
-  },
-  productsTitle: {
-    color: '#777E5C',
+  chipText: {
     fontSize: 12,
     fontWeight: '600',
-    marginBottom: 6,
+    letterSpacing: 0.3,
   },
-  productsList: {
-    gap: 2,
+  favoriteButton: {
+    alignSelf: 'flex-end',
+    padding: 8,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
   },
-  productItem: {
-    color: '#555',
-    fontSize: 12,
-    lineHeight: 16,
+  body: {
+    padding: 20,
+    gap: 14,
   },
-  actions: {
-    flexDirection: 'row',
+  titleRow: {
     gap: 8,
   },
-  detailsButton: {
-    flex: 1,
+  farmName: {
+    color: '#FFFFFF',
+    fontSize: 19,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
-  productsButton: {
-    flex: 1,
+  locationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(232, 249, 236, 0.25)',
+    backgroundColor: 'rgba(232, 249, 236, 0.1)',
+    alignSelf: 'flex-start',
   },
-  selectionIndicator: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(40, 49, 6, 0.1)',
+  locationText: {
+    color: '#E8F9EC',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  description: {
+    color: 'rgba(232, 249, 236, 0.82)',
+    fontSize: 13.5,
+    lineHeight: 20,
+  },
+  certificationsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  certBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(155, 231, 172, 0.35)',
+    backgroundColor: 'rgba(155, 231, 172, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  certText: {
+    color: '#9BE7AC',
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  moreCertText: {
+    color: 'rgba(232, 249, 236, 0.7)',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  metricItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: 'rgba(232, 249, 236, 0.12)',
+  },
+  metricLabel: {
+    color: '#E8F9EC',
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  secondaryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(232, 249, 236, 0.25)',
     borderRadius: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(232, 249, 236, 0.12)',
+  },
+  secondaryButtonText: {
+    color: '#E8F9EC',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  primaryButton: {
+    flex: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 16,
+    paddingVertical: 12,
+    backgroundColor: '#9BE7AC',
+  },
+  primaryButtonText: {
+    color: '#0F2A17',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

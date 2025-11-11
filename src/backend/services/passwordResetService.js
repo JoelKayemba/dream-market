@@ -28,7 +28,7 @@ export const passwordResetService = {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            from: 'Dream Market <onboarding@resend.dev>', // Email de test Resend
+            from: 'Dream Market <kayembajoel.info>', // Remplacez par votre domaine vérifié
             to: email,
             subject: 'Code de réinitialisation Dream Market',
             html: `

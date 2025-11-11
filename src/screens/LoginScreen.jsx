@@ -36,10 +36,7 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  const handleDemoLogin = () => {
-    setEmail('marie@email.com');
-    setPassword('password123');
-  };
+  
 
   const handleAdminDemo = () => {
     setEmail('admin@dreammarket.com');
@@ -119,24 +116,7 @@ export default function LoginScreen({ navigation }) {
             disabled={isLoading}
           />
 
-          {/* Boutons de démonstration */}
-          <View style={styles.demoSection}>
-            <Text style={styles.demoTitle}>Démonstration</Text>
-            <View style={styles.demoButtons}>
-              <TouchableOpacity
-                style={styles.demoButton}
-                onPress={handleDemoLogin}
-              >
-                <Text style={styles.demoButtonText}>Utilisateur Test</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.demoButton}
-                onPress={handleAdminDemo}
-              >
-                <Text style={styles.demoButtonText}>Admin Test</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+         
 
           {/* Liens */}
           <View style={styles.links}>
@@ -164,7 +144,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    marginHorizontal: -20,
+   
     
   },
   content: {

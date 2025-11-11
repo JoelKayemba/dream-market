@@ -45,8 +45,7 @@ export default function AppSettings({ navigation }) {
 
   const handleSaveSettings = () => {
     // TODO: Implémenter la sauvegarde
-    console.log('Sauvegarde des paramètres app:', settings);
-    Alert.alert('Succès', 'Paramètres de l\'application sauvegardés avec succès');
+    Alert.alert('Succès', 'Paramètres sauvegardés avec succès');
   };
 
   const SettingSwitch = ({ title, subtitle, value, onValueChange }) => (
@@ -61,7 +60,7 @@ export default function AppSettings({ navigation }) {
         trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
         thumbColor={value ? '#FFFFFF' : '#FFFFFF'}
       />
-    </ScreenWrapper>
+    </View>
   );
 
   const SettingInput = ({ title, subtitle, value, onChangeText, keyboardType }) => (
@@ -323,7 +322,7 @@ export default function AppSettings({ navigation }) {
           style={styles.saveButton}
         />
       </View>
-    </View>
+    </ScreenWrapper>
   );
 }
 

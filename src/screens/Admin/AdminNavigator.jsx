@@ -23,6 +23,7 @@ import OrderStatus from './Orders/OrderStatus';
 import AnalyticsDashboard from './Analytics/AnalyticsDashboard';
 import SalesAnalytics from './Analytics/SalesAnalytics';
 import UserAnalytics from './Analytics/UserAnalytics';
+import DeliveryFeeSettings from './Settings/DeliveryFeeSettings';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -60,7 +61,12 @@ function AdminDrawerContent({ navigation }) {
       icon: 'receipt-outline',
       screen: 'OrdersManagement'
     },
-   
+    {
+      id: 'delivery_fee',
+      title: 'Frais de livraison',
+      icon: 'car-outline',
+      screen: 'DeliveryFeeSettings'
+    },
   ];
 
   return (
@@ -115,6 +121,7 @@ function getScreenComponent(screenName) {
     AnalyticsDashboard,
     SalesAnalytics,
     UserAnalytics,
+    DeliveryFeeSettings,
   };
   
   return screens[screenName] || AdminDashboard;
@@ -235,7 +242,7 @@ export default function AdminNavigator() {
         }}
       />
       <Stack.Screen
-        name="OrderDetail"
+        name="OrderDetailAdmin"
         component={OrderDetail}
         options={{
           title: 'Détails Commande'
@@ -245,7 +252,16 @@ export default function AdminNavigator() {
         name="OrderStatus"
         component={OrderStatus}
         options={{
-          title: 'Statuts Commandes'
+          title: 'Statut de la Commande'
+        }}
+      />
+
+      {/* Paramètres */}
+      <Stack.Screen
+        name="DeliveryFeeSettings"
+        component={DeliveryFeeSettings}
+        options={{
+          title: 'Frais de livraison'
         }}
       />
       

@@ -93,17 +93,7 @@ export default function RegisterScreen({ navigation }) {
     }
   };
 
-  const handleDemoFill = () => {
-    setFormData({
-      firstName: 'Marie',
-      lastName: 'Dupont',
-      email: 'marie.dupont@email.com',
-      password: 'password123',
-      confirmPassword: 'password123',
-      phone: '+33 6 12 34 56 78',
-      address: '123 Rue des Champs, 14000 Caen'
-    });
-  };
+ 
 
   return (
     <KeyboardAvoidingView 
@@ -255,13 +245,7 @@ export default function RegisterScreen({ navigation }) {
               disabled={isLoading}
             />
 
-            {/* Bouton de démonstration */}
-            <TouchableOpacity
-              style={styles.demoButton}
-              onPress={handleDemoFill}
-            >
-              <Text style={styles.demoButtonText}>Remplir avec des données de test</Text>
-            </TouchableOpacity>
+           
 
             {/* Lien vers connexion */}
             <View style={styles.loginLink}>
@@ -281,7 +265,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    marginHorizontal: -20,
+   
   
   },
   content: {

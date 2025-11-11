@@ -43,9 +43,12 @@ export const fetchOrderById = createAsyncThunk(
   'orders/fetchOrderById',
   async (orderId, { rejectWithValue }) => {
     try {
+      console.log('🔔 [ordersSlice] fetchOrderById appelé avec orderId:', orderId);
       const order = await orderService.getOrderById(orderId);
+      console.log('🔔 [ordersSlice] Commande récupérée:', order);
       return order;
     } catch (error) {
+      console.error('🔔 [ordersSlice] Erreur fetchOrderById:', error);
       return rejectWithValue(error.message);
     }
   }

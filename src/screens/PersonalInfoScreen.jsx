@@ -69,7 +69,7 @@ export default function PersonalInfoScreen({ navigation }) {
           text: 'Supprimer définitivement', 
           style: 'destructive',
           onPress: () => {
-            console.log('Compte supprimé');
+            Alert.alert('Succès', 'Votre compte a été supprimé.');
             // Ici on supprimerait le compte
             navigation.navigate('ProfileMain');
           }

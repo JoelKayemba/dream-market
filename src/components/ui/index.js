@@ -12,7 +12,14 @@ export { default as ProductCard } from './ProductCard';
 export { default as SectionHeader } from './SectionHeader';
 export { default as FarmCard } from './FarmCard';
 export { default as ServiceCard } from './ServiceCard';
+export { default as ImagePreviewModal } from './ImagePreviewModal';
 export { default as ScreenWrapper } from '../ScreenWrapper';
+
+// Composants de notifications
+export { default as NotificationItem } from './NotificationItem';
+export { default as NotificationFilters } from './NotificationFilters';
+export { default as NotificationHeader } from './NotificationHeader';
+export { default as EmptyNotifications } from './EmptyNotifications';
 
 // Liste des composants disponibles pour la démo
 export const availableComponents = [
@@ -29,5 +36,10 @@ export const availableComponents = [
   'SectionHeader',
   'FarmCard',
   'ServiceCard',
-  'ScreenWrapper'
+  'ImagePreviewModal',
+  'ScreenWrapper',
+  'NotificationItem',
+  'NotificationFilters',
+  'NotificationHeader',
+  'EmptyNotifications'
 ];

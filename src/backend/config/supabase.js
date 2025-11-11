@@ -35,6 +35,7 @@ export const TABLES = {
   CATEGORIES: 'categories',
   ORDERS: 'orders',
   FAVORITES: 'favorites',
+  NOTIFICATIONS: 'notifications',
 };
 
 // Rôles utilisateurs

@@ -3,147 +3,177 @@ import { useSelector, useDispatch } from 'react-redux';
 import { 
   setNotifications,
   markAsRead as markAsReadAction,
-  addSentNotification,
+  markAllAsRead as markAllAsReadAction,
   selectNotifications,
   selectUnreadCount,
-  selectSentNotifications
+  selectAdminNotifications
 } from '../store/notificationsSlice';
-import { selectAdminOrders } from '../store/admin/ordersSlice';
+import { notificationService } from '../backend/services/notificationService';
+import { useAuth } from './useAuth';
 import * as Notifications from 'expo-notifications';
 
 export const useAdminNotifications = () => {
   const dispatch = useDispatch();
-  const adminOrders = useSelector(selectAdminOrders);
+  const { user } = useAuth();
   const notifications = useSelector(selectNotifications);
   const unreadCount = useSelector(selectUnreadCount);
-  const sentNotifications = useSelector(selectSentNotifications);
+  const adminNotifications = useSelector(selectAdminNotifications);
   
   const [isInitialized, setIsInitialized] = useState(false);
-  const [previousOrders, setPreviousOrders] = useState([]);
-  const previousOrderIdsRef = useRef(new Set());
+  const [isLoading, setIsLoading] = useState(false);
+  const subscriptionRef = useRef(null);
+  const lastCheckTimeRef = useRef(new Date().toISOString());
 
-  // Initialiser le hook
+  // Initialiser le hook et charger les notifications
   useEffect(() => {
-    setIsInitialized(true);
-  }, []);
-
-  // Détecter les nouvelles commandes et générer les notifications
-  useEffect(() => {
-    if (isInitialized && adminOrders.length > 0) {
-      generateAdminNotifications();
+    if (user?.id && user?.role === 'admin') {
+      initializeAdminNotifications();
+    } else {
+      setIsInitialized(false);
+      if (subscriptionRef.current) {
+        notificationService.unsubscribeFromNotifications(subscriptionRef.current);
+        subscriptionRef.current = null;
+      }
     }
-  }, [isInitialized, adminOrders]);
 
-  const generateAdminNotifications = () => {
-    // Récupérer les IDs des commandes précédentes
-    const currentOrderIds = new Set(adminOrders.map(order => order.id));
-    const previousOrderIds = previousOrderIdsRef.current;
-    
-    // Trouver les nouvelles commandes (celles qui n'étaient pas dans la liste précédente)
-    const newOrders = adminOrders.filter(order => !previousOrderIds.has(order.id));
-    
-    // Créer des notifications pour les nouvelles commandes
-    const newOrderNotifications = newOrders.map(order => ({
-      id: `admin_new_order_${order.id}`,
-      type: 'admin_order',
-      title: '🆕 Nouvelle commande reçue',
-      message: `Commande #${order.orderNumber || order.order_number} de ${order.customerName}`,
-      time: getTimeAgo(order.createdAt || order.date),
-      isRead: false,
-      action: 'Voir la commande',
-      image: null,
-      data: { 
-        orderId: order.id, 
-        order,
-        adminAction: true // Marque comme action admin
+    return () => {
+      if (subscriptionRef.current) {
+        notificationService.unsubscribeFromNotifications(subscriptionRef.current);
       }
-    }));
+    };
+  }, [user?.id, user?.role]);
 
-    // Créer des notifications pour les commandes en attente (si plus de 10 minutes)
-    const pendingOrders = adminOrders.filter(order => 
-      order.status === 'pending' && 
-      isOrderPendingTooLong(order.createdAt || order.date)
-    );
+  const initializeAdminNotifications = async () => {
+    try {
+      setIsLoading(true);
 
-    const pendingNotifications = pendingOrders.map(order => ({
-      id: `admin_pending_order_${order.id}`,
-      type: 'admin_pending',
-      title: '⏰ Commande en attente',
-      message: `Commande #${order.orderNumber || order.order_number} attend confirmation depuis ${getTimeAgo(order.createdAt || order.date)}`,
-      time: getTimeAgo(order.createdAt || order.date),
-      isRead: false,
-      action: 'Traiter la commande',
-      image: null,
-      data: { 
-        orderId: order.id, 
-        order,
-        adminAction: true,
-        urgent: true
-      }
-    }));
+      // Charger les notifications existantes
+      await loadAdminNotifications();
 
-    // Combiner toutes les notifications admin
-    const adminNotifications = [...newOrderNotifications, ...pendingNotifications];
+      // S'abonner aux nouvelles notifications en temps réel
+      setupRealtimeSubscription();
 
-    // Ajouter les notifications admin aux notifications existantes
-    const existingNotifications = notifications.filter(n => n.type !== 'admin_order' && n.type !== 'admin_pending');
-    const allNotifications = [...existingNotifications, ...adminNotifications];
-
-    // Trier par date (plus récentes en premier)
-    allNotifications.sort((a, b) => {
-      const dateA = new Date(a.data?.order?.createdAt || a.data?.order?.date || new Date());
-      const dateB = new Date(b.data?.order?.createdAt || b.data?.order?.date || new Date());
-      return dateB - dateA;
-    });
-
-    // Mettre à jour les notifications
-    dispatch(setNotifications(allNotifications));
-
-    // Détecter et envoyer les nouvelles notifications
-    detectAndNotifyNewAdminNotifications(adminNotifications);
-
-    // Mettre à jour les références
-    setPreviousOrders(adminOrders);
-    previousOrderIdsRef.current = currentOrderIds;
+      setIsInitialized(true);
+    } catch (error) {
+      console.error('❌ [useAdminNotifications] Erreur lors de l\'initialisation:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const detectAndNotifyNewAdminNotifications = async (adminNotifications) => {
-    // Filtrer les notifications qui n'ont pas encore été envoyées
-    const newNotifications = adminNotifications.filter(notification => 
-      !sentNotifications.includes(notification.id)
-    );
+  const loadAdminNotifications = async () => {
+    try {
+      if (!user?.id) {
+        return;
+      }
 
-    // Envoyer une notification push pour chaque nouvelle notification
-    for (const notification of newNotifications) {
-      try {
-        await sendAdminNotification(
-          notification.title,
-          notification.message,
-          {
-            type: notification.type,
-            notificationId: notification.id,
-            urgent: notification.data?.urgent || false,
-            ...notification.data
-          }
-        );
+      // Charger les notifications depuis Supabase (admins seulement)
+      const dbNotifications = await notificationService.getAdminNotifications(user.id);
+      
+      // Convertir au format attendu par l'UI
+      const formattedNotifications = dbNotifications.map(notification => ({
+        id: notification.id,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        time: getTimeAgo(notification.created_at),
+        isRead: notification.is_read,
+        action: getActionForType(notification.type),
+        image: null,
+        data: {
+          ...notification.data,
+          notificationId: notification.id,
+          orderId: notification.order_id,
+          adminAction: notification.type.startsWith('admin_')
+        }
+      }));
+
+      // Mettre à jour le store Redux
+      dispatch(setNotifications(formattedNotifications));
+
+      // Vérifier les notifications non envoyées
+      await checkAndSendUnsentNotifications();
+      
+    } catch (error) {
+      console.error('❌ [useAdminNotifications] Erreur lors du chargement:', error);
+    }
+  };
+
+  const setupRealtimeSubscription = () => {
+    if (!user?.id) {
+      return;
+    }
+    
+    if (subscriptionRef.current) {
+      return;
+    }
+
+    subscriptionRef.current = notificationService.subscribeToNotifications(
+      user.id,
+      (payload) => {
         
-        // Marquer comme envoyée
-        dispatch(addSentNotification(notification.id));
-      } catch (error) {
-        console.error('❌ [AdminNotifications] Erreur lors de l\'envoi:', error);
+        // Recharger les notifications quand une nouvelle arrive
+        if (user?.id) {
+          loadAdminNotifications();
+        }
+      },
+      'admin' // Spécifier le rôle pour filtrer les notifications
+    );
+  };
+
+  const checkAndSendUnsentNotifications = async () => {
+    try {
+      if (!user?.id) {
+        return;
       }
+
+      // Récupérer les notifications non envoyées depuis Supabase (admin seulement)
+      const unsentNotifications = await notificationService.getUnsentNotifications(user.id, null, 'admin');
+
+      // Envoyer les notifications push pour les nouvelles notifications non envoyées
+      for (const notification of unsentNotifications) {
+        try {
+          
+          await sendAdminNotification(
+            notification.title,
+            notification.message,
+            {
+              type: notification.type,
+              notificationId: notification.id,
+              orderId: notification.order_id,
+              urgent: notification.type === 'admin_pending_order',
+              ...notification.data
+            }
+          );
+          
+          // Marquer comme envoyée dans Supabase
+          await notificationService.markNotificationAsSent(notification.id);
+          
+        } catch (error) {
+          console.error('❌ [useAdminNotifications] Erreur lors de l\'envoi:', error);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [useAdminNotifications] Erreur lors de la vérification:', error);
     }
   };
 
-  const isOrderPendingTooLong = (orderDate) => {
-    if (!orderDate) return false;
-    
-    const orderTime = new Date(orderDate);
-    const now = new Date();
-    const diffInMinutes = (now - orderTime) / (1000 * 60);
-    
-    // Considérer comme "trop long" si plus de 10 minutes
-    return diffInMinutes > 10;
+  const sendAdminNotification = async (title, body, data = {}) => {
+    try {
+      
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: title,
+          body: body,
+          data: data,
+          sound: 'default',
+        },
+        trigger: null, // Notification immédiate
+      });
+      
+    } catch (error) {
+      console.error('❌ [sendAdminNotification] Erreur lors de l\'envoi de la notification admin:', error);
+    }
   };
 
   const getTimeAgo = (dateString) => {
@@ -160,29 +190,50 @@ export const useAdminNotifications = () => {
     return `Il y a ${Math.floor(diffInHours / 24)} jour(s)`;
   };
 
-  const sendAdminNotification = async (title, body, data = {}) => {
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: title,
-          body: body,
-          data: data,
-          sound: data.urgent ? 'default' : 'default',
-        },
-        trigger: null, // Notification immédiate
-      });
-    } catch (error) {
-      console.error('Erreur lors de l\'envoi de la notification admin:', error);
+  const getActionForType = (type) => {
+    switch (type) {
+      case 'admin_new_order':
+        return 'Voir la commande';
+      case 'admin_pending_order':
+        return 'Traiter la commande';
+      case 'admin_order':
+        return 'Voir la commande';
+      case 'admin_pending':
+        return 'Traiter la commande';
+      default:
+        return 'Voir les détails';
     }
   };
 
-  const markAsRead = (notificationId) => {
-    dispatch(markAsReadAction(notificationId));
+  const markAsRead = async (notificationId) => {
+    try {
+      // Mettre à jour dans Supabase
+      await notificationService.markNotificationAsRead(notificationId);
+      
+      // Mettre à jour localement
+      dispatch(markAsReadAction(notificationId));
+    } catch (error) {
+      console.error('❌ [useAdminNotifications] Erreur lors du marquage comme lu:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      if (!user?.id) return;
+      
+      // Mettre à jour dans Supabase
+      await notificationService.markAllNotificationsAsRead(user.id);
+      
+      // Mettre à jour localement - on recharge les notifications
+      await loadAdminNotifications();
+    } catch (error) {
+      console.error('❌ [useAdminNotifications] Erreur lors du marquage de tout comme lu:', error);
+    }
   };
 
   const getAdminNotifications = () => {
     return notifications.filter(n => 
-      n.type === 'admin_order' || n.type === 'admin_pending'
+      n.type?.startsWith('admin_') || n.data?.adminAction === true
     );
   };
 
@@ -199,6 +250,9 @@ export const useAdminNotifications = () => {
     unreadAdminNotifications: getUnreadAdminNotifications(),
     unreadAdminCount: getUnreadAdminCount(),
     markAsRead,
-    isInitialized
+    markAllAsRead,
+    isInitialized,
+    isLoading,
+    loadAdminNotifications, // Fonction pour recharger manuellement
   };
 };

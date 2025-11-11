@@ -115,8 +115,6 @@ export default function ProductForm({ route, navigation }) {
         review_count: product?.review_count || 0,
       };
 
-      console.log('💾 [ProductForm] Données produit préparées:', JSON.stringify(productData, null, 2));
-
       if (mode === 'add') {
        
         const result = await dispatch(addProduct(productData)).unwrap();
@@ -132,7 +130,6 @@ export default function ProductForm({ route, navigation }) {
       
       navigation.goBack();
     } catch (error) {
-      c
       Alert.alert('Erreur', `Impossible de sauvegarder le produit`);
     } finally {
       

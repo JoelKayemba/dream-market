@@ -32,7 +32,6 @@ export default function BackupRestore({ navigation }) {
           text: 'Créer', 
           onPress: () => {
             // TODO: Implémenter la création de sauvegarde
-            console.log('Création d\'une nouvelle sauvegarde');
             Alert.alert('Succès', 'Sauvegarde créée avec succès');
           }
         }
@@ -51,7 +50,6 @@ export default function BackupRestore({ navigation }) {
           style: 'destructive',
           onPress: () => {
             // TODO: Implémenter la restauration
-            console.log('Restauration de la sauvegarde:', backup.id);
             Alert.alert('Succès', 'Sauvegarde restaurée avec succès');
           }
         }
@@ -70,8 +68,7 @@ export default function BackupRestore({ navigation }) {
           style: 'destructive',
           onPress: () => {
             // TODO: Implémenter la suppression
-            console.log('Suppression de la sauvegarde:', backup.id);
-            Alert.alert('Succès', 'Sauvegarde supprimée');
+            Alert.alert('Succès', 'Sauvegarde supprimée avec succès');
           }
         }
       ]

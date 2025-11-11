@@ -48,15 +48,15 @@ export default function SupportScreen({ navigation }) {
     switch (method.id) {
       case 'email':
         // Ici on pourrait ouvrir l'app mail
-        console.log('Ouvrir email');
+        Alert.alert('Email', 'support@dreammarket.com');
         break;
       case 'phone':
         // Ici on pourrait composer le numéro
-        console.log('Composer numéro');
+        Alert.alert('Téléphone', '+243 123456789');
         break;
       case 'chat':
         // Ici on pourrait ouvrir le chat
-        console.log('Ouvrir chat');
+        Alert.alert('Chat', 'Fonctionnalité à venir');
         break;
     }
   };
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    marginHorizontal: -20,
+    
   },
   header: {
     flexDirection: 'row',

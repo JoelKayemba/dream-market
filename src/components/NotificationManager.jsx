@@ -1,19 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import { 
-  fetchProducts,
-  fetchFarms,
-  fetchServices
-} from '../store/client';
-import { 
-  fetchUserOrders
-} from '../store/ordersSlice';
-import { 
-  loadPersistedNotificationsData
+  setIsInitialized
 } from '../store/notificationsSlice';
-import { 
-  fetchOrders
-} from '../store/admin/ordersSlice';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../hooks/useNotifications';
 import { useAdminNotifications } from '../hooks/useAdminNotifications';
@@ -22,38 +11,30 @@ const NotificationManager = () => {
   const dispatch = useDispatch();
   const { user } = useAuth();
   
-  // Initialiser le hook de notifications (pour générer les notifications automatiquement)
-  const { unreadCount, configurePushNotifications } = useNotifications();
-  
-  // Initialiser les notifications admin si l'utilisateur est admin
+  // Initialiser les hooks de notifications selon le rôle de l'utilisateur
+  const { configurePushNotifications } = useNotifications();
   const { isInitialized: adminNotifInitialized } = useAdminNotifications();
+  
+  // Références pour éviter les re-renders infinis
+  const hasInitializedRef = useRef(false);
 
-  // Charger toutes les données nécessaires pour les notifications au démarrage de l'app
+  // Initialiser les notifications au démarrage de l'app
   useEffect(() => {
+    if (hasInitializedRef.current) return; // Éviter les initialisations multiples
+    
     const initializeNotifications = async () => {
       try {
-        // Charger les données persistées des notifications
-        await dispatch(loadPersistedNotificationsData());
+        console.log('🔔 [NotificationManager] Initialisation des notifications...');
         
         // Configurer les notifications push
         await configurePushNotifications();
         
-        // Charger les données nécessaires pour les notifications
-        const promises = [
-          dispatch(fetchProducts()),
-          dispatch(fetchFarms()),
-          dispatch(fetchServices())
-        ];
-        
-        // Charger les commandes si l'utilisateur est connecté
-        if (user?.id) {
-          promises.push(dispatch(fetchUserOrders(user.id)));
-        }
-        
-        await Promise.all(promises);
+        // Marquer comme initialisé
+        dispatch(setIsInitialized(true));
+        hasInitializedRef.current = true;
         
       } catch (error) {
-        console.error(' [NotificationManager] Erreur lors de l\'initialisation des notifications:', error);
+        console.error('🔔 [NotificationManager] Erreur lors de l\'initialisation des notifications:', error);
       }
     };
 
@@ -61,48 +42,14 @@ const NotificationManager = () => {
     const timer = setTimeout(initializeNotifications, 1000);
     
     return () => clearTimeout(timer);
-  }, [dispatch, user?.id, configurePushNotifications]); // ✅ Suppression de unreadCount qui causait des re-renders constants
-
-  // Recharger les données quand l'utilisateur change
-  useEffect(() => {
-    if (user?.id) {
-      const reloadDataForNewUser = async () => {
-        try {
-          await dispatch(fetchUserOrders(user.id));
-        } catch (error) {
-          console.error(' [NotificationManager] Erreur lors du rechargement des données:', error);
-        }
-      };
-
-      reloadDataForNewUser();
-    }
-  }, [user?.id, dispatch]);
-
-  // 🔔 GESTION DES NOTIFICATIONS ADMIN - Actif partout dans l'app
-  useEffect(() => {
-    // Vérifier si l'utilisateur est admin
-    const isAdmin = user?.role === 'admin';
-    
-    if (!isAdmin || !adminNotifInitialized) return;
-
-    const loadOrdersForAdminNotifications = async () => {
-      try {
-        await dispatch(fetchOrders());
-      } catch (error) {
-        console.error('[NotificationManager] Erreur lors du chargement des commandes admin:', error);
-      }
-    };
-
-    // Charger immédiatement
-    loadOrdersForAdminNotifications();
-    
-    // Recharger toutes les 5 minutes pour détecter les nouvelles commandes
-    const interval = setInterval(loadOrdersForAdminNotifications, 300000); // 5 minutes
-    
-    return () => clearInterval(interval);
-  }, [adminNotifInitialized, user?.role, dispatch]);
+  }, []); // ✅ Pas de dépendances pour éviter les re-renders infinis
 
   // Ce composant ne rend rien, il gère juste les notifications en arrière-plan
+  // Les hooks useNotifications et useAdminNotifications se chargent de tout :
+  // - Chargement depuis Supabase
+  // - Abonnement temps réel
+  // - Envoi des notifications push
+  // - Gestion des notifications déjà envoyées
   return null;
 };
 

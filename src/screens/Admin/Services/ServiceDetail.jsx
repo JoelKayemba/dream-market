@@ -186,6 +186,7 @@ export default function ServiceDetail({ route, navigation }) {
                 <Text style={styles.statLabel}>Avis</Text>
               </View>
             </View>
+
           </View>
 
           {/* Métadonnées */}
@@ -405,3 +406,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
   },
 });
+
