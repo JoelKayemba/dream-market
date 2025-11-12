@@ -14,6 +14,7 @@ import { supabase } from './src/backend/config/supabase';
 import { authListenerService } from './src/backend/services/authListenerService';
 
 // Écrans d'authentification
+import OnboardingScreen, { checkOnboardingCompleted } from './src/screens/OnboardingScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
@@ -42,7 +43,7 @@ const Stack = createStackNavigator();
 
 export default function App() {
   const [isReady, setIsReady] = React.useState(false);
-  const [initialRoute, setInitialRoute] = React.useState('Welcome');
+  const [initialRoute, setInitialRoute] = React.useState('Onboarding');
 
   // Initialiser l'application
   React.useEffect(() => {
@@ -91,6 +92,9 @@ export default function App() {
 
   const initializeApp = async () => {
     try {
+      // Vérifier si l'onboarding a été complété
+      const onboardingCompleted = await checkOnboardingCompleted();
+      
       // Vérifier s'il y a une session valide
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -124,15 +128,19 @@ export default function App() {
         // Utilisateur déjà connecté, aller directement à MainApp
         setInitialRoute('MainApp');
       } else {
-        // Pas de session, commencer par Welcome
-        setInitialRoute('Welcome');
+        // Pas de session, vérifier l'onboarding
+        if (onboardingCompleted) {
+          setInitialRoute('Welcome');
+        } else {
+          setInitialRoute('Onboarding');
+        }
       }
 
       // Initialiser le service de notifications en arrière-plan
       BackgroundNotificationService.initialize();
     } catch (error) {
       console.error('Erreur lors de l\'initialisation:', error);
-      setInitialRoute('Welcome');
+      setInitialRoute('Onboarding');
     } finally {
       setIsReady(true);
     }
@@ -169,6 +177,17 @@ export default function App() {
                   headerShown: false,
                 }}
               >
+                {/* Écran d'onboarding */}
+                <Stack.Screen
+                  name="Onboarding"
+                  component={OnboardingScreen}
+                  options={{
+                    title: 'Découvrez Dream Market',
+                    headerShown: false,
+                    gestureEnabled: false,
+                  }}
+                />
+                
                 {/* Écrans d'authentification */}
                 <Stack.Screen
                   name="Welcome"
