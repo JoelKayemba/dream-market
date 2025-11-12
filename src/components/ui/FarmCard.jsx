@@ -75,12 +75,10 @@ export default function FarmCard({
     }
   };
 
-  const handleContact = () => {
-    if (navigation) {
-      navigation.navigate('FarmDetail', { farm });
-    } else {
-      onContact && onContact(farm);
-    }
+  const handleContact = (e) => {
+    e?.stopPropagation();
+    const { showContactMenu } = require('../../utils/contactInfo');
+    showContactMenu(farm.name);
   };
 
   return (
@@ -156,7 +154,10 @@ export default function FarmCard({
             <View style={styles.actionsRow}>
               <TouchableOpacity
                 style={styles.secondaryButton}
-                onPress={handleViewProducts}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleViewProducts();
+                }}
                 activeOpacity={0.85}
               >
                 <Ionicons name="basket-outline" size={15} color="#E8F9EC" />
@@ -165,11 +166,11 @@ export default function FarmCard({
               
               <TouchableOpacity
                 style={styles.primaryButton}
-                onPress={handlePress}
+                onPress={handleContact}
                 activeOpacity={0.85}
               >
-                <Ionicons name="eye-outline" size={16} color="#0F2A17" />
-                <Text style={styles.primaryButtonText}>Découvrir</Text>
+                <Ionicons name="chatbubbles-outline" size={16} color="#0F2A17" />
+                <Text style={styles.primaryButtonText}>Contacter</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -60,7 +60,8 @@ export default function ServicesScreen({ navigation }) {
   };
 
   const handleContact = (service) => {
-    // Navigation vers la page de contact
+    const { showContactMenu } = require('../utils/contactInfo');
+    showContactMenu(service.name);
   };
 
   const getServiceIcon = (category) => {
@@ -85,7 +86,7 @@ export default function ServicesScreen({ navigation }) {
   }
 
   return (
-    <ScreenWrapper>
+    <ScreenWrapper edges={['top', 'left', 'right']}>
       <ScrollView 
         style={styles.container} 
         showsVerticalScrollIndicator={false}
@@ -254,7 +255,13 @@ export default function ServicesScreen({ navigation }) {
             <Text style={styles.ctaText}>
               Rejoignez notre plateforme et proposez vos services aux agriculteurs
             </Text>
-            <TouchableOpacity style={styles.ctaButton}>
+            <TouchableOpacity 
+              style={styles.ctaButton}
+              onPress={() => {
+                const { showContactMenu } = require('../utils/contactInfo');
+                showContactMenu();
+              }}
+            >
               <MaterialIcons name="add-business" size={20} color="#FFFFFF" />
               <Text style={styles.ctaButtonText}>Proposer un service</Text>
             </TouchableOpacity>

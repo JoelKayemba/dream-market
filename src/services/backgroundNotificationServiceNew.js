@@ -1,6 +1,15 @@
 /**
  * Service de notifications en arrière-plan pour les admins
  * Utilise Expo Notifications et TaskManager pour les notifications push
+ * 
+ * ⚠️ IMPORTANT : Pour que les notifications en arrière-plan fonctionnent,
+ * vous devez :
+ * 1. Avoir configuré le plugin expo-notifications dans app.json
+ * 2. Avoir ajouté UIBackgroundModes dans app.json pour iOS
+ * 3. Reconstruire l'application avec `npx expo prebuild` ou `eas build`
+ * 
+ * Si les notifications en arrière-plan ne sont pas configurées, le service
+ * fonctionnera quand même en mode foreground (quand l'app est ouverte).
  */
 
 import * as Notifications from 'expo-notifications';
@@ -98,8 +107,20 @@ class BackgroundNotificationService {
         }
       }
 
-      // Enregistrer la tâche en arrière-plan
-      await Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
+      // Enregistrer la tâche en arrière-plan (optionnel, peut échouer si non configuré)
+      try {
+        await Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
+        console.log('✅ [BackgroundNotificationService] Tâche en arrière-plan enregistrée');
+      } catch (taskError) {
+        // Si les notifications en arrière-plan ne sont pas configurées, continuer quand même
+        // Les notifications fonctionneront en mode foreground
+        if (taskError.message && taskError.message.includes('Background remote notifications')) {
+          console.warn('⚠️ [BackgroundNotificationService] Notifications en arrière-plan non configurées. Le service fonctionnera en mode foreground uniquement.');
+          console.warn('💡 Pour activer les notifications en arrière-plan, configurez expo-notifications dans app.json');
+        } else {
+          throw taskError;
+        }
+      }
       
       this.isInitialized = true;
       console.log('✅ [BackgroundNotificationService] Initialisé avec succès');
@@ -107,6 +128,8 @@ class BackgroundNotificationService {
       
     } catch (error) {
       console.error('❌ [BackgroundNotificationService] Erreur lors de l\'initialisation:', error);
+      // Ne pas bloquer l'application si les notifications échouent
+      this.isInitialized = false;
       return false;
     }
   }

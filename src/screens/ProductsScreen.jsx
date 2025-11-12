@@ -124,7 +124,7 @@ export default function ProductsScreen({ navigation, route }) {
   }
 
   return (
-    <ScreenWrapper>
+    <ScreenWrapper edges={['top', 'left', 'right']}>
       <ScrollView 
         style={styles.container} 
         showsVerticalScrollIndicator={false}

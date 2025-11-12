@@ -7,6 +7,8 @@ import OrderDetailScreen from '../screens/OrderDetailScreen';
 import PersonalInfoScreen from '../screens/PersonalInfoScreen';
 import SupportScreen from '../screens/SupportScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
+import FAQScreen from '../screens/FAQScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import PasswordChangeScreen from '../screens/PasswordChangeScreen';
@@ -55,6 +57,20 @@ export default function ProfileStackNavigator() {
         component={SupportScreen}
         options={{
           title: 'Support & Aide'
+        }}
+      />
+      <Stack.Screen
+        name="FAQ"
+        component={FAQScreen}
+        options={{
+          title: 'FAQ'
+        }}
+      />
+      <Stack.Screen
+        name="Feedback"
+        component={FeedbackScreen}
+        options={{
+          title: 'Retours & Feedback'
         }}
       />
       <Stack.Screen

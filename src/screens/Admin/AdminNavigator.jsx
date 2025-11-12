@@ -24,6 +24,8 @@ import AnalyticsDashboard from './Analytics/AnalyticsDashboard';
 import SalesAnalytics from './Analytics/SalesAnalytics';
 import UserAnalytics from './Analytics/UserAnalytics';
 import DeliveryFeeSettings from './Settings/DeliveryFeeSettings';
+import FeedbacksManagement from './Feedbacks/FeedbacksManagement';
+import FeedbackDetail from './Feedbacks/FeedbackDetail';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -66,6 +68,12 @@ function AdminDrawerContent({ navigation }) {
       title: 'Frais de livraison',
       icon: 'car-outline',
       screen: 'DeliveryFeeSettings'
+    },
+    {
+      id: 'feedbacks',
+      title: 'Gestion des Feedbacks',
+      icon: 'chatbox-ellipses-outline',
+      screen: 'FeedbacksManagement'
     },
   ];
 
@@ -122,6 +130,7 @@ function getScreenComponent(screenName) {
     SalesAnalytics,
     UserAnalytics,
     DeliveryFeeSettings,
+    FeedbacksManagement,
   };
   
   return screens[screenName] || AdminDashboard;
@@ -262,6 +271,22 @@ export default function AdminNavigator() {
         component={DeliveryFeeSettings}
         options={{
           title: 'Frais de livraison'
+        }}
+      />
+      
+      {/* Écrans de gestion des feedbacks */}
+      <Stack.Screen
+        name="FeedbacksManagement"
+        component={FeedbacksManagement}
+        options={{
+          title: 'Gestion des Feedbacks'
+        }}
+      />
+      <Stack.Screen
+        name="FeedbackDetailAdmin"
+        component={FeedbackDetail}
+        options={{
+          title: 'Détails du Feedback'
         }}
       />
       

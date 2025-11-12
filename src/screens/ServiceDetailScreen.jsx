@@ -9,7 +9,6 @@ const { width } = Dimensions.get('window');
 
 export default function ServiceDetailScreen({ route, navigation }) {
   const { service } = route.params;
-  const [isContactPressed, setIsContactPressed] = useState(false);
   const { toggleServiceFavorite, isServiceFavorite } = useFavorites();
   const isFavorite = isServiceFavorite(service.id);
   const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
@@ -31,9 +30,8 @@ export default function ServiceDetailScreen({ route, navigation }) {
   }
 
   const handleContact = () => {
-    setIsContactPressed(true);
-    // Pour l'instant, on ne fait rien avec le bouton
-    setTimeout(() => setIsContactPressed(false), 2000);
+    const { showContactMenu } = require('../utils/contactInfo');
+    showContactMenu(service.name);
   };
 
   const handleFavoriteToggle = () => {
@@ -89,10 +87,40 @@ export default function ServiceDetailScreen({ route, navigation }) {
     { icon: 'timer-outline', label: 'Disponibilité', value: service.availability || 'Immédiate' },
   ].filter((item) => item.value);
 
+  const { CONTACT_INFO, openWhatsApp, openPhoneCall, openEmail } = require('../utils/contactInfo');
+  
   const contactRows = [
-    { icon: 'call-outline', label: 'Téléphone', value: service.contact?.phone },
-    { icon: 'mail-outline', label: 'Email', value: service.contact?.email },
-  ].filter((item) => item.value);
+    { 
+      icon: 'call-outline', 
+      label: 'Téléphone', 
+      value: CONTACT_INFO.phone1Display,
+      action: () => openPhoneCall(CONTACT_INFO.phone1)
+    },
+    { 
+      icon: 'logo-whatsapp', 
+      label: 'WhatsApp', 
+      value: CONTACT_INFO.phone1Display,
+      action: () => openWhatsApp(CONTACT_INFO.phone1, `Bonjour, je souhaite des informations concernant ${service.name}`)
+    },
+    { 
+      icon: 'mail-outline', 
+      label: 'Email', 
+      value: CONTACT_INFO.email,
+      action: () => openEmail(CONTACT_INFO.email, `Demande d'informations - ${service.name}`)
+    },
+    { 
+      icon: 'location-outline', 
+      label: 'Adresse', 
+      value: CONTACT_INFO.address,
+      action: null
+    },
+    { 
+      icon: 'time-outline', 
+      label: 'Horaires', 
+      value: CONTACT_INFO.hours,
+      action: null
+    },
+  ];
 
   const featureList = Array.isArray(service.features) ? service.features : [];
 
@@ -259,16 +287,22 @@ export default function ServiceDetailScreen({ route, navigation }) {
           <View style={styles.sectionCard}>
             <Text style={styles.sectionHeading}>Contact</Text>
             {contactRows.map((item, index) => (
-              <View
+              <TouchableOpacity
                 key={`${item.label}-${index}`}
-                style={[styles.sectionRow, index === contactRows.length - 1 && styles.sectionRowLast]}
+                style={[styles.sectionRow, index === contactRows.length - 1 && styles.sectionRowLast, !item.action && styles.sectionRowDisabled]}
+                onPress={item.action || undefined}
+                disabled={!item.action}
+                activeOpacity={item.action ? 0.7 : 1}
               >
                 <View style={styles.sectionRowLeft}>
                   <Ionicons name={item.icon} size={16} color="#6B8E6F" />
                   <Text style={styles.sectionRowLabel}>{item.label}</Text>
                 </View>
                 <Text style={styles.sectionRowValue}>{item.value}</Text>
-              </View>
+                {item.action && (
+                  <Ionicons name="chevron-forward-outline" size={16} color="#6B8E6F" style={{ marginLeft: 8 }} />
+                )}
+              </TouchableOpacity>
             ))}
           </View>
         ) : null}
@@ -280,18 +314,17 @@ export default function ServiceDetailScreen({ route, navigation }) {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.footerButton, isContactPressed && styles.footerButtonDisabled]}
+          style={styles.footerButton}
           onPress={handleContact}
           activeOpacity={0.85}
-          disabled={isContactPressed}
         >
           <Ionicons
-            name={isContactPressed ? 'checkmark-circle-outline' : 'chatbubbles-outline'}
+            name="chatbubbles-outline"
             size={18}
-            color={isContactPressed ? '#1F392A' : '#0F2A17'}
+            color="#0F2A17"
           />
-          <Text style={[styles.footerButtonText, isContactPressed && styles.footerButtonTextDisabled]}>
-            {isContactPressed ? 'Demande envoyée !' : 'Nous contacter'}
+          <Text style={styles.footerButtonText}>
+            Nous contacter
           </Text>
         </TouchableOpacity>
       </View>
@@ -515,6 +548,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     paddingBottom: 0,
   },
+  sectionRowDisabled: {
+    opacity: 0.7,
+  },
   sectionRowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -594,17 +630,11 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: '#9BE7AC',
   },
-  footerButtonDisabled: {
-    backgroundColor: 'rgba(155, 231, 172, 0.45)',
-  },
   footerButtonText: {
     fontSize: 15,
     fontWeight: '700',
     color: '#0F2A17',
     letterSpacing: 0.3,
-  },
-  footerButtonTextDisabled: {
-    color: '#1F392A',
   },
   errorContainer: {
     flex: 1,

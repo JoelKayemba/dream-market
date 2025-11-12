@@ -118,7 +118,7 @@ export default function HomeScreen({ navigation }) {
 
   return (
  
-      <ScreenWrapper style={styles.container}>
+      <ScreenWrapper style={styles.container} edges={['top', 'left', 'right']}>
         <Animated.ScrollView
           ref={scrollViewRef}
           style={styles.scrollView}

@@ -159,7 +159,11 @@ export default function ServiceCard({
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.primaryButton}
-              onPress={() => onContact(service)}
+              onPress={(e) => {
+                e.stopPropagation();
+                const { showContactMenu } = require('../../utils/contactInfo');
+                showContactMenu(service.name);
+              }}
               activeOpacity={0.85}
             >
               <Ionicons name="chatbubbles-outline" size={16} color="#0F2A17" />

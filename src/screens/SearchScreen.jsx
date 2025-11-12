@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, ScrollView, FlatList, Image } from 'react-native';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Container, Button, Badge, ProductCard, FarmCard, ServiceCard , ScreenWrapper } from '../components/ui';
 import { useDispatch, useSelector } from 'react-redux';
@@ -29,6 +29,10 @@ export default function SearchScreen({ navigation, route }) {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [searchHistory, setSearchHistory] = useState([]);
+
+  const SEARCH_HISTORY_KEY = '@dream_market_search_history';
+  const MAX_HISTORY_ITEMS = 10;
 
   // Redux selectors
   const products = useSelector(selectClientProducts);
@@ -53,7 +57,75 @@ export default function SearchScreen({ navigation, route }) {
     };
     
     loadData();
+    loadSearchHistory();
   }, [dispatch]);
+
+  // Charger l'historique de recherche
+  const loadSearchHistory = async () => {
+    try {
+      const historyJson = await AsyncStorage.getItem(SEARCH_HISTORY_KEY);
+      if (historyJson) {
+        const history = JSON.parse(historyJson);
+        setSearchHistory(Array.isArray(history) ? history : []);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement de l\'historique:', error);
+    }
+  };
+
+  // Sauvegarder une recherche dans l'historique
+  const saveToHistory = async (query) => {
+    if (!query.trim()) return;
+
+    try {
+      const trimmedQuery = query.trim();
+      // Récupérer l'historique actuel
+      const historyJson = await AsyncStorage.getItem(SEARCH_HISTORY_KEY);
+      let history = historyJson ? JSON.parse(historyJson) : [];
+
+      // Supprimer les doublons (même query)
+      history = history.filter(item => item.toLowerCase() !== trimmedQuery.toLowerCase());
+
+      // Ajouter la nouvelle recherche en premier
+      history.unshift(trimmedQuery);
+
+      // Limiter à MAX_HISTORY_ITEMS
+      history = history.slice(0, MAX_HISTORY_ITEMS);
+
+      // Sauvegarder
+      await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+      setSearchHistory(history);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de l\'historique:', error);
+    }
+  };
+
+  // Supprimer un élément de l'historique
+  const removeFromHistory = async (queryToRemove) => {
+    try {
+      const historyJson = await AsyncStorage.getItem(SEARCH_HISTORY_KEY);
+      let history = historyJson ? JSON.parse(historyJson) : [];
+
+      // Supprimer l'élément
+      history = history.filter(item => item.toLowerCase() !== queryToRemove.toLowerCase());
+
+      // Sauvegarder
+      await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+      setSearchHistory(history);
+    } catch (error) {
+      console.error('Erreur lors de la suppression de l\'historique:', error);
+    }
+  };
+
+  // Effacer tout l'historique
+  const clearAllHistory = async () => {
+    try {
+      await AsyncStorage.removeItem(SEARCH_HISTORY_KEY);
+      setSearchHistory([]);
+    } catch (error) {
+      console.error('Erreur lors de l\'effacement de l\'historique:', error);
+    }
+  };
 
   // État de chargement global
   const isLoading = productsLoading || farmsLoading || servicesLoading;
@@ -154,13 +226,16 @@ export default function SearchScreen({ navigation, route }) {
     }
   }, [route.params?.initialQuery]);
 
-  const handleSearch = (query) => {
+  const handleSearch = async (query) => {
     if (!query.trim()) {
       setSearchResults({ products: [], farms: [], services: [] });
       setHasSearched(false);
       setShowSuggestions(false);
       return;
     }
+
+    // Sauvegarder dans l'historique
+    await saveToHistory(query);
 
     setIsSearching(true);
     setHasSearched(true);
@@ -237,6 +312,12 @@ export default function SearchScreen({ navigation, route }) {
     } else if (suggestion.type === 'service') {
       navigation.navigate('ServiceDetail', { service: suggestion.data });
     }
+  };
+
+  // Gérer le clic sur un élément de l'historique
+  const handleHistoryItemPress = (historyItem) => {
+    setSearchQuery(historyItem);
+    handleSearch(historyItem);
   };
 
   const clearSearch = () => {
@@ -331,15 +412,51 @@ export default function SearchScreen({ navigation, route }) {
       );
     }
 
-    // État initial sans recherche
+    // État initial sans recherche - Afficher l'historique
     if (!searchQuery.trim()) {
       return (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="search-outline" size={64} color="#777E5C" />
-          <Text style={styles.emptyTitle}>Recherchez quelque chose</Text>
-          <Text style={styles.emptySubtitle}>
-            Trouvez des produits, fermes et services en tapant votre recherche
-          </Text>
+        <View style={styles.historyContainer}>
+          {searchHistory.length > 0 ? (
+            <>
+              <View style={styles.historyHeader}>
+                <Text style={styles.historyTitle}>Recherches récentes</Text>
+                <TouchableOpacity onPress={clearAllHistory} style={styles.clearHistoryButton}>
+                  <Text style={styles.clearHistoryText}>Tout effacer</Text>
+                </TouchableOpacity>
+              </View>
+              {searchHistory.map((item, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.historyItem}
+                  onPress={() => handleHistoryItemPress(item)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.historyItemLeft}>
+                    <Ionicons name="time-outline" size={20} color="#777E5C" />
+                    <Text style={styles.historyItemText}>{item}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      removeFromHistory(item);
+                    }}
+                    style={styles.deleteHistoryButton}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              ))}
+            </>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="search-outline" size={64} color="#777E5C" />
+              <Text style={styles.emptyTitle}>Recherchez quelque chose</Text>
+              <Text style={styles.emptySubtitle}>
+                Trouvez des produits, fermes et services en tapant votre recherche
+              </Text>
+            </View>
+          )}
         </View>
       );
     }
@@ -842,5 +959,54 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#777E5C',
     textTransform: 'capitalize',
+  },
+  historyContainer: {
+    padding: 16,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  historyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#283106',
+  },
+  clearHistoryButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  clearHistoryText: {
+    fontSize: 14,
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  historyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  historyItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  historyItemText: {
+    fontSize: 16,
+    color: '#283106',
+    fontWeight: '500',
+    flex: 1,
+  },
+  deleteHistoryButton: {
+    padding: 4,
   },
 });

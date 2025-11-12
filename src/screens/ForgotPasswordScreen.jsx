@@ -1,8 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Container, Button  , ScreenWrapper } from '../components/ui';
 import { passwordResetService } from '../backend/services/passwordResetService';
+import {
+  isBlocked,
+  recordFailedAttempt,
+  resetAttempts,
+  formatRemainingTime,
+  getCurrentAttempts,
+} from '../utils/attemptLimiter';
 
 export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -13,6 +20,43 @@ export default function ForgotPasswordScreen({ navigation }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [blockedInfo, setBlockedInfo] = useState(null);
+  const [remainingTime, setRemainingTime] = useState(0);
+
+  // Vérifier le statut de blocage au montage et toutes les secondes
+  useEffect(() => {
+    checkBlockStatus();
+    
+    const interval = setInterval(() => {
+      checkBlockStatus();
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Mettre à jour le temps restant
+  useEffect(() => {
+    if (blockedInfo && blockedInfo.blocked) {
+      const interval = setInterval(() => {
+        const newRemaining = Math.max(0, blockedInfo.remainingSeconds - 1);
+        setRemainingTime(newRemaining);
+        
+        if (newRemaining === 0) {
+          checkBlockStatus();
+        }
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [blockedInfo]);
+
+  const checkBlockStatus = async () => {
+    const status = await isBlocked('forgotPassword');
+    setBlockedInfo(status);
+    if (status.blocked) {
+      setRemainingTime(status.remainingSeconds);
+    }
+  };
 
   const handleSendCode = async () => {
     if (!email.trim()) {
@@ -27,10 +71,25 @@ export default function ForgotPasswordScreen({ navigation }) {
       return;
     }
 
+    // Vérifier si l'utilisateur est bloqué
+    const blockStatus = await isBlocked('forgotPassword');
+    if (blockStatus.blocked) {
+      const timeText = formatRemainingTime(blockStatus.remainingSeconds);
+      Alert.alert(
+        'Trop de tentatives',
+        `Vous avez dépassé le nombre maximum de tentatives. Veuillez patienter ${timeText} avant de réessayer.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const result = await passwordResetService.requestResetCode(email.trim());
+      
+      // Réinitialiser les tentatives en cas de succès
+      await resetAttempts('forgotPassword');
       
       setStep('code');
       
@@ -45,7 +104,44 @@ export default function ForgotPasswordScreen({ navigation }) {
         errorMessage = 'Aucun compte associé à cet email.';
       }
       
-      Alert.alert('Erreur', errorMessage);
+      // Vérifier le nombre actuel de tentatives
+      const currentAttempts = await getCurrentAttempts('forgotPassword');
+      
+      // Si on a moins de 3 tentatives, afficher seulement l'erreur normale
+      if (currentAttempts < 3) {
+        Alert.alert('Erreur', errorMessage);
+      } else {
+        // À partir de la 4ème tentative, enregistrer et gérer les avertissements
+        const attemptData = await recordFailedAttempt('forgotPassword');
+        if (attemptData) {
+          // Afficher un avertissement seulement à partir de 4 tentatives
+          if (attemptData.attempts >= 4) {
+            if (attemptData.attempts >= 5 && attemptData.blockedUntil) {
+              const timeText = formatRemainingTime(
+                Math.ceil((attemptData.blockedUntil - Date.now()) / 1000)
+              );
+              Alert.alert(
+                'Trop de tentatives',
+                `${errorMessage}\n\nVous avez dépassé le nombre maximum de tentatives. Veuillez patienter ${timeText} avant de réessayer.`,
+                [{ text: 'OK' }]
+              );
+            } else if (attemptData.attempts === 4) {
+              Alert.alert(
+                'Attention',
+                `${errorMessage}\n\nVous avez effectué 4 tentatives. Après une 5ème tentative échouée, vous serez temporairement bloqué.`,
+                [{ text: 'OK' }]
+              );
+            } else {
+              Alert.alert('Erreur', errorMessage);
+            }
+          } else {
+            Alert.alert('Erreur', errorMessage);
+          }
+          checkBlockStatus();
+        } else {
+          Alert.alert('Erreur', errorMessage);
+        }
+      }
     } finally {
       setIsLoading(false);
     }
@@ -69,6 +165,18 @@ export default function ForgotPasswordScreen({ navigation }) {
       return;
     }
 
+    // Vérifier si l'utilisateur est bloqué
+    const blockStatus = await isBlocked('forgotPassword');
+    if (blockStatus.blocked) {
+      const timeText = formatRemainingTime(blockStatus.remainingSeconds);
+      Alert.alert(
+        'Trop de tentatives',
+        `Vous avez dépassé le nombre maximum de tentatives. Veuillez patienter ${timeText} avant de réessayer.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -77,6 +185,9 @@ export default function ForgotPasswordScreen({ navigation }) {
         code.trim(),
         newPassword
       );
+      
+      // Réinitialiser les tentatives en cas de succès
+      await resetAttempts('forgotPassword');
       
       Alert.alert(
         'Succès',
@@ -94,7 +205,44 @@ export default function ForgotPasswordScreen({ navigation }) {
         errorMessage = 'Code invalide ou expiré. Veuillez demander un nouveau code.';
       }
       
-      Alert.alert('Erreur', errorMessage);
+      // Vérifier le nombre actuel de tentatives
+      const currentAttempts = await getCurrentAttempts('forgotPassword');
+      
+      // Si on a moins de 3 tentatives, afficher seulement l'erreur normale
+      if (currentAttempts < 3) {
+        Alert.alert('Erreur', errorMessage);
+      } else {
+        // À partir de la 4ème tentative, enregistrer et gérer les avertissements
+        const attemptData = await recordFailedAttempt('forgotPassword');
+        if (attemptData) {
+          // Afficher un avertissement seulement à partir de 4 tentatives
+          if (attemptData.attempts >= 4) {
+            if (attemptData.attempts >= 5 && attemptData.blockedUntil) {
+              const timeText = formatRemainingTime(
+                Math.ceil((attemptData.blockedUntil - Date.now()) / 1000)
+              );
+              Alert.alert(
+                'Trop de tentatives',
+                `${errorMessage}\n\nVous avez dépassé le nombre maximum de tentatives. Veuillez patienter ${timeText} avant de réessayer.`,
+                [{ text: 'OK' }]
+              );
+            } else if (attemptData.attempts === 4) {
+              Alert.alert(
+                'Attention',
+                `${errorMessage}\n\nVous avez effectué 4 tentatives. Après une 5ème tentative échouée, vous serez temporairement bloqué.`,
+                [{ text: 'OK' }]
+              );
+            } else {
+              Alert.alert('Erreur', errorMessage);
+            }
+          } else {
+            Alert.alert('Erreur', errorMessage);
+          }
+          checkBlockStatus();
+        } else {
+          Alert.alert('Erreur', errorMessage);
+        }
+      }
     } finally {
       setIsLoading(false);
     }
@@ -127,9 +275,46 @@ export default function ForgotPasswordScreen({ navigation }) {
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
-          editable={!isLoading}
+          editable={!isLoading && !(blockedInfo && blockedInfo.blocked)}
         />
       </View>
+
+      {/* Message de blocage */}
+      {blockedInfo && blockedInfo.blocked && (
+        <View style={styles.blockedContainer}>
+          <View style={styles.blockedIconContainer}>
+            <Ionicons name="lock-closed" size={24} color="#FFFFFF" />
+          </View>
+          <View style={styles.blockedTextContainer}>
+            <Text style={styles.blockedTitle}>Accès temporairement bloqué</Text>
+            <Text style={styles.blockedText}>
+              Vous avez dépassé le nombre maximum de tentatives. Veuillez patienter avant de réessayer.
+            </Text>
+            <View style={styles.blockedTimerContainer}>
+              <Ionicons name="time-outline" size={16} color="#DC2626" />
+              <Text style={styles.blockedTimer}>
+                Temps restant : {formatRemainingTime(remainingTime)}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Avertissement avant blocage */}
+      {blockedInfo && !blockedInfo.blocked && blockedInfo.attempts >= 4 && (
+        <View style={styles.warningContainer}>
+          <View style={styles.warningIconContainer}>
+            <Ionicons name="warning-outline" size={20} color="#FF9800" />
+          </View>
+          <View style={styles.warningTextContainer}>
+            <Text style={styles.warningTitle}>Attention</Text>
+            <Text style={styles.warningText}>
+              Vous avez effectué {blockedInfo.attempts} tentative{blockedInfo.attempts > 1 ? 's' : ''}. 
+              {blockedInfo.attempts === 4 && ' Après une 5ème tentative échouée, vous serez temporairement bloqué.'}
+            </Text>
+          </View>
+        </View>
+      )}
 
       <Button
         title={isLoading ? "Envoi en cours..." : "Recevoir le code"}
@@ -138,7 +323,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         size="large"
         style={styles.actionButton}
         loading={isLoading}
-        disabled={isLoading}
+        disabled={isLoading || (blockedInfo && blockedInfo.blocked)}
       />
     </View>
   );
@@ -171,7 +356,7 @@ export default function ForgotPasswordScreen({ navigation }) {
           onChangeText={setCode}
           keyboardType="numeric"
           maxLength={6}
-          editable={!isLoading}
+          editable={!isLoading && !(blockedInfo && blockedInfo.blocked)}
         />
       </View>
 
@@ -184,7 +369,7 @@ export default function ForgotPasswordScreen({ navigation }) {
           onChangeText={setNewPassword}
           secureTextEntry={!showPassword}
           autoCapitalize="none"
-          editable={!isLoading}
+          editable={!isLoading && !(blockedInfo && blockedInfo.blocked)}
         />
         <TouchableOpacity
           style={styles.eyeButton}
@@ -207,7 +392,7 @@ export default function ForgotPasswordScreen({ navigation }) {
           onChangeText={setConfirmPassword}
           secureTextEntry={!showConfirmPassword}
           autoCapitalize="none"
-          editable={!isLoading}
+          editable={!isLoading && !(blockedInfo && blockedInfo.blocked)}
         />
         <TouchableOpacity
           style={styles.eyeButton}
@@ -221,6 +406,43 @@ export default function ForgotPasswordScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {/* Message de blocage */}
+      {blockedInfo && blockedInfo.blocked && (
+        <View style={styles.blockedContainer}>
+          <View style={styles.blockedIconContainer}>
+            <Ionicons name="lock-closed" size={24} color="#FFFFFF" />
+          </View>
+          <View style={styles.blockedTextContainer}>
+            <Text style={styles.blockedTitle}>Accès temporairement bloqué</Text>
+            <Text style={styles.blockedText}>
+              Vous avez dépassé le nombre maximum de tentatives. Veuillez patienter avant de réessayer.
+            </Text>
+            <View style={styles.blockedTimerContainer}>
+              <Ionicons name="time-outline" size={16} color="#DC2626" />
+              <Text style={styles.blockedTimer}>
+                Temps restant : {formatRemainingTime(remainingTime)}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Avertissement avant blocage */}
+      {blockedInfo && !blockedInfo.blocked && blockedInfo.attempts >= 4 && (
+        <View style={styles.warningContainer}>
+          <View style={styles.warningIconContainer}>
+            <Ionicons name="warning-outline" size={20} color="#FF9800" />
+          </View>
+          <View style={styles.warningTextContainer}>
+            <Text style={styles.warningTitle}>Attention</Text>
+            <Text style={styles.warningText}>
+              Vous avez effectué {blockedInfo.attempts} tentative{blockedInfo.attempts > 1 ? 's' : ''}. 
+              {blockedInfo.attempts === 4 && ' Après une 5ème tentative échouée, vous serez temporairement bloqué.'}
+            </Text>
+          </View>
+        </View>
+      )}
+
       <Button
         title={isLoading ? "Vérification..." : "Réinitialiser le mot de passe"}
         onPress={handleResetPassword}
@@ -228,7 +450,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         size="large"
         style={styles.actionButton}
         loading={isLoading}
-        disabled={isLoading}
+        disabled={isLoading || (blockedInfo && blockedInfo.blocked)}
       />
 
       <TouchableOpacity
@@ -457,6 +679,98 @@ const styles = StyleSheet.create({
   },
   eyeButton: {
     padding: 8,
+  },
+  blockedContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFF5F5',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#FECACA',
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    gap: 14,
+  },
+  blockedIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  blockedTextContainer: {
+    flex: 1,
+  },
+  blockedTitle: {
+    color: '#DC2626',
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
+  blockedText: {
+    color: '#991B1B',
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  blockedTimerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    gap: 6,
+  },
+  blockedTimer: {
+    color: '#DC2626',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFF8E1',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFE082',
+    gap: 12,
+  },
+  warningIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFE082',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  warningTextContainer: {
+    flex: 1,
+  },
+  warningTitle: {
+    color: '#E65100',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  warningText: {
+    color: '#E65100',
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 20,
   },
   actionButton: {
     marginTop: 10,

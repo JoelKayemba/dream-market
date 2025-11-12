@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React from 'react';
-import { StyleSheet, View, Image, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Image, ActivityIndicator, StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -168,6 +168,7 @@ export default function App() {
     <ErrorBoundary>
       <GlobalErrorHandler>
         <SafeAreaProvider>
+          <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
           <Provider store={store}>
             <NotificationManager />
             <NavigationContainer>
@@ -200,14 +201,16 @@ export default function App() {
                   name="Login"
                   component={LoginScreen}
                   options={{
-                    title: 'Connexion'
+                    title: 'Connexion',
+                    gestureEnabled: false,
                   }}
                 />
                 <Stack.Screen
                   name="Register"
                   component={RegisterScreen}
                   options={{
-                    title: 'Inscription'
+                    title: 'Inscription',
+                    gestureEnabled: false,
                   }}
                 />
                 <Stack.Screen
@@ -223,7 +226,8 @@ export default function App() {
                   name="MainApp"
                   component={AppNavigator}
                   options={{
-                    title: 'Dream Market'
+                    title: 'Dream Market',
+                    gestureEnabled: false,
                   }}
                 />
 

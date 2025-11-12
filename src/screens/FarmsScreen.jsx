@@ -65,7 +65,8 @@ export default function FarmsScreen({ navigation }) {
   };
 
   const handleContact = (farm) => {
-    // Navigation vers la page de contact
+    const { showContactMenu } = require('../utils/contactInfo');
+    showContactMenu(farm.name);
   };
 
   const getFilteredFarms = () => {
@@ -100,7 +101,7 @@ export default function FarmsScreen({ navigation }) {
   }
 
   return (
-    <ScreenWrapper>
+    <ScreenWrapper edges={['top', 'left', 'right']}>
       <ScrollView 
         style={styles.container} 
         showsVerticalScrollIndicator={false}
@@ -189,7 +190,13 @@ export default function FarmsScreen({ navigation }) {
             <Text style={styles.ctaText}>
               Rejoignez notre réseau de fermes partenaires et valorisez vos produits
             </Text>
-            <TouchableOpacity style={styles.ctaButton}>
+            <TouchableOpacity 
+              style={styles.ctaButton}
+              onPress={() => {
+                const { showContactMenu } = require('../utils/contactInfo');
+                showContactMenu();
+              }}
+            >
               <Text style={styles.ctaButtonText}>Nous contacter</Text>
             </TouchableOpacity>
           </View>

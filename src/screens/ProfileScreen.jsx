@@ -1,88 +1,85 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Alert, Modal, ActivityIndicator } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Text,
+  Alert,
+  Modal,
+  ActivityIndicator,
+  Platform,
+  Linking,
+} from 'react-native';
+import { CommonActions } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { 
-  Button,
-  ScreenWrapper 
-} from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
+import { useDispatch } from 'react-redux';
+import { logout as logoutAction } from '../store/authSlice';
+import { resetAttempts } from '../utils/attemptLimiter';
+
+/**
+ * Composants locaux simples pour éviter les dépendances externes
+ */
+const PrimaryButton = ({ title, onPress, icon, style }) => (
+  <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={[styles.btnBase, styles.btnPrimary, style]}>
+    {icon ? <Ionicons name={icon} size={18} color="#FFFFFF" style={{ marginRight: 8 }} /> : null}
+    <Text style={styles.btnPrimaryText}>{title}</Text>
+  </TouchableOpacity>
+);
+
+const OutlineButton = ({ title, onPress, style }) => (
+  <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={[styles.btnBase, styles.btnOutline, style]}>
+    <Text style={styles.btnOutlineText}>{title}</Text>
+  </TouchableOpacity>
+);
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const dispatch = useDispatch();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [localUser, setLocalUser] = useState(user); // Copie locale pour éviter les erreurs pendant logout
+  const [localUser, setLocalUser] = useState(user ?? null);
+  const insets = useSafeAreaInsets();
+
+  // Mémoriser les actions (évite des re-créations + bugs d'égalité)
   
-  // Mettre à jour la copie locale quand user change (sauf si on est en train de se déconnecter)
+  const quickActions = useMemo(
+    () => [
+      { id: 'orders', title: 'Mes Commandes', subtitle: 'Suivre et gérer', icon: 'receipt-outline', color: '#283106', route: 'Orders' },
+      { id: 'favorites', title: 'Mes Favoris', subtitle: 'Produits sauvegardés', icon: 'heart-outline', color: '#FF6B6B', route: 'Favorites' },
+      { id: 'feedback', title: 'Feedback', subtitle: 'Retours et suggestions', icon: 'chatbox-ellipses-outline', color: '#9C27B0', route: 'Feedback' },
+      { id: 'faq', title: 'FAQ', subtitle: 'Questions fréquentes', icon: 'help-circle-outline', color: '#2196F3', route: 'FAQ' },
+      { id: 'support', title: 'Support', subtitle: 'Aide et contact', icon: 'chatbubbles-outline', color: '#FF9800', route: 'Support' },
+      { id: 'profile', title: 'Informations', subtitle: 'Modifier profil', icon: 'person-outline', color: '#607D8B', route: 'PersonalInfo' },
+      { id: 'settings', title: 'Paramètres', subtitle: 'Notifications, sécurité', icon: 'settings-outline', color: '#9C27B0', route: 'Settings' },
+      // { id: 'addresses', title: 'Adresses', subtitle: 'Gérer mes adresses', icon: 'location-outline', color: '#607D8B', route: 'Addresses' },
+    ],
+    []
+  );
+
+  // Suivre les changements d'user (tout en évitant les glitchs pendant le logout)
   useEffect(() => {
-    if (user && !isLoggingOut) {
-      setLocalUser(user);
+    if (!isLoggingOut) {
+      setLocalUser(user ?? null);
     }
   }, [user, isLoggingOut]);
-  
-  const [quickActions] = useState([
-    {
-      id: 1,
-      title: 'Mes Commandes',
-      subtitle: 'Suivre et gérer',
-      icon: 'receipt-outline',
-      color: '#4CAF50',
-      route: 'Orders'
-    },
-    {
-      id: 2,
-      title: 'Mes Favoris',
-      subtitle: 'Produits sauvegardés',
-      icon: 'heart-outline',
-      color: '#FF6B6B',
-      route: 'Favorites'
-    },
-    {
-      id: 3,
-      title: 'Support',
-      subtitle: 'Aide et contact',
-      icon: 'help-circle-outline',
-      color: '#2196F3',
-      route: 'Support'
-    },
-    {
-      id: 4,
-      title: 'Informations',
-      subtitle: 'Modifier profil',
-      icon: 'person-outline',
-      color: '#FF9800',
-      route: 'PersonalInfo'
-    },
-    {
-      id: 5,
-      title: 'Paramètres',
-      subtitle: 'Notifications, sécurité',
-      icon: 'settings-outline',
-      color: '#9C27B0',
-      route: 'Settings'
-    },
-    /*{
-      id: 6,
-      title: 'Adresses',
-      subtitle: 'Gérer mes adresses',
-      icon: 'location-outline',
-      color: '#607D8B',
-      route: 'Addresses'
-    }*/
-  ]);
 
-  const handleQuickAction = (action) => {
-    if (action.route === 'Orders') {
-      navigation.navigate('Orders');
-    } else if (action.route === 'Support') {
-      navigation.navigate('Support');
-    } else if (action.route === 'Favorites') {
-      navigation.navigate('Favorites');
-    } else if (action.route === 'PersonalInfo') {
-      navigation.navigate('PersonalInfo');
-    } else if (action.route === 'Settings') {
-      navigation.navigate('Settings');
-    } else if (action.route === 'Addresses') {
-      navigation.navigate('Addresses');
+  const displayUser = localUser ?? user ?? {
+    firstName: 'Utilisateur',
+    lastName: '',
+    email: '—',
+    phone: '',
+    role: 'user',
+  };
+
+  const handleQuickAction = (route) => {
+    if (!route) return;
+    try {
+      navigation.navigate(route);
+    } catch (e) {
+      console.warn('Navigation error:', e);
+      Alert.alert('Navigation', "Impossible d'ouvrir cette section.");
     }
   };
 
@@ -92,65 +89,103 @@ export default function ProfileScreen({ navigation }) {
       'Êtes-vous sûr de vouloir vous déconnecter ?',
       [
         { text: 'Annuler', style: 'cancel' },
-        { 
-          text: 'Déconnexion', 
+        {
+          text: 'Déconnexion',
           style: 'destructive',
           onPress: async () => {
             setIsLoggingOut(true);
-            
             try {
-              // Déconnexion
-              await logout();
+              // Réinitialiser les tentatives de connexion
+              await resetAttempts('login');
+              await resetAttempts('register');
+              await resetAttempts('forgotPassword');
               
-              // Navigation simple vers Welcome
-              navigation.navigate('Welcome');
+              // Déconnecter l'utilisateur
+              // Utiliser dispatch directement avec unwrap() pour obtenir une promesse
+              await dispatch(logoutAction()).unwrap();
+              
+              // Fermer le modal immédiatement
+              setIsLoggingOut(false);
+              
+              // Réinitialiser la pile de navigation vers Welcome
+              // Remonter jusqu'au navigateur racine pour naviguer vers Welcome
+              let rootNavigation = navigation;
+              while (rootNavigation.getParent()) {
+                rootNavigation = rootNavigation.getParent();
+              }
+              
+              // Utiliser un petit délai pour s'assurer que le modal est fermé
+              setTimeout(() => {
+                rootNavigation.dispatch(
+                  CommonActions.reset({
+                    index: 0,
+                    routes: [{ name: 'Welcome' }],
+                  })
+                );
+              }, 100);
             } catch (error) {
               console.error('Erreur lors de la déconnexion:', error);
-            } finally {
-              // Toujours cacher le modal
+              Alert.alert('Erreur', 'La déconnexion a échoué. Réessayez.');
               setIsLoggingOut(false);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
-  if (!user && !isLoggingOut) {
+  // URLs des documents légaux (à compléter)
+  const legalLinks = {
+    privacyPolicy: 'https://dream-market-rdc-ecbd2be6.base44.app/privacy', 
+    legalMentions: 'https://dream-market-rdc-ecbd2be6.base44.app/legal', 
+    termsOfService: 'https://dream-market-rdc-ecbd2be6.base44.app/terms',
+  };
+
+  const handleOpenLink = async (url, title) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Erreur', `Impossible d'ouvrir ${title}. Veuillez vérifier l'URL.`);
+      }
+    } catch (error) {
+      console.error(`Erreur lors de l'ouverture de ${title}:`, error);
+      Alert.alert('Erreur', `Impossible d'ouvrir ${title}.`);
+    }
+  };
+
+  // Écran de récupération si pas d'utilisateur
+  if (!user && !isLoggingOut && !localUser) {
     return (
-      <View style={styles.loadingContainer}>
-        <Ionicons name="person-circle-outline" size={80} color="#777E5C" />
-        <Text style={styles.loadingTitle}>Profil en cours de chargement...</Text>
-        <Text style={styles.loadingSubtitle}>
-          Si le problème persiste, veuillez vous reconnecter.
-        </Text>
-        <Button
-          title="Se reconnecter"
-          onPress={() => {
-            logout();
-            navigation.navigate('Welcome');
-          }}
-          variant="outline"
-          style={styles.reconnectButton}
-        />
+      <View style={[styles.flex1, { backgroundColor: COLORS.bg, paddingTop: insets.top }]}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="person-circle-outline" size={80} color={COLORS.accentText} />
+          <Text style={styles.loadingTitle}>Profil en cours de chargement...</Text>
+          <Text style={styles.loadingSubtitle}>Si le problème persiste, veuillez vous reconnecter.</Text>
+          <OutlineButton
+            title="Se reconnecter"
+            onPress={() => {
+              // on sécurise : on tente quand même une navigation
+              try {
+                logout?.();
+              } catch {}
+              navigation.navigate('Welcome');
+            }}
+            style={{ width: 220, marginTop: 8 }}
+          />
+        </View>
       </View>
     );
   }
 
-  // Utiliser localUser pour l'affichage (évite les erreurs pendant logout)
-  const displayUser = localUser || user;
-
   return (
-    <ScreenWrapper>
-    
-      <Modal
-        visible={isLoggingOut}
-        transparent={true}
-        animationType="fade"
-      >
+    <View style={[styles.flex1, { backgroundColor: COLORS.bg, paddingTop: insets.top }]}>
+      {/* Modal de déconnexion */}
+      <Modal visible={isLoggingOut} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <ActivityIndicator size="large" color="#4CAF50" />
+            <ActivityIndicator size="large" color={COLORS.primary} />
             <Text style={styles.modalText}>Déconnexion en cours...</Text>
             <Text style={styles.modalSubtext}>Veuillez patienter</Text>
           </View>
@@ -158,7 +193,7 @@ export default function ProfileScreen({ navigation }) {
       </Modal>
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        
+        {/* Header / Carte profil */}
         <View style={styles.header}>
           <View style={styles.profileCard}>
             <View style={styles.avatarContainer}>
@@ -171,33 +206,38 @@ export default function ProfileScreen({ navigation }) {
                 </View>
               )}
             </View>
-            
+
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{displayUser?.firstName} {displayUser?.lastName}</Text>
-              <Text style={styles.userEmail}>{displayUser?.email}</Text>
-              <Text style={styles.userPhone}>{displayUser?.phone}</Text>
+              <Text numberOfLines={1} style={styles.userName}>
+                {`${displayUser?.firstName ?? ''} ${displayUser?.lastName ?? ''}`.trim() || 'Utilisateur'}
+              </Text>
+              {!!displayUser?.email && <Text numberOfLines={1} style={styles.userEmail}>{displayUser.email}</Text>}
+              {!!displayUser?.phone && <Text numberOfLines={1} style={styles.userPhone}>{displayUser.phone}</Text>}
+
+             
             </View>
           </View>
         </View>
 
-        
+        {/* Actions rapides */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Actions Rapides</Text>
           <Text style={styles.sectionSubtitle}>Gérez votre compte et vos préférences</Text>
-          
+
           <View style={styles.quickActionsGrid}>
-            {quickActions.map((action) => (
+            {quickActions.map((a) => (
               <TouchableOpacity
-                key={action.id}
+                key={a.id}
                 style={styles.quickActionCard}
-                onPress={() => handleQuickAction(action)}
+                activeOpacity={0.85}
+                onPress={() => handleQuickAction(a.route)}
               >
-                <View style={[styles.actionIconContainer, { backgroundColor: action.color + '20' }]}>
-                  <Ionicons name={action.icon} size={20} color={action.color} />
+                <View style={[styles.actionIconContainer, { backgroundColor: withAlpha(a.color, 0.12) }]}>
+                  <Ionicons name={a.icon} size={20} color={a.color} />
                 </View>
                 <View style={styles.actionTextContainer}>
-                  <Text style={styles.actionTitle}>{action.title}</Text>
-                  <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
+                  <Text style={styles.actionTitle}>{a.title}</Text>
+                  <Text style={styles.actionSubtitle}>{a.subtitle}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#CBD5E0" />
               </TouchableOpacity>
@@ -205,93 +245,144 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
-       
+        {/* Espace admin si rôle admin */}
         {displayUser?.role === 'admin' && (
           <View style={styles.section}>
             <View style={styles.adminSection}>
               <View style={styles.adminHeader}>
-                <Ionicons name="shield-checkmark" size={20} color="#9C27B0" />
+                <Ionicons name="shield-checkmark" size={20} color={COLORS.purple} />
                 <Text style={styles.adminTitle}>Espace Administrateur</Text>
               </View>
-              <Text style={styles.adminSubtitle}>
-                Accédez au tableau de bord d'administration
-              </Text>
-              <Button
+              <Text style={styles.adminSubtitle}>Accédez au tableau de bord d'administration</Text>
+              <PrimaryButton
                 title="Accéder à l'administration"
-                onPress={() => navigation.navigate('AdminDashboard')}
-                variant="primary"
-                size="small"
-                style={styles.adminButton}
                 icon="shield-outline"
+                onPress={() => handleQuickAction('AdminDashboard')}
+                style={styles.adminButton}
               />
             </View>
           </View>
         )}
 
-        
+        {/* Documents légaux */}
         <View style={styles.section}>
-          <View style={styles.logoutSection}>
-            <Button
-              title="Se déconnecter"
-              onPress={handleLogout}
-              size="large"
-              style={styles.logoutButton}
-              variant="warning"
-              icon="log-out-outline"
-            />
-            
-            <Text style={styles.versionText}>
-              Version 1.0.0 • Dream Market
-            </Text>
+          <Text style={styles.sectionTitle}>Informations légales</Text>
+          <Text style={styles.sectionSubtitle}>Consultez nos documents officiels</Text>
+
+          <View style={styles.legalLinksContainer}>
+            <TouchableOpacity
+              style={styles.legalLinkCard}
+              activeOpacity={0.7}
+              onPress={() => handleOpenLink(legalLinks.privacyPolicy, 'Politique de confidentialité')}
+            >
+              <View style={[styles.legalLinkIconContainer, { backgroundColor: withAlpha('#2196F3', 0.12) }]}>
+                <Ionicons name="shield-checkmark-outline" size={20} color="#2196F3" />
+              </View>
+              <View style={styles.legalLinkTextContainer}>
+                <Text style={styles.legalLinkTitle}>Politique de confidentialité</Text>
+                <Text style={styles.legalLinkSubtitle}>Protection de vos données</Text>
+              </View>
+              <Ionicons name="open-outline" size={18} color={COLORS.subtext} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.legalLinkCard}
+              activeOpacity={0.7}
+              onPress={() => handleOpenLink(legalLinks.legalMentions, 'Mentions légales')}
+            >
+              <View style={[styles.legalLinkIconContainer, { backgroundColor: withAlpha('#9C27B0', 0.12) }]}>
+                <Ionicons name="document-text-outline" size={20} color="#9C27B0" />
+              </View>
+              <View style={styles.legalLinkTextContainer}>
+                <Text style={styles.legalLinkTitle}>Mentions légales</Text>
+                <Text style={styles.legalLinkSubtitle}>Informations sur l'éditeur</Text>
+              </View>
+              <Ionicons name="open-outline" size={18} color={COLORS.subtext} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.legalLinkCard}
+              activeOpacity={0.7}
+              onPress={() => handleOpenLink(legalLinks.termsOfService, 'Conditions générales')}
+            >
+              <View style={[styles.legalLinkIconContainer, { backgroundColor: withAlpha('#FF9800', 0.12) }]}>
+                <Ionicons name="document-outline" size={20} color="#FF9800" />
+              </View>
+              <View style={styles.legalLinkTextContainer}>
+                <Text style={styles.legalLinkTitle}>Conditions générales</Text>
+                <Text style={styles.legalLinkSubtitle}>CGU d'utilisation</Text>
+              </View>
+              <Ionicons name="open-outline" size={18} color={COLORS.subtext} />
+            </TouchableOpacity>
           </View>
         </View>
 
+        {/* À propos / version + Déconnexion */}
+        <View style={styles.section}>
+          <View style={styles.aboutCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <Ionicons name="leaf-outline" size={18} color={COLORS.primary} />
+              <Text style={[styles.sectionTitle, { marginLeft: 8, marginBottom: 0 }]}>Dream Market</Text>
+            </View>
+            <Text style={styles.aboutText}>
+              Plateforme simple et efficace pour commander des produits agricoles et services associés.
+            </Text>
+            <Text style={styles.versionText}>Version 1.0.0 • {Platform.select({ ios: 'iOS', android: 'Android', default: 'Mobile' })}</Text>
+          </View>
+
+          <PrimaryButton
+            title="Se déconnecter"
+            onPress={handleLogout}
+            icon="log-out-outline"
+            style={[styles.logoutButton, { marginTop: 16 }]}
+          />
+        </View>
+
         <View style={styles.bottomSpacing} />
-      </ScrollView>
-    </ScreenWrapper>
-  );
-}
+        </ScrollView>
+      </View>
+    );
+  }
+
+/** Utils */
+const withAlpha = (hex, alpha = 0.2) => {
+  // hex #RRGGBB -> rgba(r,g,b,alpha)
+  const clean = (hex || '').replace('#', '');
+  if (clean.length !== 6) return 'rgba(0,0,0,0.05)';
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+};
+
+const COLORS = {
+  bg: '#F8FAFC',
+  card: '#FFFFFF',
+  border: '#F1F5F9',
+  text: '#1A202C',
+  subtext: '#718096',
+  muted: '#A0AEC0',
+  primary: '#4CAF50', // vert
+  danger: '#FF6B6B',
+  blue: '#2196F3',
+  orange: '#FF9800',
+  purple: '#9C27B0',
+  accentText: '#777E5C',
+};
 
 const styles = StyleSheet.create({
+  flex1: { flex: 1 },
+
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.bg,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 40,
-  },
-  loadingTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2D3748',
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  loadingSubtitle: {
-    fontSize: 14,
-    color: '#718096',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  reconnectButton: {
-    width: 200,
-  },
-  header: {
 
+  // HEADER + PROFIL
+  header: {
     paddingHorizontal: 20,
-    paddingTop: 40,
-    paddingBottom: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    paddingTop: 32,
+    paddingBottom: 20,
   },
   profileCard: {
     flexDirection: 'row',
@@ -305,12 +396,12 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#4CAF50',
+    backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
   },
@@ -318,7 +409,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#9C27B0',
+    backgroundColor: COLORS.purple,
     borderRadius: 10,
     width: 20,
     height: 20,
@@ -333,25 +424,26 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1A202C',
+    color: COLORS.text,
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
-    color: '#718096',
+    color: COLORS.subtext,
     marginBottom: 2,
   },
   userPhone: {
     fontSize: 14,
-    color: '#718096',
-    marginBottom: 16,
+    color: COLORS.subtext,
+    marginBottom: 14,
   },
+
   statsContainer: {
     flexDirection: 'row',
     backgroundColor: '#F7FAFC',
     borderRadius: 12,
     padding: 12,
-    marginTop: 8,
+    marginTop: 4,
   },
   statItem: {
     flex: 1,
@@ -365,44 +457,48 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 10,
-    color: '#718096',
+    color: COLORS.subtext,
   },
   statDivider: {
     width: 1,
     backgroundColor: '#E2E8F0',
     marginHorizontal: 8,
   },
+
+  // SECTIONS
   section: {
     paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingVertical: 20,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A202C',
+    color: COLORS.text,
     marginBottom: 4,
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: '#718096',
-    marginBottom: 20,
+    color: COLORS.subtext,
+    marginBottom: 16,
   },
+
+  // QUICK ACTIONS
   quickActionsGrid: {
     gap: 12,
   },
   quickActionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.card,
     padding: 16,
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: COLORS.border,
   },
   actionIconContainer: {
     width: 44,
@@ -423,19 +519,21 @@ const styles = StyleSheet.create({
   },
   actionSubtitle: {
     fontSize: 12,
-    color: '#718096',
+    color: COLORS.subtext,
   },
+
+  // ADMIN
   adminSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.card,
     padding: 20,
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
     borderLeftWidth: 4,
-    borderLeftColor: '#9C27B0',
+    borderLeftColor: COLORS.purple,
   },
   adminHeader: {
     flexDirection: 'row',
@@ -445,52 +543,60 @@ const styles = StyleSheet.create({
   adminTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1A202C',
+    color: COLORS.text,
     marginLeft: 8,
   },
   adminSubtitle: {
     fontSize: 14,
-    color: '#718096',
-    marginBottom: 16,
+    color: COLORS.subtext,
+    marginBottom: 14,
     lineHeight: 20,
   },
   adminButton: {
     alignSelf: 'flex-start',
   },
-  logoutSection: {
-    alignItems: 'center',
-    paddingTop: 8,
+
+  // ABOUT + LOGOUT
+  aboutCard: {
+    backgroundColor: COLORS.card,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
-  logoutButton: {
-    width: '100%',
-    marginBottom: 16,
+  aboutText: {
+    fontSize: 14,
+    color: COLORS.subtext,
+    marginBottom: 6,
   },
   versionText: {
     fontSize: 12,
-    color: '#A0AEC0',
-    textAlign: 'center',
+    color: COLORS.muted,
   },
-  bottomSpacing: {
-    height: 20,
+  logoutButton: {
+    width: '100%',
   },
-  // Modal de déconnexion
+
+  bottomSpacing: { height: 24 },
+
+  // MODAL LOGOUT
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.card,
     borderRadius: 16,
-    padding: 32,
+    padding: 28,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
     elevation: 8,
-    minWidth: 250,
+    minWidth: 260,
   },
   modalText: {
     fontSize: 18,
@@ -502,7 +608,99 @@ const styles = StyleSheet.create({
   modalSubtext: {
     fontSize: 14,
     color: '#777E5C',
-    marginTop: 8,
+    marginTop: 6,
     textAlign: 'center',
+  },
+
+  // BOUTONS
+  btnBase: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  btnPrimary: {
+    backgroundColor: COLORS.primary,
+  },
+  btnPrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  btnOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  btnOutlineText: {
+    color: '#2D3748',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
+  // Loading state
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.bg,
+    paddingHorizontal: 40,
+  },
+  loadingTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2D3748',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loadingSubtitle: {
+    fontSize: 14,
+    color: COLORS.subtext,
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+
+  // LEGAL LINKS
+  legalLinksContainer: {
+    gap: 12,
+  },
+  legalLinkCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  legalLinkIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  legalLinkTextContainer: {
+    flex: 1,
+  },
+  legalLinkTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  legalLinkSubtitle: {
+    fontSize: 12,
+    color: COLORS.subtext,
   },
 });

@@ -54,12 +54,40 @@ export default function FarmDetailScreen({ route, navigation }) {
   
   ];
 
+  const { CONTACT_INFO, openWhatsApp, openPhoneCall, openEmail } = require('../utils/contactInfo');
+  
   const contactRows = [
-    { icon: 'call-outline', label: 'Téléphone', value: farm.contact?.phone },
-    { icon: 'mail-outline', label: 'Email', value: farm.contact?.email },
-    { icon: 'globe-outline', label: 'Site web', value: farm.contact?.website },
-    { icon: 'location-outline', label: 'Adresse', value: farm.location },
-  ].filter((item) => item.value);
+    { 
+      icon: 'call-outline', 
+      label: 'Téléphone', 
+      value: CONTACT_INFO.phone1Display,
+      action: () => openPhoneCall(CONTACT_INFO.phone1)
+    },
+    { 
+      icon: 'logo-whatsapp', 
+      label: 'WhatsApp', 
+      value: CONTACT_INFO.phone1Display,
+      action: () => openWhatsApp(CONTACT_INFO.phone1, `Bonjour, je souhaite des informations concernant ${farm.name}`)
+    },
+    { 
+      icon: 'mail-outline', 
+      label: 'Email', 
+      value: CONTACT_INFO.email,
+      action: () => openEmail(CONTACT_INFO.email, `Demande d'informations - ${farm.name}`)
+    },
+    { 
+      icon: 'location-outline', 
+      label: 'Adresse', 
+      value: CONTACT_INFO.address,
+      action: null
+    },
+    { 
+      icon: 'time-outline', 
+      label: 'Horaires', 
+      value: CONTACT_INFO.hours,
+      action: null
+    },
+  ];
 
   const certificationChips = (farm.certifications || []).map((cert) => ({
     label: cert,
@@ -250,16 +278,22 @@ export default function FarmDetailScreen({ route, navigation }) {
               <View style={styles.sectionCard}>
                 <Text style={styles.sectionHeading}>Contacts & accès</Text>
                 {contactRows.map((item, index) => (
-                  <View
+                  <TouchableOpacity
                     key={`${item.label}-${index}`}
-                    style={[styles.sectionRow, index === contactRows.length - 1 && styles.sectionRowLast]}
+                    style={[styles.sectionRow, index === contactRows.length - 1 && styles.sectionRowLast, !item.action && styles.sectionRowDisabled]}
+                    onPress={item.action || undefined}
+                    disabled={!item.action}
+                    activeOpacity={item.action ? 0.7 : 1}
                   >
                     <View style={styles.sectionRowLeft}>
                       <Ionicons name={item.icon} size={16} color="#6B8E6F" />
                       <Text style={styles.sectionRowLabel}>{item.label}</Text>
                     </View>
                     <Text style={styles.sectionRowValue}>{item.value}</Text>
-                  </View>
+                    {item.action && (
+                      <Ionicons name="chevron-forward-outline" size={16} color="#6B8E6F" style={{ marginLeft: 8 }} />
+                    )}
+                  </TouchableOpacity>
                 ))}
               </View>
             ) : null}
@@ -580,6 +614,9 @@ const styles = StyleSheet.create({
   sectionRowLast: {
     borderBottomWidth: 0,
     paddingBottom: 0,
+  },
+  sectionRowDisabled: {
+    opacity: 0.7,
   },
   sectionRowLeft: {
     flexDirection: 'row',

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Container, Button  , ScreenWrapper } from '../components/ui';
+import { CONTACT_INFO, openWhatsApp, openPhoneCall, openEmail } from '../utils/contactInfo';
 
 export default function SupportScreen({ navigation }) {
   const [subject, setSubject] = useState('');
@@ -17,9 +18,46 @@ export default function SupportScreen({ navigation }) {
   ];
 
   const contactMethods = [
-    { id: 'email', title: 'Email', subtitle: 'support@dreammarket.com', icon: 'mail-outline', color: '#4CAF50' },
-    { id: 'phone', title: 'Téléphone', subtitle: '+33 1 23 45 67 89', icon: 'call-outline', color: '#2196F3' },
-    { id: 'chat', title: 'Chat en ligne', subtitle: 'Disponible 9h-18h', icon: 'chatbubbles-outline', color: '#FF9800' }
+    { 
+      id: 'whatsapp', 
+      title: 'WhatsApp', 
+      subtitle: CONTACT_INFO.phone1Display, 
+      icon: 'logo-whatsapp', 
+      color: '#25D366',
+      action: () => openWhatsApp(CONTACT_INFO.phone1, 'Bonjour, j\'ai besoin d\'aide')
+    },
+    { 
+      id: 'phone', 
+      title: 'Téléphone', 
+      subtitle: CONTACT_INFO.phone1Display, 
+      icon: 'call-outline', 
+      color: '#2196F3',
+      action: () => openPhoneCall(CONTACT_INFO.phone1)
+    },
+    { 
+      id: 'email', 
+      title: 'Email', 
+      subtitle: CONTACT_INFO.email, 
+      icon: 'mail-outline', 
+      color: '#4CAF50',
+      action: () => openEmail(CONTACT_INFO.email, 'Demande de support')
+    },
+    { 
+      id: 'address', 
+      title: 'Adresse', 
+      subtitle: CONTACT_INFO.address, 
+      icon: 'location-outline', 
+      color: '#FF9800',
+      action: null
+    },
+    { 
+      id: 'hours', 
+      title: 'Horaires', 
+      subtitle: CONTACT_INFO.hours, 
+      icon: 'time-outline', 
+      color: '#9C27B0',
+      action: null
+    }
   ];
 
   const handleSubmit = () => {
@@ -28,13 +66,21 @@ export default function SupportScreen({ navigation }) {
       return;
     }
 
+    const categoryTitle = categories.find(cat => cat.id === selectedCategory)?.title || 'Support';
+    const emailBody = `Catégorie: ${categoryTitle}\n\nSujet: ${subject}\n\nMessage:\n${message}`;
+    
     Alert.alert(
-      'Message envoyé',
-      'Votre message a été envoyé. Nous vous répondrons dans les plus brefs délais.',
+      'Envoyer le message',
+      'Voulez-vous envoyer ce message par email ?',
       [
         {
-          text: 'OK',
+          text: 'Annuler',
+          style: 'cancel'
+        },
+        {
+          text: 'Envoyer',
           onPress: () => {
+            openEmail(CONTACT_INFO.email, subject, emailBody);
             setSubject('');
             setMessage('');
             setSelectedCategory('');
@@ -45,19 +91,8 @@ export default function SupportScreen({ navigation }) {
   };
 
   const handleContactMethod = (method) => {
-    switch (method.id) {
-      case 'email':
-        // Ici on pourrait ouvrir l'app mail
-        Alert.alert('Email', 'support@dreammarket.com');
-        break;
-      case 'phone':
-        // Ici on pourrait composer le numéro
-        Alert.alert('Téléphone', '+243 123456789');
-        break;
-      case 'chat':
-        // Ici on pourrait ouvrir le chat
-        Alert.alert('Chat', 'Fonctionnalité à venir');
-        break;
+    if (method.action) {
+      method.action();
     }
   };
 
@@ -84,27 +119,31 @@ export default function SupportScreen({ navigation }) {
           {contactMethods.map((method) => (
             <TouchableOpacity
               key={method.id}
-              style={styles.contactMethod}
+              style={[styles.contactMethod, !method.action && styles.contactMethodDisabled]}
               onPress={() => handleContactMethod(method)}
+              disabled={!method.action}
+              activeOpacity={method.action ? 0.7 : 1}
             >
               <View style={[styles.methodIcon, { backgroundColor: method.color }]}>
                 <Ionicons name={method.icon} size={24} color="#FFFFFF" />
               </View>
               <View style={styles.methodInfo}>
                 <Text style={styles.methodTitle}>{method.title}</Text>
-                <Text style={styles.methodSubtitle}>{method.subtitle}</Text>
+                <Text style={styles.methodSubtitle} numberOfLines={2}>{method.subtitle}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="#777E5C" />
+              {method.action && (
+                <Ionicons name="chevron-forward" size={16} color="#777E5C" />
+              )}
             </TouchableOpacity>
           ))}
         </View>
       </Container>
 
-      {/* Formulaire de contact */}
+      {/* Formulaire de contact 
       <Container style={styles.formSection}>
         <Text style={styles.sectionTitle}>Envoyer un message</Text>
         
-        {/* Catégories */}
+      {/* Catégories 
         <Text style={styles.fieldLabel}>Catégorie</Text>
         <View style={styles.categoriesGrid}>
           {categories.map((category) => (
@@ -131,7 +170,7 @@ export default function SupportScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Sujet */}
+        {/* Sujet *
         <Text style={styles.fieldLabel}>Sujet</Text>
         <TextInput
           style={styles.input}
@@ -140,7 +179,7 @@ export default function SupportScreen({ navigation }) {
           onChangeText={setSubject}
         />
 
-        {/* Message */}
+        {/* Message 
         <Text style={styles.fieldLabel}>Message</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
@@ -159,29 +198,11 @@ export default function SupportScreen({ navigation }) {
           size="large"
           style={styles.submitButton}
         />
-      </Container>
-
-      {/* FAQ rapide */}
-      <Container style={styles.faqSection}>
-        <Text style={styles.sectionTitle}>Questions fréquentes</Text>
         
-        <View style={styles.faqList}>
-          <TouchableOpacity style={styles.faqItem}>
-            <Text style={styles.faqQuestion}>Comment annuler une commande ?</Text>
-            <Ionicons name="chevron-down" size={16} color="#777E5C" />
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.faqItem}>
-            <Text style={styles.faqQuestion}>Délais de livraison ?</Text>
-            <Ionicons name="chevron-down" size={16} color="#777E5C" />
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.faqItem}>
-            <Text style={styles.faqQuestion}>Problème avec un produit ?</Text>
-            <Ionicons name="chevron-down" size={16} color="#777E5C" />
-          </TouchableOpacity>
-        </View>
-      </Container>
+      </Container> */}
+      
+
+     
     </ScrollView>
     </ScreenWrapper>
   );
@@ -233,6 +254,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
+  },
+  contactMethodDisabled: {
+    opacity: 0.7,
   },
   methodIcon: {
     width: 48,

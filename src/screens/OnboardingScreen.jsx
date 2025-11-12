@@ -141,12 +141,13 @@ export default function OnboardingScreen({ navigation }) {
 
   const handleSkip = async () => {
     await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
-    navigation.replace('Welcome');
+    navigation.navigate('Welcome');
   };
 
   const handleFinish = async () => {
     await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
-    navigation.replace('Welcome');
+    navigation.navigate('Welcome');
+    
   };
 
   const currentSlide = ONBOARDING_DATA[currentIndex];
