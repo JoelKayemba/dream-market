@@ -1,4 +1,13 @@
 import { supabase, STORAGE_BUCKETS } from '../config/supabase';
+import {
+  validateAndSanitizeTitle,
+  validateAndSanitizeText,
+  validateAndSanitizePhone,
+  validateAndSanitizeEmail,
+  validateAndSanitizeUrl,
+  sanitizeString,
+  sanitizeArray,
+} from '../../utils/inputSanitizer';
 
 export const farmService = {
   // Récupérer toutes les fermes
@@ -35,9 +44,85 @@ export const farmService = {
   // Créer une nouvelle ferme
   addFarm: async (farmData) => {
     try {
+      // Nettoyer les données de la ferme
+      const cleanedData = { ...farmData };
+
+      // Valider et nettoyer le nom
+      if (farmData.name) {
+        const nameResult = validateAndSanitizeTitle(farmData.name, {
+          required: true,
+          maxLength: 255,
+        });
+        if (!nameResult.valid) {
+          throw new Error(`Nom de la ferme: ${nameResult.error}`);
+        }
+        cleanedData.name = nameResult.cleaned;
+      }
+
+      // Valider et nettoyer la description
+      if (farmData.description) {
+        const descResult = validateAndSanitizeText(farmData.description, {
+          maxLength: 5000,
+          required: false,
+        });
+        if (!descResult.valid) {
+          throw new Error(`Description: ${descResult.error}`);
+        }
+        cleanedData.description = descResult.cleaned;
+      }
+
+      // Valider et nettoyer la localisation
+      if (farmData.location) {
+        const locationResult = validateAndSanitizeText(farmData.location, {
+          maxLength: 255,
+          required: false,
+        });
+        if (!locationResult.valid) {
+          throw new Error(`Localisation: ${locationResult.error}`);
+        }
+        cleanedData.location = locationResult.cleaned;
+      }
+
+      // Valider et nettoyer le téléphone
+      if (farmData.phone) {
+        const phoneResult = validateAndSanitizePhone(farmData.phone);
+        if (!phoneResult.valid) {
+          throw new Error(`Téléphone: ${phoneResult.error}`);
+        }
+        cleanedData.phone = phoneResult.cleaned;
+      }
+
+      // Valider et nettoyer l'email
+      if (farmData.email) {
+        const emailResult = validateAndSanitizeEmail(farmData.email);
+        if (!emailResult.valid) {
+          throw new Error(`Email: ${emailResult.error}`);
+        }
+        cleanedData.email = emailResult.cleaned;
+      }
+
+      // Valider et nettoyer le site web
+      if (farmData.website) {
+        const urlResult = validateAndSanitizeUrl(farmData.website);
+        if (!urlResult.valid) {
+          throw new Error(`Site web: ${urlResult.error}`);
+        }
+        cleanedData.website = urlResult.cleaned;
+      }
+
+      // Nettoyer les spécialités
+      if (farmData.specialties && Array.isArray(farmData.specialties)) {
+        cleanedData.specialties = sanitizeArray(farmData.specialties, { maxLength: 100 });
+      }
+
+      // Nettoyer les images
+      if (farmData.images && Array.isArray(farmData.images)) {
+        cleanedData.images = sanitizeArray(farmData.images, { maxLength: 500 });
+      }
+
       const { data, error } = await supabase
         .from('farms')
-        .insert([farmData])
+        .insert([cleanedData])
         .select()
         .single();
 
@@ -51,12 +136,98 @@ export const farmService = {
   // Mettre à jour une ferme
   updateFarm: async (farmId, updates) => {
     try {
+      const cleanedUpdates = {
+        updated_at: new Date().toISOString(),
+      };
+
+      // Nettoyer les champs si présents
+      if (updates.name !== undefined) {
+        const nameResult = validateAndSanitizeTitle(updates.name, {
+          required: false,
+          maxLength: 255,
+        });
+        if (!nameResult.valid) {
+          throw new Error(`Nom de la ferme: ${nameResult.error}`);
+        }
+        cleanedUpdates.name = nameResult.cleaned;
+      }
+
+      if (updates.description !== undefined) {
+        const descResult = validateAndSanitizeText(updates.description, {
+          maxLength: 5000,
+          required: false,
+        });
+        if (!descResult.valid) {
+          throw new Error(`Description: ${descResult.error}`);
+        }
+        cleanedUpdates.description = descResult.cleaned;
+      }
+
+      if (updates.location !== undefined) {
+        const locationResult = validateAndSanitizeText(updates.location, {
+          maxLength: 255,
+          required: false,
+        });
+        if (!locationResult.valid) {
+          throw new Error(`Localisation: ${locationResult.error}`);
+        }
+        cleanedUpdates.location = locationResult.cleaned;
+      }
+
+      if (updates.phone !== undefined) {
+        if (updates.phone) {
+          const phoneResult = validateAndSanitizePhone(updates.phone);
+          if (!phoneResult.valid) {
+            throw new Error(`Téléphone: ${phoneResult.error}`);
+          }
+          cleanedUpdates.phone = phoneResult.cleaned;
+        } else {
+          cleanedUpdates.phone = null;
+        }
+      }
+
+      if (updates.email !== undefined) {
+        if (updates.email) {
+          const emailResult = validateAndSanitizeEmail(updates.email);
+          if (!emailResult.valid) {
+            throw new Error(`Email: ${emailResult.error}`);
+          }
+          cleanedUpdates.email = emailResult.cleaned;
+        } else {
+          cleanedUpdates.email = null;
+        }
+      }
+
+      if (updates.website !== undefined) {
+        if (updates.website) {
+          const urlResult = validateAndSanitizeUrl(updates.website);
+          if (!urlResult.valid) {
+            throw new Error(`Site web: ${urlResult.error}`);
+          }
+          cleanedUpdates.website = urlResult.cleaned;
+        } else {
+          cleanedUpdates.website = null;
+        }
+      }
+
+      if (updates.specialties !== undefined && Array.isArray(updates.specialties)) {
+        cleanedUpdates.specialties = sanitizeArray(updates.specialties, { maxLength: 100 });
+      }
+
+      if (updates.images !== undefined && Array.isArray(updates.images)) {
+        cleanedUpdates.images = sanitizeArray(updates.images, { maxLength: 500 });
+      }
+
+      // Copier les autres champs non textuels
+      Object.keys(updates).forEach(key => {
+        if (!['name', 'description', 'location', 'phone', 'email', 'website', 'specialties', 'images'].includes(key)) {
+          cleanedUpdates[key] = updates[key];
+        }
+      });
+
       const { data, error } = await supabase
         .from('farms')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
+        .update(cleanedUpdates)
         .eq('id', farmId)
         .select()
         .single();

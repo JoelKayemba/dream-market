@@ -77,8 +77,64 @@ export default function FarmCard({
 
   const handleContact = (e) => {
     e?.stopPropagation();
-    const { showContactMenu } = require('../../utils/contactInfo');
-    showContactMenu(farm.name);
+    const { openWhatsApp, openPhoneCall, openEmail } = require('../../utils/contactInfo');
+    const { Linking, Alert } = require('react-native');
+    
+    // Construire les options de contact avec les informations spécifiques de la ferme
+    const options = [];
+    
+    if (farm.contact?.phone) {
+      options.push({
+        text: 'Appeler',
+        onPress: () => openPhoneCall(farm.contact.phone),
+        style: 'default',
+      });
+      options.push({
+        text: 'WhatsApp',
+        onPress: () => openWhatsApp(farm.contact.phone, `Bonjour, je souhaite des informations concernant ${farm.name}`),
+        style: 'default',
+      });
+    }
+    
+    if (farm.contact?.email) {
+      options.push({
+        text: 'Email',
+        onPress: () => openEmail(farm.contact.email, `Demande d'informations - ${farm.name}`),
+        style: 'default',
+      });
+    }
+    
+    if (farm.contact?.website) {
+      options.push({
+        text: 'Site web',
+        onPress: () => {
+          const url = farm.contact.website.startsWith('http') ? farm.contact.website : `https://${farm.contact.website}`;
+          Linking.openURL(url).catch(err => console.error('Erreur ouverture URL:', err));
+        },
+        style: 'default',
+      });
+    }
+    
+    if (options.length === 0) {
+      Alert.alert(
+        'Contact non disponible',
+        'Les informations de contact de cette ferme ne sont pas disponibles.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    options.push({
+      text: 'Annuler',
+      style: 'cancel',
+    });
+    
+    Alert.alert(
+      `Contacter ${farm.name}`,
+      'Comment souhaitez-vous contacter cette ferme ?',
+      options,
+      { cancelable: true }
+    );
   };
 
   return (

@@ -14,6 +14,7 @@
 
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
+import Constants from 'expo-constants';
 import { notificationService } from '../backend/services/notificationService';
 
 // Nom de la tâche de notification en arrière-plan
@@ -97,10 +98,53 @@ class BackgroundNotificationService {
     try {
       console.log('🔔 [BackgroundNotificationService] Initialisation...');
       
+      // Vérifier si on est dans Expo Go (SDK 53+ ne supporte pas les push Android)
+      const isExpoGo = Constants?.executionEnvironment === 'storeClient' || 
+                       (typeof __DEV__ !== 'undefined' && __DEV__ && !Constants?.isDevice);
+      
+      if (isExpoGo) {
+        console.warn('⚠️ [BackgroundNotificationService] Expo Go détecté');
+        console.warn('📱 Les notifications push Android ne sont pas disponibles dans Expo Go (SDK 53+)');
+        console.warn('💡 Pour tester les notifications push, utilisez un development build:');
+        console.warn('   - `npx expo run:android` pour un build local');
+        console.warn('   - `eas build --profile development --platform android` pour un build EAS');
+        console.warn('   - Documentation: https://docs.expo.dev/develop/development-builds/introduction/');
+        // Ne pas initialiser dans Expo Go pour éviter les erreurs
+        this.isInitialized = false;
+        return false;
+      }
+      
+      // Configurer le canal de notification Android
+      try {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'Notifications Dream Market',
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#2F8F46',
+          sound: 'default',
+          enableVibrate: true,
+          showBadge: true,
+        });
+        console.log('✅ [BackgroundNotificationService] Canal Android configuré');
+      } catch (channelError) {
+        // Ignorer l'erreur si on n'est pas sur Android
+        const errorMsg = channelError?.message || String(channelError);
+        if (!errorMsg.includes('Android') && !errorMsg.includes('Expo Go')) {
+          console.warn('⚠️ [BackgroundNotificationService] Erreur configuration canal Android:', errorMsg);
+        }
+      }
+      
       // Demander les permissions
       const { status } = await Notifications.getPermissionsAsync();
       if (status !== 'granted') {
-        const { status: newStatus } = await Notifications.requestPermissionsAsync();
+        const { status: newStatus } = await Notifications.requestPermissionsAsync({
+          ios: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+            allowAnnouncements: false,
+          },
+        });
         if (newStatus !== 'granted') {
           console.warn('⚠️ [BackgroundNotificationService] Permissions refusées');
           return false;
@@ -114,11 +158,20 @@ class BackgroundNotificationService {
       } catch (taskError) {
         // Si les notifications en arrière-plan ne sont pas configurées, continuer quand même
         // Les notifications fonctionneront en mode foreground
-        if (taskError.message && taskError.message.includes('Background remote notifications')) {
-          console.warn('⚠️ [BackgroundNotificationService] Notifications en arrière-plan non configurées. Le service fonctionnera en mode foreground uniquement.');
-          console.warn('💡 Pour activer les notifications en arrière-plan, configurez expo-notifications dans app.json');
+        const errorMessage = taskError?.message || String(taskError);
+        if (errorMessage.includes('Background remote notifications') || 
+            errorMessage.includes('not been configured') ||
+            errorMessage.includes('UIBackgroundModes') ||
+            errorMessage.includes('Expo Go') ||
+            errorMessage.includes('SDK 53')) {
+          console.warn('⚠️ [BackgroundNotificationService] Notifications en arrière-plan non disponibles.');
+          console.warn('💡 Raisons possibles:');
+          console.warn('   - Utilisation d\'Expo Go (utilisez un development build)');
+          console.warn('   - UIBackgroundModes non configuré dans app.json pour iOS');
+          console.warn('   - App non reconstruite après configuration');
+          console.warn('   Solutions: `npx expo prebuild` ou `eas build`');
         } else {
-          throw taskError;
+          console.warn('⚠️ [BackgroundNotificationService] Erreur lors de l\'enregistrement de la tâche:', errorMessage);
         }
       }
       
@@ -127,6 +180,14 @@ class BackgroundNotificationService {
       return true;
       
     } catch (error) {
+      const errorMsg = error?.message || String(error);
+      // Masquer les erreurs spécifiques à Expo Go
+      if (errorMsg.includes('Expo Go') || errorMsg.includes('SDK 53') || errorMsg.includes('removed from Expo Go')) {
+        console.warn('⚠️ [BackgroundNotificationService] Notifications push non disponibles dans Expo Go');
+        console.warn('💡 Utilisez un development build pour tester les notifications push');
+        this.isInitialized = false;
+        return false;
+      }
       console.error('❌ [BackgroundNotificationService] Erreur lors de l\'initialisation:', error);
       // Ne pas bloquer l'application si les notifications échouent
       this.isInitialized = false;

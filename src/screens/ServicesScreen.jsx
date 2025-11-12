@@ -305,6 +305,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#777E5C',
     lineHeight: 22,
+    width: '90%',
+    
   },
   searchSection: {
     paddingHorizontal: 0,

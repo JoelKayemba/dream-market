@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Dimensions, Alert } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Dimensions, Alert, Linking } from 'react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -42,7 +42,12 @@ export default function FarmDetailScreen({ route, navigation }) {
     return products.filter(product => product.farm_id === farm.id);
   }, [farm.id, products]);
 
-  const yearsActive = farm.established ? `${new Date().getFullYear() - farm.established} ans` : null;
+  // prendre juste l'année de la date d'établissement par exemple 2025 - 2020 = 5 ans
+  const actualYear = new Date().getFullYear();
+  // juste prendre l'année de la date d'établissement par exemple 2020 dans 2025-01-10
+  const establishedYear = new Date(farm.established).getFullYear();
+  
+  const yearsActive = farm.established ? `${actualYear - establishedYear} ans` : null;
 
   const highlightChips = [
     farm.location ? { label: farm.location, icon: 'navigate-outline', color: '#2F8F46' } : null,
@@ -51,43 +56,74 @@ export default function FarmDetailScreen({ route, navigation }) {
 
   const metricsData = [
     { icon: 'storefront-outline', label: 'Produits', value: farmProducts.length.toString() },
-  
-  ];
+    farm.size ? { icon: 'resize-outline', label: 'Taille', value: `${farm.size} ha` } : null,
+    farm.established ? { 
+      icon: 'calendar-outline', 
+      label: 'Établie en', 
+      value: typeof farm.established === 'number' 
+        ? farm.established.toString() 
+        : new Date(farm.established).getFullYear().toString() 
+    } : null,
+  ].filter(Boolean);
 
-  const { CONTACT_INFO, openWhatsApp, openPhoneCall, openEmail } = require('../utils/contactInfo');
+  const { openWhatsApp, openPhoneCall, openEmail } = require('../utils/contactInfo');
   
-  const contactRows = [
-    { 
-      icon: 'call-outline', 
-      label: 'Téléphone', 
-      value: CONTACT_INFO.phone1Display,
-      action: () => openPhoneCall(CONTACT_INFO.phone1)
-    },
-    { 
-      icon: 'logo-whatsapp', 
-      label: 'WhatsApp', 
-      value: CONTACT_INFO.phone1Display,
-      action: () => openWhatsApp(CONTACT_INFO.phone1, `Bonjour, je souhaite des informations concernant ${farm.name}`)
-    },
-    { 
-      icon: 'mail-outline', 
-      label: 'Email', 
-      value: CONTACT_INFO.email,
-      action: () => openEmail(CONTACT_INFO.email, `Demande d'informations - ${farm.name}`)
-    },
-    { 
-      icon: 'location-outline', 
-      label: 'Adresse', 
-      value: CONTACT_INFO.address,
+  // Construire les lignes de contact avec les informations spécifiques de la ferme
+  const contactRows = [];
+  
+  if (farm.contact?.phone) {
+    contactRows.push({
+      icon: 'call-outline',
+      label: 'Téléphone',
+      value: farm.contact.phone,
+      action: () => openPhoneCall(farm.contact.phone)
+    });
+    contactRows.push({
+      icon: 'logo-whatsapp',
+      label: 'WhatsApp',
+      value: farm.contact.phone,
+      action: () => openWhatsApp(farm.contact.phone, `Bonjour, je souhaite des informations concernant ${farm.name}`)
+    });
+  }
+  
+  if (farm.contact?.email) {
+    contactRows.push({
+      icon: 'mail-outline',
+      label: 'Email',
+      value: farm.contact.email,
+      action: () => openEmail(farm.contact.email, `Demande d'informations - ${farm.name}`)
+    });
+  }
+  
+  if (farm.contact?.website) {
+    contactRows.push({
+      icon: 'globe-outline',
+      label: 'Site web',
+      value: farm.contact.website,
+      action: () => {
+        const url = farm.contact.website.startsWith('http') ? farm.contact.website : `https://${farm.contact.website}`;
+        Linking.openURL(url).catch(err => console.error('Erreur ouverture URL:', err));
+      }
+    });
+  }
+  
+  if (farm.location) {
+    contactRows.push({
+      icon: 'location-outline',
+      label: 'Localisation',
+      value: farm.location,
       action: null
-    },
-    { 
-      icon: 'time-outline', 
-      label: 'Horaires', 
-      value: CONTACT_INFO.hours,
+    });
+  }
+  
+  if (farm.region) {
+    contactRows.push({
+      icon: 'map-outline',
+      label: 'Région',
+      value: farm.region,
       action: null
-    },
-  ];
+    });
+  }
 
   const certificationChips = (farm.certifications || []).map((cert) => ({
     label: cert,
@@ -251,6 +287,13 @@ export default function FarmDetailScreen({ route, navigation }) {
               )}
             </View>
 
+            {farm.story ? (
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionHeading}>Notre histoire</Text>
+                <Text style={styles.sectionBodyText}>{farm.story}</Text>
+              </View>
+            ) : null}
+
             {(farm.specialty || certificationChips.length > 0) ? (
               <View style={styles.sectionCard}>
                 <Text style={styles.sectionHeading}>Expertises & certifications</Text>
@@ -270,6 +313,49 @@ export default function FarmDetailScreen({ route, navigation }) {
                       <Text style={[styles.infoChipText, { color: chip.color }]}>{chip.label}</Text>
                     </View>
                   ))}
+                </View>
+              </View>
+            ) : null}
+
+            {(farm.sustainable_practices || farm.sustainablePractices) && (farm.sustainable_practices?.length > 0 || farm.sustainablePractices?.length > 0) ? (
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionHeading}>Pratiques durables</Text>
+                <View style={styles.chipsGrid}>
+                  {(farm.sustainable_practices || farm.sustainablePractices || []).map((practice, index) => (
+                    <View
+                      key={`practice-${index}`}
+                      style={styles.infoChip}
+                    >
+                      <Ionicons name="leaf-outline" size={14} color="#2F8F46" />
+                      <Text style={styles.infoChipText}>{practice}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            {(farm.delivery || farm.pickup || farm.farm_shop || farm.farmShop) ? (
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionHeading}>Services disponibles</Text>
+                <View style={styles.servicesList}>
+                  {farm.delivery ? (
+                    <View style={styles.serviceItem}>
+                      <Ionicons name="checkmark-circle" size={18} color="#2F8F46" />
+                      <Text style={styles.serviceItemText}>Livraison</Text>
+                    </View>
+                  ) : null}
+                  {farm.pickup ? (
+                    <View style={styles.serviceItem}>
+                      <Ionicons name="checkmark-circle" size={18} color="#2F8F46" />
+                      <Text style={styles.serviceItemText}>Retrait sur place</Text>
+                    </View>
+                  ) : null}
+                  {(farm.farm_shop || farm.farmShop) ? (
+                    <View style={styles.serviceItem}>
+                      <Ionicons name="checkmark-circle" size={18} color="#2F8F46" />
+                      <Text style={styles.serviceItemText}>Magasin à la ferme</Text>
+                    </View>
+                  ) : null}
                 </View>
               </View>
             ) : null}
@@ -601,6 +687,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#2F8F46',
+  },
+  servicesList: {
+    gap: 12,
+    marginTop: 4,
+  },
+  serviceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+  },
+  serviceItemText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#405243',
   },
   sectionRow: {
     flexDirection: 'row',

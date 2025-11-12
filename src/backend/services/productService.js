@@ -1,4 +1,11 @@
 import { supabase, STORAGE_BUCKETS } from '../config/supabase';
+import {
+  validateAndSanitizeTitle,
+  validateAndSanitizeText,
+  validateAndSanitizeNumber,
+  sanitizeString,
+  sanitizeArray,
+} from '../../utils/inputSanitizer';
 
 export const productService = {
   // Récupérer tous les produits
@@ -63,10 +70,70 @@ export const productService = {
   // Créer un nouveau produit
   addProduct: async (productData) => {
     try {
-      
+      // Nettoyer les données du produit
+      const cleanedData = { ...productData };
+
+      // Valider et nettoyer le nom
+      if (productData.name) {
+        const nameResult = validateAndSanitizeTitle(productData.name, {
+          required: true,
+          maxLength: 255,
+        });
+        if (!nameResult.valid) {
+          throw new Error(`Nom du produit: ${nameResult.error}`);
+        }
+        cleanedData.name = nameResult.cleaned;
+      }
+
+      // Valider et nettoyer la description
+      if (productData.description) {
+        const descResult = validateAndSanitizeText(productData.description, {
+          maxLength: 5000,
+          required: false,
+        });
+        if (!descResult.valid) {
+          throw new Error(`Description: ${descResult.error}`);
+        }
+        cleanedData.description = descResult.cleaned;
+      }
+
+      // Valider et nettoyer le prix
+      if (productData.price !== undefined && productData.price !== null) {
+        const priceResult = validateAndSanitizeNumber(productData.price, {
+          min: 0,
+          allowDecimals: true,
+          allowNegative: false,
+        });
+        if (!priceResult.valid) {
+          throw new Error(`Prix: ${priceResult.error}`);
+        }
+        cleanedData.price = priceResult.cleaned;
+      }
+
+      // Valider la devise
+      const allowedCurrencies = ['CDF', 'USD'];
+      if (productData.currency && !allowedCurrencies.includes(productData.currency)) {
+        cleanedData.currency = 'CDF';
+      }
+
+      // Nettoyer les images (tableau d'URLs)
+      if (productData.images && Array.isArray(productData.images)) {
+        cleanedData.images = sanitizeArray(productData.images, { maxLength: 500 });
+      }
+
+      // Nettoyer l'unité
+      if (productData.unit) {
+        cleanedData.unit = sanitizeString(productData.unit, { maxLength: 50 });
+      }
+
+      // Nettoyer les tags
+      if (productData.tags && Array.isArray(productData.tags)) {
+        cleanedData.tags = sanitizeArray(productData.tags, { maxLength: 50 });
+      }
+
       const { data, error } = await supabase
         .from('products')
-        .insert([productData])
+        .insert([cleanedData])
         .select(`
           *,
           farms (
@@ -97,12 +164,74 @@ export const productService = {
   // Mettre à jour un produit
   updateProduct: async (productId, updates) => {
     try {
+      const cleanedUpdates = {
+        updated_at: new Date().toISOString(),
+      };
+
+      // Nettoyer les champs si présents
+      if (updates.name !== undefined) {
+        const nameResult = validateAndSanitizeTitle(updates.name, {
+          required: false,
+          maxLength: 255,
+        });
+        if (!nameResult.valid) {
+          throw new Error(`Nom du produit: ${nameResult.error}`);
+        }
+        cleanedUpdates.name = nameResult.cleaned;
+      }
+
+      if (updates.description !== undefined) {
+        const descResult = validateAndSanitizeText(updates.description, {
+          maxLength: 5000,
+          required: false,
+        });
+        if (!descResult.valid) {
+          throw new Error(`Description: ${descResult.error}`);
+        }
+        cleanedUpdates.description = descResult.cleaned;
+      }
+
+      if (updates.price !== undefined && updates.price !== null) {
+        const priceResult = validateAndSanitizeNumber(updates.price, {
+          min: 0,
+          allowDecimals: true,
+          allowNegative: false,
+        });
+        if (!priceResult.valid) {
+          throw new Error(`Prix: ${priceResult.error}`);
+        }
+        cleanedUpdates.price = priceResult.cleaned;
+      }
+
+      if (updates.currency !== undefined) {
+        const allowedCurrencies = ['CDF', 'USD'];
+        cleanedUpdates.currency = allowedCurrencies.includes(updates.currency)
+          ? updates.currency
+          : 'CDF';
+      }
+
+      if (updates.images !== undefined && Array.isArray(updates.images)) {
+        cleanedUpdates.images = sanitizeArray(updates.images, { maxLength: 500 });
+      }
+
+      if (updates.unit !== undefined) {
+        cleanedUpdates.unit = sanitizeString(updates.unit, { maxLength: 50 });
+      }
+
+      if (updates.tags !== undefined && Array.isArray(updates.tags)) {
+        cleanedUpdates.tags = sanitizeArray(updates.tags, { maxLength: 50 });
+      }
+
+      // Copier les autres champs non textuels
+      Object.keys(updates).forEach(key => {
+        if (!['name', 'description', 'price', 'currency', 'images', 'unit', 'tags'].includes(key)) {
+          cleanedUpdates[key] = updates[key];
+        }
+      });
+
       const { data, error } = await supabase
         .from('products')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
+        .update(cleanedUpdates)
         .eq('id', productId)
         .select(`
           *,

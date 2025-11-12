@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, Alert, Image } from 'react-native';
-
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container , ScreenWrapper } from '../../../components/ui';
 import { 
   fetchServices, 
   deleteService,
@@ -24,6 +23,7 @@ import {
 export default function ServicesManagement({ navigation }) {
   const dispatch = useDispatch();
   const [searchQuery, setSearchQueryLocal] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   
   // Sélecteurs Redux
   const services = useSelector(selectAdminServices);
@@ -121,105 +121,130 @@ export default function ServicesManagement({ navigation }) {
     );
   };
 
-  const ServiceCard = ({ service }) => (
+  const ServiceCard = ({ service }) => {
+    // Récupérer l'image comme dans ServiceDetail.jsx
+    const serviceImage = service.image || null;
+    const isActive = service.is_active || false;
+    
+    return (
     <TouchableOpacity 
       style={styles.serviceCard}
       onPress={() => handleViewService(service)}
+        activeOpacity={0.7}
     >
-      <View style={styles.serviceHeader}>
+        {/* Image du service */}
+        <View style={styles.serviceImageContainer}>
+          {serviceImage ? (
         <Image 
-          source={{ uri: service.image }} 
+              source={{ uri: serviceImage }}
           style={styles.serviceImage}
           resizeMode="cover"
         />
-        <View style={styles.serviceInfo}>
-          <View style={styles.serviceTitleRow}>
-            <Text style={styles.serviceName}>{service.name}</Text>
-            <View style={[
-              styles.statusBadge, 
-              { backgroundColor: service.is_active ? '#4CAF50' + '20' : '#F44336' + '20' }
-            ]}>
-              <Text style={[
-                styles.statusText, 
-                { color: service.is_active ? '#4CAF50' : '#F44336' }
-              ]}>
-                {service.is_active ? 'Actif' : 'Inactif'}
-              </Text>
+          ) : (
+            <View style={styles.serviceImagePlaceholder}>
+              <Ionicons name="image-outline" size={32} color="#CBD5E0" />
             </View>
+          )}
+          
+          {/* Badges overlay */}
+          <View style={styles.imageBadges}>
+            {!isActive && (
+              <View style={[styles.badge, styles.badgeInactive]}>
+                <Ionicons name="pause-circle" size={12} color="#FFFFFF" />
+                <Text style={styles.badgeText}>Inactif</Text>
+              </View>
+            )}
+        </View>
+      </View>
+
+        {/* Informations du service */}
+        <View style={styles.serviceContent}>
+          <View style={styles.serviceHeader}>
+            <View style={styles.serviceInfo}>
+              <Text style={styles.serviceName} numberOfLines={2}>
+                {service.name || 'Service sans nom'}
+              </Text>
+              <View style={styles.serviceMeta}>
+                <View style={styles.metaItem}>
+                  <Ionicons name="grid-outline" size={14} color="#777E5C" />
+                  <Text style={styles.metaText}>
+                    {service.categories?.name || 'Non catégorisé'}
+          </Text>
+        </View>
+              </View>
+        </View>
+      </View>
+          
+          {/* Prix et détails */}
+          <View style={styles.serviceFooter}>
+            <View style={styles.priceContainer}>
+              <Ionicons name="cash-outline" size={16} color="#4CAF50" />
+              <Text style={styles.servicePrice}>{service.price || 'Sur devis'}</Text>
+            </View>
+            {service.rating && (
+              <View style={styles.ratingContainer}>
+                <Ionicons name="star" size={16} color="#FF9800" />
+                <Text style={styles.ratingText}>
+                  {service.rating.toFixed(1)} ({service.review_count || 0})
+                </Text>
+              </View>
+            )}
           </View>
-          <Text style={styles.serviceCategory}>{service.categories?.name || 'Non catégorisé'}</Text>
-          <Text style={styles.serviceDescription} numberOfLines={2}>
-            {service.short_description || service.description}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.serviceDetails}>
-        <View style={styles.serviceDetail}>
-          <Ionicons name="cash-outline" size={16} color="#777E5C" />
-          <Text style={styles.serviceDetailText}>{service.price}</Text>
-        </View>
-        <View style={styles.serviceDetail}>
-          <Ionicons name="star-outline" size={16} color="#777E5C" />
-          <Text style={styles.serviceDetailText}>
-            {service.rating ? `${(service.rating || 0).toFixed(1)} (${service.review_count || 0})` : 'Pas d\'avis'}
-          </Text>
-        </View>
-        <View style={styles.serviceDetail}>
-          <Ionicons name="time-outline" size={16} color="#777E5C" />
-          <Text style={styles.serviceDetailText}>{service.delivery_time || 'Non spécifié'}</Text>
-        </View>
-      </View>
-
-      <View style={styles.serviceActions}>
-        <View style={styles.serviceActionsRow}>
           
+          {/* Actions */}
+          <View style={styles.serviceActions}>
           <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => handleViewService(service)}
-          >
-            <Ionicons name="eye-outline" size={16} color="#4CAF50" />
-            <Text style={styles.actionButtonText}>Voir</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => handleEditService(service)}
-          >
-            <Ionicons name="pencil-outline" size={16} color="#2196F3" />
+              style={[styles.actionButton, styles.actionButtonEdit]}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleEditService(service);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="create-outline" size={18} color="#2196F3" />
             <Text style={styles.actionButtonText}>Modifier</Text>
           </TouchableOpacity>
-        </View>
-        <View style={styles.serviceActionsRow}>
         
           <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: service.is_active ? '#FFEBEE' : '#E8F5E8' }]}
-            onPress={() => handleToggleStatus(service)}
+              style={[
+                styles.actionButton,
+                isActive ? styles.actionButtonDisable : styles.actionButtonEnable
+              ]}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleToggleStatus(service);
+              }}
+              activeOpacity={0.7}
           >
             <Ionicons 
-              name={service.is_active ? 'pause-outline' : 'play-outline'} 
-              size={16} 
-              color={service.is_active ? '#F44336' : '#4CAF50'} 
+                name={isActive ? 'pause-outline' : 'play-outline'} 
+                size={18} 
+                color={isActive ? '#F44336' : '#4CAF50'} 
             />
             <Text style={[
               styles.actionButtonText, 
-              { color: service.is_active ? '#F44336' : '#4CAF50' }
+                isActive ? styles.actionButtonTextDisable : styles.actionButtonTextEnable
             ]}>
-              {service.is_active ? 'Désactiver' : 'Activer'}
+                {isActive ? 'Désactiver' : 'Activer'}
             </Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: '#FFEBEE' }]}
-            onPress={() => handleDeleteService(service)}
-          >
-            <Ionicons name="trash-outline" size={16} color="#F44336" />
-            <Text style={[styles.actionButtonText, { color: '#F44336' }]}>Supprimer</Text>
+              style={[styles.actionButton, styles.actionButtonDelete]}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDeleteService(service);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="trash-outline" size={18} color="#F44336" />
+              <Text style={styles.actionButtonTextDelete}>Supprimer</Text>
           </TouchableOpacity>
         </View>
       </View>
     </TouchableOpacity>
   );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
@@ -250,100 +275,93 @@ export default function ServicesManagement({ navigation }) {
     );
   }
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <ScreenWrapper style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
-          style={styles.backButton}
+          style={styles.menuButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color="#283106" />
         </TouchableOpacity>
-        <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Gestion des Services</Text>
-          <Text style={styles.headerSubtitle}>{stats.total} service(s) • {stats.active} actif(s)</Text>
-        </View>
         <TouchableOpacity 
           style={styles.addButton}
           onPress={() => navigation.navigate('AdminServiceForm', { mode: 'add' })}
+          activeOpacity={0.7}
         >
           <Ionicons name="add" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Statistiques */}
-        <Container style={styles.section}>
-          <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{stats.total}</Text>
-              <Text style={styles.statLabel}>Total</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{stats.active}</Text>
-              <Text style={styles.statLabel}>Actifs</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{stats.categories}</Text>
-              <Text style={styles.statLabel}>Catégories</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{(stats.avgRating || 0).toFixed(1)}</Text>
-              <Text style={styles.statLabel}>Note moy.</Text>
-            </View>
-          </View>
-        </Container>
-
-        {/* Barre de recherche */}
-        <Container style={styles.section}>
-          <View style={styles.searchContainer}>
-            <Ionicons name="search-outline" size={20} color="#777E5C" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Rechercher par nom, description, catégorie..."
-              value={searchQuery}
-              onChangeText={setSearchQueryLocal}
-              placeholderTextColor="#999"
+      {/* Barre de recherche */}
+      <View style={styles.searchSection}>
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={20} color="#777E5C" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Rechercher un service..."
+            value={searchQuery}
+            onChangeText={setSearchQueryLocal}
+            placeholderTextColor="#999999"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQueryLocal('')} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={20} color="#777E5C" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity 
+            onPress={() => setShowFilters(!showFilters)} 
+            style={styles.filterToggleButton}
+          >
+            <Ionicons 
+              name={showFilters ? "filter" : "filter-outline"} 
+              size={20} 
+              color={showFilters ? "#4CAF50" : "#777E5C"} 
             />
-          </View>
-        </Container>
+          </TouchableOpacity>
+        </View>
+      </View>
 
-        {/* Filtres par catégorie */}
-        <Container style={styles.section}>
-          <Text style={styles.sectionTitle}>Filtrer par catégorie</Text>
+      {/* Filtres par catégorie */}
+      {showFilters && (
+        <View style={styles.filterSection}>
+          <Text style={styles.filterSectionTitle}>Filtrer par catégorie</Text>
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
-            style={styles.categoryFilters}
+            style={styles.filterScroll}
           >
             {categoryOptions.map((option) => (
               <TouchableOpacity
                 key={option.id}
                 style={[
-                  styles.categoryFilter,
-                  filters.category === option.id && styles.selectedCategoryFilter
+                  styles.filterChip,
+                  filters.category === option.id && styles.filterChipActive
                 ]}
                 onPress={() => dispatch(setCategoryFilter(option.id))}
               >
                 <Ionicons 
                   name={option.icon} 
                   size={16} 
-                  color={filters.category === option.id ? '#FFFFFF' : '#777E5C'} 
+                  color={filters.category === option.id ? '#4CAF50' : '#777E5C'} 
                 />
                 <Text style={[
-                  styles.categoryFilterText,
-                  filters.category === option.id && styles.selectedCategoryFilterText
+                  styles.filterChipText,
+                  filters.category === option.id && styles.filterChipTextActive
                 ]}>
                   {option.label}
                 </Text>
                 <View style={[
-                  styles.categoryCount,
-                  filters.category === option.id && styles.selectedCategoryCount
+                  styles.filterChipCount,
+                  filters.category === option.id && styles.filterChipCountActive
                 ]}>
                   <Text style={[
-                    styles.categoryCountText,
-                    filters.category === option.id && styles.selectedCategoryCountText
+                    styles.filterChipCountText,
+                    filters.category === option.id && styles.filterChipCountTextActive
                   ]}>
                     {option.count}
                   </Text>
@@ -351,43 +369,45 @@ export default function ServicesManagement({ navigation }) {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </Container>
+        </View>
+      )}
 
-        {/* Filtres par statut */}
-        <Container style={styles.section}>
-          <Text style={styles.sectionTitle}>Filtrer par statut</Text>
+      {/* Filtres par statut */}
+      {showFilters && (
+        <View style={styles.filterSection}>
+          <Text style={styles.filterSectionTitle}>Filtrer par statut</Text>
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
-            style={styles.statusFilters}
+            style={styles.filterScroll}
           >
             {statusOptions.map((option) => (
               <TouchableOpacity
                 key={option.id}
                 style={[
-                  styles.statusFilter,
-                  filters.status === option.id && styles.selectedStatusFilter
+                  styles.filterChip,
+                  filters.status === option.id && styles.filterChipActive
                 ]}
                 onPress={() => dispatch(setStatusFilter(option.id))}
               >
                 <Ionicons 
                   name={option.icon} 
                   size={16} 
-                  color={filters.status === option.id ? '#FFFFFF' : '#777E5C'} 
+                  color={filters.status === option.id ? '#4CAF50' : '#777E5C'} 
                 />
                 <Text style={[
-                  styles.statusFilterText,
-                  filters.status === option.id && styles.selectedStatusFilterText
+                  styles.filterChipText,
+                  filters.status === option.id && styles.filterChipTextActive
                 ]}>
                   {option.label}
                 </Text>
                 <View style={[
-                  styles.statusCount,
-                  filters.status === option.id && styles.selectedStatusCount
+                  styles.filterChipCount,
+                  filters.status === option.id && styles.filterChipCountActive
                 ]}>
                   <Text style={[
-                    styles.statusCountText,
-                    filters.status === option.id && styles.selectedStatusCountText
+                    styles.filterChipCountText,
+                    filters.status === option.id && styles.filterChipCountTextActive
                   ]}>
                     {option.count}
                   </Text>
@@ -395,71 +415,73 @@ export default function ServicesManagement({ navigation }) {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </Container>
+        </View>
+      )}
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Statistiques */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statCard}>
+            <Ionicons name="construct-outline" size={24} color="#4CAF50" />
+            <Text style={styles.statValue}>{stats.total}</Text>
+              <Text style={styles.statLabel}>Total</Text>
+            </View>
+            <View style={styles.statCard}>
+            <Ionicons name="checkmark-circle-outline" size={24} color="#4CAF50" />
+            <Text style={styles.statValue}>{stats.active}</Text>
+              <Text style={styles.statLabel}>Actifs</Text>
+            </View>
+            <View style={styles.statCard}>
+            <Ionicons name="close-circle-outline" size={24} color="#F44336" />
+            <Text style={styles.statValue}>{stats.inactive}</Text>
+            <Text style={styles.statLabel}>Inactifs</Text>
+          </View>
+          </View>
 
         {/* Liste des services */}
-        <Container style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Services ({filteredServices.length})
-          </Text>
-          
-          {filteredServices.length > 0 ? (
-            <View style={styles.servicesList}>
-              {filteredServices.map((service) => (
-                <ServiceCard key={service.id} service={service} />
-              ))}
-            </View>
-          ) : (
-            renderEmptyState()
-          )}
-        </Container>
-
-        {/* Espacement */}
-        <View style={{ height: 20 }} />
+        {loading && filteredServices.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <Ionicons name="hourglass-outline" size={48} color="#4CAF50" />
+            <Text style={styles.loadingText}>Chargement des services...</Text>
+          </View>
+        ) : filteredServices.length === 0 ? (
+          renderEmptyState()
+        ) : (
+          <View style={styles.servicesList}>
+            {filteredServices.map((service) => (
+              <ServiceCard key={service.id} service={service} />
+            ))}
+          </View>
+        )}
       </ScrollView>
-    </ScreenWrapper>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#777E5C',
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: '#E5E7EB',
   },
-  backButton: {
+  menuButton: {
     padding: 8,
-    marginRight: 8,
-  },
-  headerContent: {
-    flex: 1,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#283106',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#777E5C',
-    marginTop: 2,
+    flex: 1,
+    textAlign: 'center',
   },
   addButton: {
     backgroundColor: '#4CAF50',
@@ -468,265 +490,306 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#4CAF50',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  scrollView: {
+  searchSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
     flex: 1,
-  },
-  section: {
-    marginVertical: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 15,
     color: '#283106',
-    marginBottom: 12,
+    paddingVertical: 12,
+  },
+  clearButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  filterToggleButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  filterSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterSectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#777E5C',
+    marginBottom: 8,
+  },
+  filterScroll: {
+    paddingLeft: 0,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#FFFFFF',
+    marginRight: 8,
+  },
+  filterChipActive: {
+    borderColor: '#4CAF50',
+    backgroundColor: '#F0FDF4',
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#777E5C',
+  },
+  filterChipTextActive: {
+    color: '#4CAF50',
+  },
+  filterChipCount: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  filterChipCountActive: {
+    backgroundColor: '#D1FAE5',
+  },
+  filterChipCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#777E5C',
+  },
+  filterChipCountTextActive: {
+    color: '#4CAF50',
+  },
+  content: {
+    flex: 1,
   },
   // Statistiques
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    padding: 20,
+    gap: 12,
   },
   statCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    padding: 16,
     borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
-    marginHorizontal: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  statNumber: {
+  statValue: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4CAF50',
+    fontWeight: '700',
+    color: '#283106',
+    marginTop: 8,
   },
   statLabel: {
     fontSize: 12,
     color: '#777E5C',
-    textAlign: 'center',
     marginTop: 4,
+    fontWeight: '500',
   },
-  // Recherche
-  searchContainer: {
-    flexDirection: 'row',
+  loadingContainer: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+    paddingVertical: 60,
   },
-  searchInput: {
-    flex: 1,
+  loadingText: {
     fontSize: 16,
-    color: '#283106',
-    marginLeft: 12,
-  },
-  // Filtres de catégorie
-  categoryFilters: {
-    marginTop: 8,
-  },
-  categoryFilter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginRight: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  selectedCategoryFilter: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
-  },
-  categoryFilterText: {
-    fontSize: 14,
     color: '#777E5C',
-    marginLeft: 6,
-    marginRight: 8,
+    marginTop: 16,
   },
-  selectedCategoryFilterText: {
-    color: '#FFFFFF',
-  },
-  categoryCount: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    minWidth: 20,
-    alignItems: 'center',
-  },
-  selectedCategoryCount: {
-    backgroundColor: 'rgba(255,255,255,0.3)',
-  },
-  categoryCountText: {
-    fontSize: 12,
-    color: '#777E5C',
-    fontWeight: '600',
-  },
-  selectedCategoryCountText: {
-    color: '#FFFFFF',
-  },
-  // Filtres de statut
-  statusFilters: {
-    marginTop: 8,
-  },
-  statusFilter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginRight: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  selectedStatusFilter: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
-  },
-  statusFilterText: {
-    fontSize: 14,
-    color: '#777E5C',
-    marginLeft: 6,
-    marginRight: 8,
-  },
-  selectedStatusFilterText: {
-    color: '#FFFFFF',
-  },
-  statusCount: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    minWidth: 20,
-    alignItems: 'center',
-  },
-  selectedStatusCount: {
-    backgroundColor: 'rgba(255,255,255,0.3)',
-  },
-  statusCountText: {
-    fontSize: 12,
-    color: '#777E5C',
-    fontWeight: '600',
-  },
-  selectedStatusCountText: {
-    color: '#FFFFFF',
-  },
-  // Liste des services
   servicesList: {
-    marginTop: 8,
+    padding: 20,
+    gap: 16,
   },
   serviceCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  serviceHeader: {
-    flexDirection: 'row',
-    marginBottom: 12,
+  serviceImageContainer: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#F8FAFC',
+    position: 'relative',
   },
   serviceImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    marginRight: 12,
+    width: '100%',
+    height: '100%',
   },
-  serviceInfo: {
-    flex: 1,
+  serviceImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
   },
-  serviceTitleRow: {
+  imageBadges: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 6,
+    flexWrap: 'wrap',
     alignItems: 'flex-start',
-    marginBottom: 4,
   },
-  serviceName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#283106',
-    flex: 1,
-    marginRight: 8,
-  },
-  statusBadge: {
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+    gap: 4,
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
+  badgeInactive: {
+    backgroundColor: 'rgba(244, 67, 54, 0.9)',
   },
-  serviceCategory: {
-    fontSize: 12,
-    color: '#4CAF50',
-    fontWeight: '600',
-    marginBottom: 4,
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  serviceDescription: {
-    fontSize: 14,
-    color: '#777E5C',
-    lineHeight: 20,
+  serviceContent: {
+    padding: 16,
   },
-  serviceDetails: {
+  serviceHeader: {
     marginBottom: 12,
   },
-  serviceDetail: {
+  serviceInfo: {
+    gap: 8,
+  },
+  serviceName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#283106',
+    lineHeight: 24,
+  },
+  serviceMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    gap: 6,
   },
-  serviceDetailText: {
-    fontSize: 14,
+  metaText: {
+    fontSize: 13,
     color: '#777E5C',
-    marginLeft: 8,
+    fontWeight: '500',
   },
-  serviceActions: {
+  serviceFooter: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: 12,
+    marginBottom: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-   
+    borderTopColor: '#F1F5F9',
   },
-  serviceActionsRow: {
+  priceContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
+    gap: 6,
+  },
+  servicePrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4CAF50',
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ratingText: {
+    fontSize: 14,
+    color: '#777E5C',
+    fontWeight: '600',
+  },
+  serviceActions: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    
+    borderTopColor: '#F1F5F9',
   },
   actionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#F5F5F5',
-    gap: 4,
-    marginHorizontal: 4,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  actionButtonEdit: {
+    backgroundColor: '#E3F2FD',
+  },
+  actionButtonDisable: {
+    backgroundColor: '#FFEBEE',
+  },
+  actionButtonEnable: {
+    backgroundColor: '#E8F5E9',
+  },
+  actionButtonDelete: {
+    backgroundColor: '#FFEBEE',
   },
   actionButtonText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
+    color: '#2196F3',
+  },
+  actionButtonTextDisable: {
+    color: '#F44336',
+  },
+  actionButtonTextEnable: {
     color: '#4CAF50',
+  },
+  actionButtonTextDelete: {
+    color: '#F44336',
   },
   // État vide
   emptyContainer: {

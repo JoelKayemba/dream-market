@@ -1,20 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-
+import React, { useState, useEffect, memo } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Text,
+  TextInput,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  SafeAreaView,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Button , ScreenWrapper } from '../../../components/ui';
-import { addService, updateService, selectAdminServicesLoading, selectAdminCategories, fetchCategories } from '../../../store/admin/servicesSlice';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import {
+  addService,
+  updateService,
+  selectAdminServicesLoading,
+  selectAdminCategories,
+  fetchCategories,
+} from '../../../store/admin/servicesSlice';
+import SafeAreaWrapper from '../../../components/SafeAreaWrapper';
+
 import { useImagePicker } from '../../../hooks/useImagePicker';
 import { storageService } from '../../../backend/services/storageService';
 
 export default function ServiceForm({ route, navigation }) {
   const { mode = 'add', service } = route.params || {};
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
+
   const loading = useSelector(selectAdminServicesLoading);
-  const categories = useSelector(selectAdminCategories);
+  const categories = useSelector(selectAdminCategories) || [];
+
   const { showImagePickerOptions, selectedImages, setSelectedImages } = useImagePicker();
-  
+
   const [formData, setFormData] = useState({
     name: service?.name || '',
     description: service?.description || '',
@@ -27,7 +50,7 @@ export default function ServiceForm({ route, navigation }) {
     delivery_time: service?.delivery_time || '',
     contact: {
       phone: service?.contact?.phone || '',
-      email: service?.contact?.email || ''
+      email: service?.contact?.email || '',
     },
     features: service?.features?.join('\n') || '',
     is_active: service?.is_active ?? true,
@@ -36,681 +59,656 @@ export default function ServiceForm({ route, navigation }) {
   const [showCategorySelector, setShowCategorySelector] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Charger les catégories au montage
   useEffect(() => {
     dispatch(fetchCategories());
   }, [dispatch]);
 
-  // Initialiser les images en mode édition
   useEffect(() => {
     if (mode === 'edit' && service?.image) {
       setSelectedImages([{ uri: service.image }]);
     }
-  }, [service, mode]);
+  }, [service, mode, setSelectedImages]);
+
+  const handleImageSelection = (image) => setSelectedImages([image]);
+
+  const selectCategory = (category) => {
+    setFormData((p) => ({ ...p, category_id: category.id }));
+    setShowCategorySelector(false);
+  };
+
+  const toggleBooleanField = (field) => setFormData((p) => ({ ...p, [field]: !p[field] }));
 
   const handleSave = async () => {
-    // Validation
     if (!formData.name || !formData.description || !formData.category_id) {
       Alert.alert('Erreur', 'Veuillez remplir le nom, la description et la catégorie');
       return;
     }
-
     if (selectedImages.length === 0) {
       Alert.alert('Erreur', 'Veuillez ajouter une image pour le service');
       return;
     }
 
     setIsUploading(true);
-
     try {
-      //  Upload de l'image vers Supabase
       let imageUrl = selectedImages[0]?.uri;
-      
-      // Si l'image commence par "file://", c'est une nouvelle image à uploader
       if (imageUrl && imageUrl.startsWith('file://')) {
-        
-        const uploadResult = await storageService.uploadImage(
-          imageUrl,
-          'services',  // Type de bucket
-          ''           // Pas de dossier spécifique (sera généré avec ID unique)
-        );
-        
+        const uploadResult = await storageService.uploadImage(imageUrl, 'services', '');
         imageUrl = uploadResult.url;
       }
 
-      const serviceData = {
+      const payload = {
         ...formData,
-        image: imageUrl,  // URL Supabase
-        min_order: formData.min_order ? parseInt(formData.min_order) : null,
-        features: formData.features ? formData.features.split('\n').filter(f => f.trim()) : [],
+        image: imageUrl,
+        min_order: formData.min_order ? parseInt(formData.min_order, 10) : null,
+        features: formData.features
+          ? formData.features.split('\n').map((f) => f.trim()).filter(Boolean)
+          : [],
         icon: '🔧',
       };
 
-     
-
       if (mode === 'add') {
-        await dispatch(addService(serviceData)).unwrap();
+        await dispatch(addService(payload)).unwrap();
         Alert.alert('Succès', 'Service ajouté avec succès');
       } else {
-        await dispatch(updateService({ id: service.id, serviceData })).unwrap();
+        await dispatch(updateService({ id: service.id, serviceData: payload })).unwrap();
         Alert.alert('Succès', 'Service modifié avec succès');
       }
-      
       navigation.goBack();
     } catch (error) {
       console.error('Erreur sauvegarde service:', error);
-      Alert.alert('Erreur', `Impossible de sauvegarder le service: ${error.message || error}`);
+      Alert.alert('Erreur', `Impossible de sauvegarder le service: ${error?.message || error}`);
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleImageSelection = (image) => {
-    setSelectedImages([image]);
-  };
+  const PrimaryButton = memo(function PrimaryButton({ title, onPress, loading: loadingBtn, disabled, style }) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={onPress}
+        disabled={disabled || loadingBtn}
+        style={[
+          styles.btnPrimary,
+          (disabled || loadingBtn) && styles.btnDisabled,
+          style,
+        ]}
+      >
+        {loadingBtn ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Text style={styles.btnPrimaryText}>{title}</Text>
+        )}
+      </TouchableOpacity>
+    );
+  });
 
-  const selectCategory = (category) => {
-    setFormData({ ...formData, category_id: category.id });
-    setShowCategorySelector(false);
-  };
+  const OutlineButton = memo(function OutlineButton({ title, onPress, disabled, style }) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={onPress}
+        disabled={disabled}
+        style={[styles.btnOutline, disabled && styles.btnOutlineDisabled, style]}
+      >
+        <Text style={styles.btnOutlineText}>{title}</Text>
+      </TouchableOpacity>
+    );
+  });
 
-  const toggleBooleanField = (field) => {
-    setFormData({ ...formData, [field]: !formData[field] });
-  };
+  const SectionTitle = memo(function SectionTitle({ children }) {
+    return (
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionTitle}>{children}</Text>
+        <View style={styles.sectionHairline} />
+      </View>
+    );
+  });
+
+  const FOOTER_HEIGHT = 60; // hauteur visuelle (hors safe-area)
 
   return (
-    <ScreenWrapper style={styles.container}>
+    <SafeAreaWrapper>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#283106" />
+        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={22} color="#283106" />
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>
-          {mode === 'add' ? 'Nouveau Service' : 'Modifier le Service'}
+          {mode === 'add' ? 'Nouveau service' : 'Modifier le service'}
         </Text>
-        <View style={styles.placeholder} />
+
+        <View style={styles.iconBtn} />
       </View>
 
-      <KeyboardAvoidingView 
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[
+            styles.content,
+            // On laisse de la place pour le footer ABSOLU pour éviter l’overlap
+            { paddingBottom: FOOTER_HEIGHT + insets.bottom + 12 },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Container style={styles.formSection}>
-            {/* Section Image */}
-            <Text style={styles.sectionTitle}>Image du Service</Text>
-            
-            <View style={styles.imageSection}>
-              <TouchableOpacity
-                style={styles.imageButton}
-                onPress={() => showImagePickerOptions(handleImageSelection)}
-              >
+          {/* IMAGE */}
+          <View style={styles.card}>
+            <SectionTitle>Image du service</SectionTitle>
+            <TouchableOpacity
+              style={styles.imageDrop}
+              activeOpacity={0.85}
+              onPress={() => showImagePickerOptions(handleImageSelection)}
+            >
+              <View style={styles.imageDropRow}>
+                <View style={styles.imageIconWrap}>
+                  <Ionicons name="camera-outline" size={22} color="#283106" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  {selectedImages.length > 0 ? (
+                    <>
+                      <Text style={styles.imageTitle}>Image sélectionnée</Text>
+                      <Text style={styles.imageHint} numberOfLines={1}>
+                        {String(selectedImages[0]?.uri || '—')}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.imageTitle}>Ajouter une image</Text>
+                      <Text style={styles.imageHint}>JPEG/PNG – Poids raisonnable</Text>
+                    </>
+                  )}
+                </View>
                 {selectedImages.length > 0 ? (
-                  <View style={styles.imagePreview}>
-                    <Text style={styles.imagePreviewText}>Image sélectionnée</Text>
-                    <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-                  </View>
+                  <Ionicons name="checkmark-circle" size={22} color="#4CAF50" />
                 ) : (
-                  <View style={styles.imagePlaceholder}>
-                    <Ionicons name="camera-outline" size={48} color="#E0E0E0" />
-                    <Text style={styles.imagePlaceholderText}>Ajouter une image</Text>
-                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#777E5C" />
                 )}
-              </TouchableOpacity>
-            </View>
+              </View>
+            </TouchableOpacity>
+          </View>
 
-            {/* Informations principales */}
-            <Text style={styles.sectionTitle}>Informations Principales</Text>
-            
-            <View style={styles.formGroup}>
+          {/* INFOS PRINCIPALES */}
+          <View style={styles.card}>
+            <SectionTitle>Informations principales</SectionTitle>
+
+            <View style={styles.field}>
               <Text style={styles.label}>Nom du service *</Text>
               <TextInput
                 style={styles.input}
                 value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
+                onChangeText={(t) => setFormData((p) => ({ ...p, name: t }))}
                 placeholder="Livraison à domicile"
-                placeholderTextColor="#999"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
-            <View style={styles.formGroup}>
+            <View style={styles.field}>
               <Text style={styles.label}>Description courte *</Text>
               <TextInput
                 style={styles.input}
                 value={formData.short_description}
-                onChangeText={(text) => setFormData({ ...formData, short_description: text })}
-                placeholder="Description en quelques mots"
-                placeholderTextColor="#999"
+                onChangeText={(t) => setFormData((p) => ({ ...p, short_description: t }))}
+                placeholder="En quelques mots"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
-            <View style={styles.formGroup}>
+            <View style={styles.field}>
               <Text style={styles.label}>Description complète *</Text>
               <TextInput
-                style={styles.textArea}
-                value={formData.description}
-                onChangeText={(text) => setFormData({ ...formData, description: text })}
-                placeholder="Description détaillée du service"
-                placeholderTextColor="#999"
+                style={[styles.input, styles.textarea]}
                 multiline
-                numberOfLines={4}
+                numberOfLines={5}
                 textAlignVertical="top"
+                value={formData.description}
+                onChangeText={(t) => setFormData((p) => ({ ...p, description: t }))}
+                placeholder="Détaillez le service, les conditions, etc."
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
-            <View style={styles.formRow}>
-              <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+            <View style={styles.row}>
+              <View style={[styles.field, styles.col]}>
                 <Text style={styles.label}>Catégorie *</Text>
                 <TouchableOpacity
-                  style={styles.categorySelector}
+                  activeOpacity={0.85}
                   onPress={() => setShowCategorySelector(true)}
+                  style={styles.select}
                 >
-                  <Text style={styles.categorySelectorText}>
-                    {formData.category_id 
-                      ? categories.find(cat => cat.id === formData.category_id)?.name || 'Sélectionner une catégorie'
-                      : 'Sélectionner une catégorie'
-                    }
+                  <Text style={styles.selectText}>
+                    {formData.category_id
+                      ? (categories.find((c) => c.id === formData.category_id)?.name || 'Sélectionner…')
+                      : 'Sélectionner…'}
                   </Text>
-                  <Ionicons name="chevron-down" size={20} color="#777E5C" />
+                  <Ionicons name="chevron-down" size={18} color="#777E5C" />
                 </TouchableOpacity>
               </View>
-              <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+
+              <View style={[styles.field, styles.col]}>
                 <Text style={styles.label}>Prix</Text>
                 <TextInput
                   style={styles.input}
                   value={formData.price}
-                  onChangeText={(text) => setFormData({ ...formData, price: text })}
-                  placeholder="À partir de 50€"
-                  placeholderTextColor="#999"
+                  onChangeText={(t) => setFormData((p) => ({ ...p, price: t }))}
+                  placeholder="ex: a partir de 2000 Fc"
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
             </View>
 
-            <View style={styles.formGroup}>
+            <View style={styles.field}>
               <Text style={styles.label}>Détails du prix</Text>
               <TextInput
                 style={styles.input}
                 value={formData.price_details}
-                onChangeText={(text) => setFormData({ ...formData, price_details: text })}
-                placeholder="50€/heure de consultation"
-                placeholderTextColor="#999"
+                onChangeText={(t) => setFormData((p) => ({ ...p, price_details: t }))}
+                placeholder="ex: 2000 Fc/heure"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
+          </View>
 
-            {/* Informations de livraison */}
-            <Text style={styles.sectionTitle}>Informations de Livraison</Text>
-            
-            <View style={styles.formRow}>
-              <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                <Text style={styles.label}>Délai de livraison</Text>
+          {/* LIVRAISON */}
+          <View style={styles.card}>
+            <SectionTitle>Livraison</SectionTitle>
+
+            <View style={styles.row}>
+              <View style={[styles.field, styles.col]}>
+                <Text style={styles.label}>Délai</Text>
                 <TextInput
                   style={styles.input}
                   value={formData.delivery_time}
-                  onChangeText={(text) => setFormData({ ...formData, delivery_time: text })}
-                  placeholder="24-48h"
-                  placeholderTextColor="#999"
+                  onChangeText={(t) => setFormData((p) => ({ ...p, delivery_time: t }))}
+                  placeholder="24–48 h"
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
-              <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+              <View style={[styles.field, styles.col]}>
                 <Text style={styles.label}>Commande minimum</Text>
                 <TextInput
                   style={styles.input}
                   value={formData.min_order}
-                  onChangeText={(text) => setFormData({ ...formData, min_order: text })}
+                  onChangeText={(t) => setFormData((p) => ({ ...p, min_order: t }))}
                   placeholder="1"
                   keyboardType="numeric"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
             </View>
 
-            <View style={styles.formGroup}>
+            <View style={styles.field}>
               <Text style={styles.label}>Zone de couverture</Text>
               <TextInput
                 style={styles.input}
                 value={formData.coverage}
-                onChangeText={(text) => setFormData({ ...formData, coverage: text })}
-                placeholder="Pays de la Loire et Bretagne"
-                placeholderTextColor="#999"
+                onChangeText={(t) => setFormData((p) => ({ ...p, coverage: t }))}
+                placeholder="Ex: Pays de la Loire, Bretagne"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
+          </View>
 
-            {/* Contact */}
-            <Text style={styles.sectionTitle}>Informations de Contact</Text>
-            
-            <View style={styles.formRow}>
-              <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+          {/* CONTACT */}
+          <View style={styles.card}>
+            <SectionTitle>Contact</SectionTitle>
+
+            <View style={styles.row}>
+              <View style={[styles.field, styles.col]}>
                 <Text style={styles.label}>Téléphone</Text>
                 <TextInput
                   style={styles.input}
                   value={formData.contact.phone}
-                  onChangeText={(text) => setFormData({ 
-                    ...formData, 
-                    contact: { ...formData.contact, phone: text }
-                  })}
+                  onChangeText={(t) =>
+                    setFormData((p) => ({ ...p, contact: { ...p.contact, phone: t } }))
+                  }
                   placeholder="02 40 12 34 56"
                   keyboardType="phone-pad"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
-              <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+              <View style={[styles.field, styles.col]}>
                 <Text style={styles.label}>Email</Text>
                 <TextInput
                   style={styles.input}
                   value={formData.contact.email}
-                  onChangeText={(text) => setFormData({ 
-                    ...formData, 
-                    contact: { ...formData.contact, email: text }
-                  })}
-                  placeholder="service@dreammarket.fr"
+                  onChangeText={(t) =>
+                    setFormData((p) => ({ ...p, contact: { ...p.contact, email: t } }))
+                  }
+                  placeholder="service@exemple.fr"
                   keyboardType="email-address"
-                  placeholderTextColor="#999"
+                  autoCapitalize="none"
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
             </View>
+          </View>
 
-            {/* Fonctionnalités */}
-            <Text style={styles.sectionTitle}>Fonctionnalités</Text>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Fonctionnalités (une par ligne)</Text>
+          {/* FONCTIONNALITÉS */}
+          <View style={styles.card}>
+            <SectionTitle>Fonctionnalités</SectionTitle>
+            <View style={styles.field}>
+              <Text style={styles.label}>Une par ligne</Text>
               <TextInput
-                style={styles.textArea}
-                value={formData.features}
-                onChangeText={(text) => setFormData({ ...formData, features: text })}
-                placeholder="Livraison sous 24-48h&#10;Suivi en temps réel&#10;Emballages écologiques"
-                placeholderTextColor="#999"
+                style={[styles.input, styles.textarea]}
                 multiline
                 numberOfLines={6}
                 textAlignVertical="top"
+                value={formData.features}
+                onChangeText={(t) => setFormData((p) => ({ ...p, features: t }))}
+                placeholder={'Livraison 24–48 h\nSuivi en temps réel\nEmballages éco'}
+                placeholderTextColor="#9CA3AF"
               />
             </View>
+          </View>
 
-            {/* Options */}
-            <Text style={styles.sectionTitle}>Options</Text>
-            
-            <View style={styles.optionsContainer}>
-              <TouchableOpacity
-                style={styles.optionItem}
-                onPress={() => toggleBooleanField('is_active')}
-              >
-                <View style={styles.optionInfo}>
-                  <Text style={styles.optionLabel}>Service actif</Text>
-                  <Text style={styles.optionDescription}>Le service est disponible pour les clients</Text>
-                </View>
-                <View style={[
-                  styles.toggle,
-                  formData.is_active && styles.toggleActive
-                ]}>
-                  <View style={[
-                    styles.toggleThumb,
-                    formData.is_active && styles.toggleThumbActive
-                  ]} />
-                </View>
-              </TouchableOpacity>
-            </View>
-          </Container>
+          {/* OPTIONS */}
+          <View style={styles.card}>
+            <SectionTitle>Options</SectionTitle>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => toggleBooleanField('is_active')}
+              style={styles.toggleRow}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.toggleTitle}>Service actif</Text>
+                <Text style={styles.toggleHint}>Disponible pour les clients</Text>
+              </View>
+              <View style={[styles.toggle, formData.is_active && styles.toggleActive]}>
+                <View style={[styles.thumb, formData.is_active && styles.thumbActive]} />
+              </View>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Footer avec boutons */}
-      <View style={styles.footer}>
-        <Button
+      {/* FOOTER collé en bas */}
+      <View
+        style={[
+          styles.footer,
+          {
+            height: FOOTER_HEIGHT + insets.bottom,
+            paddingBottom: insets.bottom,
+          },
+        ]}
+      >
+        <OutlineButton
           title="Annuler"
           onPress={() => navigation.goBack()}
-          variant="outline"
-          style={styles.cancelButton}
           disabled={isUploading}
+          style={{ flex: 1 }}
         />
-        <Button
-          title={mode === 'add' ? 'Créer le service' : 'Modifier le service'}
+        <PrimaryButton
+          title={mode === 'add' ? 'Créer le service' : 'Enregistrer'}
           onPress={handleSave}
           loading={loading || isUploading}
+          disabled={isUploading}
+          style={{ flex: 1 }}
         />
       </View>
 
-      {/* Modal de chargement */}
-      {isUploading && (
-        <View style={styles.uploadModalOverlay}>
-          <View style={styles.uploadModalContent}>
-            <ActivityIndicator size="large" color="#4CAF50" />
-            <Text style={styles.uploadModalText}>Enregistrement...</Text>
+      {/* Overlay progression */}
+      {isUploading ? (
+        <View style={styles.overlay}>
+          <View style={styles.overlayCard}>
+            <ActivityIndicator size="large" color="#283106" />
+            <Text style={styles.overlayText}>Enregistrement…</Text>
           </View>
         </View>
-      )}
+      ) : null}
 
-      {/* Modal sélection catégorie */}
-      {showCategorySelector && (
+      {/* MODAL catégories */}
+      {showCategorySelector ? (
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Sélectionner une catégorie</Text>
-              <TouchableOpacity
-                onPress={() => setShowCategorySelector(false)}
-                style={styles.modalCloseButton}
-              >
-                <Ionicons name="close" size={24} color="#283106" />
+              <TouchableOpacity onPress={() => setShowCategorySelector(false)} style={styles.iconBtn}>
+                <Ionicons name="close" size={20} color="#283106" />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.categoryList}>
+
+            <ScrollView style={{ maxHeight: 360 }}>
               {categories.length > 0 ? (
-                categories.map((category) => (
+                categories.map((c) => (
                   <TouchableOpacity
-                    key={category.id}
-                    style={styles.categoryOption}
-                    onPress={() => selectCategory(category)}
+                    key={c.id}
+                    style={styles.optionRow}
+                    activeOpacity={0.9}
+                    onPress={() => selectCategory(c)}
                   >
-                    <View style={styles.categoryItem}>
-                      <Text style={styles.categoryEmoji}>{category.emoji}</Text>
-                      <Text style={styles.categoryOptionText}>{category.name}</Text>
-                    </View>
+                    <Text style={styles.optionEmoji}>{String(c.emoji || '🏷️')}</Text>
+                    <Text style={styles.optionText}>{String(c.name)}</Text>
+                    <Ionicons name="chevron-forward" size={18} color="#777E5C" />
                   </TouchableOpacity>
                 ))
               ) : (
-                <View style={styles.loadingContainer}>
-                  <Text style={styles.loadingText}>Chargement des catégories...</Text>
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>Chargement des catégories…</Text>
                 </View>
               )}
             </ScrollView>
           </View>
         </View>
-      )}
-    </ScreenWrapper>
+      ) : null}
+    </SafeAreaWrapper>
   );
 }
 
+/* ===== Palette conservée ===== */
+const COLORS = {
+  bg: '#f5f5f5',
+  ink: '#283106',
+  muted: '#777E5C',
+  accent: '#4CAF50',
+  border: '#E0E0E0',
+  card: '#FFFFFF',
+};
+
+/* ===== Styles ===== */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.card,
   },
-  backButton: {
+  iconBtn: {
     padding: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(40,49,6,0.06)',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#283106',
-  },
-  placeholder: {
-    width: 40,
-  },
-  keyboardView: {
     flex: 1,
+    textAlign: 'center',
+    color: COLORS.ink,
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
-  scrollView: {
-    flex: 1,
+
+  content: { padding: 16 },
+
+  card: {
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  formSection: {
-    paddingVertical: 20,
-  },
+
+  sectionHeaderRow: { marginBottom: 8 },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#283106',
-    marginBottom: 16,
-    marginTop: 8,
-  },
-  // Image section
-  imageSection: {
-    marginBottom: 16,
-  },
-  imageButton: {
-    width: '100%',
-    height: 200,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imagePreview: {
-    alignItems: 'center',
-  },
-  imagePreviewText: {
-    fontSize: 16,
-    color: '#4CAF50',
+    color: COLORS.ink,
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.2,
     marginBottom: 8,
   },
-  imagePlaceholder: {
-    alignItems: 'center',
+  sectionHairline: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    opacity: 0.9,
   },
-  imagePlaceholderText: {
-    fontSize: 16,
-    color: '#777E5C',
-    marginTop: 8,
-  },
-  // Form styles
-  formGroup: {
-    marginBottom: 16,
-  },
-  formRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#283106',
-    marginBottom: 8,
-  },
+
+  field: { marginBottom: 12 },
+  label: { color: COLORS.muted, fontSize: 13, fontWeight: '700', marginBottom: 6 },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.card,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: 16,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 16,
-    color: '#283106',
+    fontSize: 15,
+    color: COLORS.ink,
   },
-  textArea: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#283106',
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  categorySelector: {
+  textarea: { minHeight: 110, textAlignVertical: 'top' },
+
+  row: { flexDirection: 'row', gap: 10 },
+  col: { flex: 1 },
+
+  select: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: 16,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
     paddingVertical: 12,
+    backgroundColor: COLORS.card,
   },
-  categorySelectorText: {
-    fontSize: 16,
-    color: '#283106',
-    flex: 1,
+  selectText: { color: COLORS.ink, fontSize: 15 },
+
+  imageDrop: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: '#FAFAFA',
+    borderRadius: 12,
+    padding: 14,
   },
-  categoryItem: {
-    flexDirection: 'row',
+  imageDropRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  imageIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'rgba(40,49,6,0.08)',
     alignItems: 'center',
-    gap: 12,
-  },
-  categoryEmoji: {
-    fontSize: 20,
-  },
-  // Options
-  optionsContainer: {
-    marginBottom: 16,
-  },
-  optionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  optionInfo: {
-    flex: 1,
-  },
-  optionLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#283106',
-    marginBottom: 4,
-  },
-  optionDescription: {
-    fontSize: 14,
-    color: '#777E5C',
-  },
-  toggle: {
-    width: 50,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#E0E0E0',
     justifyContent: 'center',
-    padding: 2,
   },
-  toggleActive: {
-    backgroundColor: '#4CAF50',
+  imageTitle: { color: COLORS.ink, fontWeight: '700' },
+  imageHint: { color: COLORS.muted, fontSize: 12, marginTop: 2 },
+
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 4 },
+  toggleTitle: { color: COLORS.ink, fontWeight: '700' },
+  toggleHint: { color: COLORS.muted, fontSize: 12, marginTop: 2 },
+  toggle: {
+    width: 48,
+    height: 28,
+    borderRadius: 16,
+    backgroundColor: '#E5E7EB',
+    padding: 3,
+    justifyContent: 'center',
   },
-  toggleThumb: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+  toggleActive: { backgroundColor: '#4CAF50' },
+  thumb: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: '#FFFFFF',
     alignSelf: 'flex-start',
   },
-  toggleThumbActive: {
-    alignSelf: 'flex-end',
-  },
-  // Footer
+  thumbActive: { alignSelf: 'flex-end' },
+
+  /* Footer ABSOLU (colle en bas) */
   footer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-  },
-  // Modal
-  modalOverlay: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
+    bottom: 0,            // colle au bas
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border,
+    backgroundColor: COLORS.card,
   },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
+  btnPrimary: {
+    backgroundColor: COLORS.ink,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  btnPrimaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  btnDisabled: { opacity: 0.6 },
+  btnOutline: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+  },
+  btnOutlineText: { color: COLORS.ink, fontSize: 15, fontWeight: '700' },
+  btnOutlineDisabled: { opacity: 0.6 },
+
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overlayCard: {
+    backgroundColor: COLORS.card,
     borderRadius: 16,
-    padding: 20,
-    margin: 20,
-    maxHeight: '80%',
-    minWidth: '80%',
+    padding: 22,
+    minWidth: 220,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  overlayText: { marginTop: 10, color: COLORS.ink, fontWeight: '700' },
+
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 14,
+    width: '90%',
+    maxWidth: 520,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#283106',
-  },
-  modalCloseButton: {
-    padding: 4,
-  },
-  categoryList: {
-    maxHeight: 300,
-  },
-  categoryOption: {
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingBottom: 8,
     marginBottom: 8,
-    backgroundColor: '#F5F5F5',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
-  categoryOptionText: {
-    fontSize: 16,
-    color: '#283106',
-    fontWeight: '500',
-  },
-  categoryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  categoryEmoji: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  loadingContainer: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#777E5C',
-    fontStyle: 'italic',
-  },
-  uploadModalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 9999,
-  },
-  uploadModalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 32,
-    alignItems: 'center',
-    minWidth: 250,
-  },
-  uploadModalText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#283106',
-    marginTop: 12,
-    textAlign: 'center',
-  },
+  modalTitle: { flex: 1, color: COLORS.ink, fontWeight: '800', fontSize: 16, letterSpacing: 0.2 },
+  optionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 6, borderRadius: 10 },
+  optionEmoji: { fontSize: 18 },
+  optionText: { flex: 1, color: COLORS.ink, fontWeight: '600' },
+  emptyState: { paddingVertical: 24, alignItems: 'center' },
+  emptyStateText: { color: COLORS.muted, fontStyle: 'italic' },
 });

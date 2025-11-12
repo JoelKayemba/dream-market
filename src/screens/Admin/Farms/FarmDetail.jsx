@@ -7,11 +7,12 @@ import {
   Text,
   Image,
   Alert,
-  SafeAreaView,
+  
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { deleteFarm, verifyFarm, selectAllFarms } from '../../../store/admin/farmSlice';
+import SafeAreaWrapper from '../../../components/SafeAreaWrapper';
 
 export default function FarmDetail({ route, navigation }) {
   const { farm: initialFarm = {} } = route.params || {};
@@ -101,7 +102,7 @@ export default function FarmDetail({ route, navigation }) {
   const mainImage = farm?.main_image || farm?.image || null;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaWrapper>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
@@ -269,7 +270,7 @@ export default function FarmDetail({ route, navigation }) {
           </TouchableOpacity>
         </View>
       </View>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 

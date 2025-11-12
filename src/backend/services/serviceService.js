@@ -1,4 +1,10 @@
 import { supabase, STORAGE_BUCKETS } from '../config/supabase';
+import {
+  validateAndSanitizeTitle,
+  validateAndSanitizeText,
+  sanitizeString,
+  sanitizeArray,
+} from '../../utils/inputSanitizer';
 
 export const serviceService = {
   // Récupérer tous les services
@@ -49,9 +55,64 @@ export const serviceService = {
   // Créer un nouveau service
   addService: async (serviceData) => {
     try {
+      // Nettoyer les données du service
+      const cleanedData = { ...serviceData };
+
+      // Valider et nettoyer le nom
+      if (serviceData.name) {
+        const nameResult = validateAndSanitizeTitle(serviceData.name, {
+          required: true,
+          maxLength: 255,
+        });
+        if (!nameResult.valid) {
+          throw new Error(`Nom du service: ${nameResult.error}`);
+        }
+        cleanedData.name = nameResult.cleaned;
+      }
+
+      // Valider et nettoyer la description
+      if (serviceData.description) {
+        const descResult = validateAndSanitizeText(serviceData.description, {
+          maxLength: 5000,
+          required: false,
+        });
+        if (!descResult.valid) {
+          throw new Error(`Description: ${descResult.error}`);
+        }
+        cleanedData.description = descResult.cleaned;
+      }
+
+      // Valider et nettoyer le prix (champ texte)
+      if (serviceData.price !== undefined && serviceData.price !== null) {
+        const priceResult = validateAndSanitizeText(serviceData.price, {
+          maxLength: 100,
+          required: false,
+        });
+        if (!priceResult.valid) {
+          throw new Error(`Prix: ${priceResult.error}`);
+        }
+        cleanedData.price = priceResult.cleaned;
+      }
+
+      // Valider la devise
+      const allowedCurrencies = ['CDF', 'USD'];
+      if (serviceData.currency && !allowedCurrencies.includes(serviceData.currency)) {
+        cleanedData.currency = 'CDF';
+      }
+
+      // Nettoyer les images
+      if (serviceData.images && Array.isArray(serviceData.images)) {
+        cleanedData.images = sanitizeArray(serviceData.images, { maxLength: 500 });
+      }
+
+      // Nettoyer les caractéristiques
+      if (serviceData.features && Array.isArray(serviceData.features)) {
+        cleanedData.features = sanitizeArray(serviceData.features, { maxLength: 200 });
+      }
+
       const { data, error } = await supabase
         .from('services')
-        .insert([serviceData])
+        .insert([cleanedData])
         .select(`
           *,
           categories (
@@ -72,12 +133,69 @@ export const serviceService = {
   // Mettre à jour un service
   updateService: async (serviceId, updates) => {
     try {
+      const cleanedUpdates = {
+        updated_at: new Date().toISOString(),
+      };
+
+      // Nettoyer les champs si présents
+      if (updates.name !== undefined) {
+        const nameResult = validateAndSanitizeTitle(updates.name, {
+          required: false,
+          maxLength: 255,
+        });
+        if (!nameResult.valid) {
+          throw new Error(`Nom du service: ${nameResult.error}`);
+        }
+        cleanedUpdates.name = nameResult.cleaned;
+      }
+
+      if (updates.description !== undefined) {
+        const descResult = validateAndSanitizeText(updates.description, {
+          maxLength: 5000,
+          required: false,
+        });
+        if (!descResult.valid) {
+          throw new Error(`Description: ${descResult.error}`);
+        }
+        cleanedUpdates.description = descResult.cleaned;
+      }
+
+      if (updates.price !== undefined && updates.price !== null) {
+        const priceResult = validateAndSanitizeText(updates.price, {
+          maxLength: 100,
+          required: false,
+        });
+        if (!priceResult.valid) {
+          throw new Error(`Prix: ${priceResult.error}`);
+        }
+        cleanedUpdates.price = priceResult.cleaned;
+      }
+
+      if (updates.currency !== undefined) {
+        const allowedCurrencies = ['CDF', 'USD'];
+        cleanedUpdates.currency = allowedCurrencies.includes(updates.currency)
+          ? updates.currency
+          : 'CDF';
+      }
+
+      if (updates.images !== undefined && Array.isArray(updates.images)) {
+        cleanedUpdates.images = sanitizeArray(updates.images, { maxLength: 500 });
+      }
+
+      if (updates.features !== undefined && Array.isArray(updates.features)) {
+        cleanedUpdates.features = sanitizeArray(updates.features, { maxLength: 200 });
+      }
+
+      // Copier les autres champs non textuels
+      Object.keys(updates).forEach(key => {
+        if (!['name', 'description', 'price', 'currency', 'images', 'features'].includes(key)) {
+          cleanedUpdates[key] = updates[key];
+        }
+      });
+
       const { data, error } = await supabase
         .from('services')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
+        .update(cleanedUpdates)
         .eq('id', serviceId)
         .select(`
           *,

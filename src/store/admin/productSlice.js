@@ -10,6 +10,7 @@ const initialState = {
   // Filtres et recherche
   filters: {
     category: null,
+    farm: null,
     status: 'all', // all, active, inactive
     search: '',
     sortBy: 'name', // name, price, date, popularity
@@ -196,6 +197,9 @@ const productSlice = createSlice({
     setCategoryFilter: (state, action) => {
       state.filters.category = action.payload;
     },
+    setFarmFilter: (state, action) => {
+      state.filters.farm = action.payload;
+    },
     setStatusFilter: (state, action) => {
       state.filters.status = action.payload;
     },
@@ -329,6 +333,7 @@ export const {
   setFilters,
   setSearch,
   setCategoryFilter,
+  setFarmFilter,
   setStatusFilter,
   setSorting,
   setPagination,
@@ -370,6 +375,11 @@ export const selectFilteredProducts = (state) => {
   // Filtre par catégorie
   if (filters.category) {
     filtered = filtered.filter(product => product.category_id === filters.category);
+  }
+  
+  // Filtre par ferme
+  if (filters.farm) {
+    filtered = filtered.filter(product => product.farm_id === filters.farm);
   }
   
   // Filtre par statut

@@ -27,7 +27,12 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.dreammarket.app",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "WAKE_LOCK"
+      ]
     },
     "web": {
       "favicon": "./assets/Dream_logo.png"
@@ -40,7 +45,9 @@
           "icon": "./assets/icon.png",
           "color": "#2F8F46",
           "sounds": [],
-          "mode": "production"
+          "mode": "production",
+          "androidMode": "default",
+          "androidCollapsedTitle": "Nouvelles notifications"
         }
       ]
     ]

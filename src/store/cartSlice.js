@@ -67,6 +67,9 @@ export const submitOrder = createAsyncThunk(
         product_name: item.product.name,
         product_price: item.product.price,
         product_currency: item.product.currency || 'CDF',
+        product_image: item.product.images?.[0] || item.product.image || null,
+        farm_id: item.product.farm_id || item.product.farms?.id || null,
+        farm_name: item.product.farms?.name || null,
         quantity: item.quantity,
         subtotal: item.product.price * item.quantity
       }));

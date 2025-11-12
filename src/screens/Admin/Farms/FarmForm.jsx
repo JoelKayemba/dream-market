@@ -1,22 +1,55 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Image, Alert, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-
+import React from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Text,
+  Image,
+  Alert,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Button , ScreenWrapper } from '../../../components/ui';
-import { addFarm, updateFarm, selectFarmsLoading, selectFarmsUploading, selectFarmsError } from '../../../store/admin/farmSlice';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import SafeAreaWrapper from '../../../components/SafeAreaWrapper';
+
+import {
+  addFarm,
+  updateFarm,
+  selectFarmsLoading,
+  selectFarmsUploading,
+  selectFarmsError,
+} from '../../../store/admin/farmSlice';
 import { useImagePicker } from '../../../hooks/useImagePicker';
 import { storageService } from '../../../backend/services/storageService';
+
+/* ==== Palette conservée ==== */
+const COLORS = {
+  bg: '#f5f5f5',
+  ink: '#283106',
+  muted: '#777E5C',
+  accent: '#4CAF50',
+  border: '#E0E0E0',
+  card: '#FFFFFF',
+};
 
 export default function FarmForm({ route, navigation }) {
   const { mode = 'add', farm } = route.params || {};
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
+
   const loading = useSelector(selectFarmsLoading);
   const uploading = useSelector(selectFarmsUploading);
   const error = useSelector(selectFarmsError);
+
   const { showImagePickerOptions, selectedImages, setSelectedImages } = useImagePicker();
-  
-  const [formData, setFormData] = useState({
+
+  const [formData, setFormData] = React.useState({
     name: farm?.name || '',
     location: farm?.location || '',
     region: farm?.region || '',
@@ -25,9 +58,9 @@ export default function FarmForm({ route, navigation }) {
     established: farm?.established?.toString() || new Date().getFullYear().toString(),
     size: farm?.size?.toString() || '',
     family_members: farm?.family_members?.toString() || farm?.familyMembers?.toString() || '',
-    delivery: farm?.delivery || false,
-    pickup: farm?.pickup || false,
-    farm_shop: farm?.farm_shop || farm?.farmShop || false,
+    delivery: !!farm?.delivery,
+    pickup: !!farm?.pickup,
+    farm_shop: farm?.farm_shop ?? farm?.farmShop ?? false,
     certifications: farm?.certifications || [],
     sustainable_practices: farm?.sustainable_practices || farm?.sustainablePractices || [],
     story: farm?.story || '',
@@ -35,103 +68,117 @@ export default function FarmForm({ route, navigation }) {
       phone: farm?.contact?.phone || '',
       email: farm?.contact?.email || '',
       website: farm?.contact?.website || '',
-    }
+    },
   });
 
-  const [showCertificationsModal, setShowCertificationsModal] = useState(false);
-  const [showPracticesModal, setShowPracticesModal] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-
-  // Initialiser les images si on est en mode édition
+  // Précharger images si édition (main + cover si dispo)
   React.useEffect(() => {
     if (mode === 'edit' && farm) {
       const images = [];
       if (farm.main_image) images.push({ uri: farm.main_image });
       if (farm.cover_image) images.push({ uri: farm.cover_image });
-      setSelectedImages(images);
+      setSelectedImages(images.length ? images : []);
     }
-  }, [farm, mode]);
+  }, [mode, farm, setSelectedImages]);
 
   const availableCertifications = [
-    'Bio', 'HVE', 'Nature & Progrès', 'Label Rouge', 'AOC', 'AOP', 'Filière Qualité', 'GAP'
+    'Bio',
+    'HVE',
+    'Nature & Progrès',
+    'Label Rouge',
+    'AOC',
+    'AOP',
+    'Filière Qualité',
+    'GAP',
   ];
 
   const availablePractices = [
-    'Rotation des cultures', 'Compostage', 'Énergie solaire', 'Pâturage extensif',
-    'Traite à la main', 'Fromages affinés', 'Pâturage ovin', 'Hôtels à insectes',
-    'Gestion de l\'eau', 'Agriculture de conservation', 'Couverts végétaux',
-    'Réduction des intrants', 'Vendanges manuelles', 'Élevage en fûts', 'Biodynamie'
+    'Rotation des cultures',
+    'Compostage',
+    'Énergie solaire',
+    'Pâturage extensif',
+    'Traite à la main',
+    'Fromages affinés',
+    'Pâturage ovin',
+    'Hôtels à insectes',
+    "Gestion de l'eau",
+    'Agriculture de conservation',
+    'Couverts végétaux',
+    'Réduction des intrants',
+    'Vendanges manuelles',
+    'Élevage en fûts',
+    'Biodynamie',
   ];
 
-
   const handleImageSelection = (image) => {
+    // Une image principale (ou remplace)
     setSelectedImages([image]);
   };
 
-  const toggleCertification = (certification) => {
-    const updatedCertifications = formData.certifications.includes(certification)
-      ? formData.certifications.filter(c => c !== certification)
-      : [...formData.certifications, certification];
-    
-    setFormData({ ...formData, certifications: updatedCertifications });
-  };
-
-  const togglePractice = (practice) => {
-    const updatedPractices = formData.sustainable_practices.includes(practice)
-      ? formData.sustainable_practices.filter(p => p !== practice)
-      : [...formData.sustainable_practices, practice];
-    
-    setFormData({ ...formData, sustainable_practices: updatedPractices });
-  };
-
   const toggleBooleanField = (field) => {
-    setFormData({ ...formData, [field]: !formData[field] });
+    setFormData((p) => ({ ...p, [field]: !p[field] }));
+  };
+
+  const toggleCertification = (cert) => {
+    setFormData((p) => {
+      const exists = p.certifications.includes(cert);
+      return {
+        ...p,
+        certifications: exists
+          ? p.certifications.filter((c) => c !== cert)
+          : [...p.certifications, cert],
+      };
+    });
+  };
+
+  const togglePractice = (pr) => {
+    setFormData((p) => {
+      const exists = p.sustainable_practices.includes(pr);
+      return {
+        ...p,
+        sustainable_practices: exists
+          ? p.sustainable_practices.filter((x) => x !== pr)
+          : [...p.sustainable_practices, pr],
+      };
+    });
   };
 
   const handleSave = async () => {
     try {
-      // Validation basique
       if (!formData.name.trim()) {
         Alert.alert('Erreur', 'Le nom de la ferme est obligatoire');
         return;
       }
-
       if (selectedImages.length === 0) {
         Alert.alert('Erreur', 'Veuillez ajouter au moins une image');
         return;
       }
 
-      setIsUploading(true);
+      const year = parseInt(formData.established, 10);
+      const establishedISO = Number.isFinite(year) ? new Date(year, 0, 1).toISOString() : null;
 
-      //  Upload des images vers Supabase
+      // Upload image(s)
       const imageUrls = [];
       for (const image of selectedImages) {
-        // Si l'image commence par "file://", c'est une nouvelle image à uploader
-        if (image.uri.startsWith('file://')) {
-         
-          const uploadResult = await storageService.uploadImage(
-            image.uri,
-            'farms',  // Type de bucket
-            ''        // Pas de dossier spécifique (sera généré avec ID unique)
-          );
-         
+        const uri = image?.uri || '';
+        if (!uri) continue;
+        if (uri.startsWith('file://')) {
+          const uploadResult = await storageService.uploadImage(uri, 'farms', '');
           imageUrls.push(uploadResult.url);
         } else {
-          // Image déjà sur Supabase (mode édition)
-          imageUrls.push(image.uri);
+          imageUrls.push(uri);
         }
       }
 
-      // Préparer les données avec conversion des types
-      const farmData = {
+      const payload = {
         name: formData.name,
         location: formData.location,
         region: formData.region,
         description: formData.description,
         specialty: formData.specialty,
-        established: formData.established ? new Date(formData.established).toISOString() : null,
-        size: formData.size ? parseInt(formData.size) : null,
-        family_members: formData.family_members ? parseInt(formData.family_members) : null,
+        established: establishedISO,
+        size: formData.size ? parseInt(formData.size, 10) : null,
+        family_members: formData.family_members ? parseInt(formData.family_members, 10) : null,
         story: formData.story,
         delivery: formData.delivery,
         pickup: formData.pickup,
@@ -139,497 +186,553 @@ export default function FarmForm({ route, navigation }) {
         certifications: formData.certifications,
         sustainable_practices: formData.sustainable_practices,
         contact: formData.contact,
-        images: imageUrls  // ✅ URLs Supabase
+        images: imageUrls, // URLs Supabase
       };
 
-      
-
       if (mode === 'edit') {
-        await dispatch(updateFarm({ id: farm.id, farmData })).unwrap();
+        await dispatch(updateFarm({ id: farm.id, farmData: payload })).unwrap();
         Alert.alert('Succès', 'Ferme mise à jour avec succès');
       } else {
-        await dispatch(addFarm(farmData)).unwrap();
+        await dispatch(addFarm(payload)).unwrap();
         Alert.alert('Succès', 'Ferme créée avec succès');
       }
-      
+
       navigation.goBack();
-    } catch (error) {
-      console.error('Erreur sauvegarde ferme:', error);
-      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
-    } finally {
-      setIsUploading(false);
+    } catch (err) {
+      console.error('Erreur sauvegarde ferme:', err);
+      Alert.alert('Erreur', err?.message || 'Une erreur est survenue');
     }
   };
 
+  /* ===== UI Reusable Buttons ===== */
+  const PrimaryButton = React.memo(function PrimaryButton({ title, onPress, loading: load, disabled, style }) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={onPress}
+        disabled={disabled || load}
+        style={[styles.btnPrimary, (disabled || load) && styles.btnDisabled, style]}
+      >
+        {load ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.btnPrimaryText}>{title}</Text>}
+      </TouchableOpacity>
+    );
+  });
+
+  const OutlineButton = React.memo(function OutlineButton({ title, onPress, disabled, style }) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={onPress}
+        disabled={disabled}
+        style={[styles.btnOutline, disabled && styles.btnOutlineDisabled, style]}
+      >
+        <Text style={styles.btnOutlineText}>{title}</Text>
+      </TouchableOpacity>
+    );
+  });
+
+  const SectionTitle = React.memo(function SectionTitle({ children }) {
+    return (
+      <View style={{ marginBottom: 10 }}>
+        <Text style={styles.sectionTitle}>{children}</Text>
+        <View style={styles.sectionHairline} />
+      </View>
+    );
+  });
+
+  const Chip = ({ label, active, onPress }) => (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.9}
+      style={[styles.chip, active && styles.chipActive]}
+    >
+      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    </TouchableOpacity>
+  );
+
+  const FOOTER_HEIGHT = 60;
+
   return (
-    <ScreenWrapper style={styles.container}>
+    <SafeAreaWrapper>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#283106" />
+        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={22} color={COLORS.ink} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {mode === 'add' ? 'Ajouter une Ferme' : 'Modifier la Ferme'}
-        </Text>
-        <View style={styles.placeholder} />
+        <Text style={styles.headerTitle}>{mode === 'add' ? 'Ajouter une ferme' : 'Modifier la ferme'}</Text>
+        <View style={styles.iconBtn} />
       </View>
 
-      <KeyboardAvoidingView 
-        style={styles.keyboardAvoidingView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <ScrollView 
-          style={styles.content} 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[styles.content, { paddingBottom: FOOTER_HEIGHT + insets.bottom + 12 }]}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-        <Container style={styles.formSection}>
-          {/* Section Images */}
-          <Text style={styles.sectionTitle}>Images</Text>
-          
-          <View style={styles.imageSection}>
+          {/* Images */}
+          <View style={styles.card}>
+            <SectionTitle>Image principale</SectionTitle>
             <View style={styles.imagePreview}>
               {selectedImages.length > 0 ? (
-                <Image
-                  source={{ uri: selectedImages[0].uri }}
-                  style={styles.previewImage}
-                  resizeMode="cover"
-                />
+                <Image source={{ uri: selectedImages[0].uri }} style={styles.previewImage} resizeMode="cover" />
               ) : (
-                <View style={styles.imagePlaceholder}>
-                  <Ionicons name="camera-outline" size={48} color="#E0E0E0" />
-                  <Text style={styles.imagePlaceholderText}>Ajouter une image</Text>
+                <View style={styles.imageDrop}>
+                  <Ionicons name="camera-outline" size={28} color={COLORS.muted} />
+                  <Text style={styles.imageDropText}>Ajouter une image</Text>
                 </View>
               )}
             </View>
-            
             <TouchableOpacity
-              style={styles.imageButton}
+              style={styles.imageAddBtn}
               onPress={() => showImagePickerOptions(handleImageSelection)}
+              activeOpacity={0.9}
             >
-              <Ionicons name="camera" size={20} color="#4CAF50" />
-              <Text style={styles.imageButtonText}>
-                {selectedImages.length > 0 ? 'Changer l\'image' : 'Ajouter une image'}
-              </Text>
+              <Ionicons name="camera" size={18} color={COLORS.accent} />
+              <Text style={styles.imageAddText}>{selectedImages.length > 0 ? "Changer l'image" : 'Ajouter une image'}</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Informations principales */}
-          <Text style={styles.sectionTitle}>Informations Principales</Text>
-          
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Nom de la ferme *</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
-              placeholder="Entrez le nom de la ferme"
-              placeholderTextColor="#999"
-            />
-          </View>
+          {/* Infos principales */}
+          <View style={styles.card}>
+            <SectionTitle>Informations principales</SectionTitle>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Localisation *</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.location}
-              onChangeText={(text) => setFormData({ ...formData, location: text })}
-              placeholder="Ville, région"
-              placeholderTextColor="#999"
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Région</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.region}
-              onChangeText={(text) => setFormData({ ...formData, region: text })}
-              placeholder="Région administrative"
-              placeholderTextColor="#999"
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Spécialité</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.specialty}
-              onChangeText={(text) => setFormData({ ...formData, specialty: text })}
-              placeholder="Bio, Fruits, Céréales, etc."
-              placeholderTextColor="#999"
-            />
-          </View>
-
-          <View style={styles.formRow}>
-            <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.label}>Année d'établissement</Text>
+            <View style={styles.field}>
+              <Text style={styles.label}>Nom de la ferme *</Text>
               <TextInput
                 style={styles.input}
-                value={formData.established}
-                onChangeText={(text) => setFormData({ ...formData, established: text })}
-                placeholder="1985"
-                keyboardType="numeric"
-                placeholderTextColor="#999"
+                value={formData.name}
+                onChangeText={(t) => setFormData((p) => ({ ...p, name: t }))}
+                placeholder="Entrez le nom de la ferme"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
-            <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text style={styles.label}>Taille (hectares)</Text>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Localisation *</Text>
               <TextInput
                 style={styles.input}
-                value={formData.size}
-                onChangeText={(text) => setFormData({ ...formData, size: text })}
-                placeholder="10"
-                keyboardType="numeric"
-                placeholderTextColor="#999"
+                value={formData.location}
+                onChangeText={(t) => setFormData((p) => ({ ...p, location: t }))}
+                placeholder="Ville, région"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
-          </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Nombre de membres de famille</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.family_members}
-              onChangeText={(text) => setFormData({ ...formData, family_members: text })}
-              placeholder="5"
-              keyboardType="numeric"
-              placeholderTextColor="#999"
-            />
-          </View>
+            <View style={styles.field}>
+              <Text style={styles.label}>Région</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.region}
+                onChangeText={(t) => setFormData((p) => ({ ...p, region: t }))}
+                placeholder="Région administrative"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
 
-         
+            <View style={styles.field}>
+              <Text style={styles.label}>Spécialité</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.specialty}
+                onChangeText={(t) => setFormData((p) => ({ ...p, specialty: t }))}
+                placeholder="Bio, Fruits, Céréales, etc."
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={formData.description}
-              onChangeText={(text) => setFormData({ ...formData, description: text })}
-              placeholder="Description de la ferme"
-              multiline
-              numberOfLines={4}
-              placeholderTextColor="#999"
-              textAlignVertical="top"
-            />
-          </View>
+            <View style={styles.row}>
+              <View style={[styles.field, styles.col]}>
+                <Text style={styles.label}>Année d'établissement</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.established}
+                  onChangeText={(t) => setFormData((p) => ({ ...p, established: t }))}
+                  keyboardType="numeric"
+                  placeholder="1985"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+              <View style={[styles.field, styles.col]}>
+                <Text style={styles.label}>Taille (hectares)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.size}
+                  onChangeText={(t) => setFormData((p) => ({ ...p, size: t }))}
+                  keyboardType="numeric"
+                  placeholder="10"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Histoire</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={formData.story}
-              onChangeText={(text) => setFormData({ ...formData, story: text })}
-              placeholder="L'histoire de la ferme"
-              multiline
-              numberOfLines={3}
-              placeholderTextColor="#999"
-              textAlignVertical="top"
-            />
+            <View style={styles.field}>
+              <Text style={styles.label}>Nombre de membres de famille</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.family_members}
+                onChangeText={(t) => setFormData((p) => ({ ...p, family_members: t }))}
+                keyboardType="numeric"
+                placeholder="5"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Description</Text>
+              <TextInput
+                style={[styles.input, styles.textarea]}
+                value={formData.description}
+                onChangeText={(t) => setFormData((p) => ({ ...p, description: t }))}
+                placeholder="Description de la ferme"
+                placeholderTextColor="#9CA3AF"
+                multiline
+                numberOfLines={5}
+                textAlignVertical="top"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Histoire</Text>
+              <TextInput
+                style={[styles.input, styles.textarea]}
+                value={formData.story}
+                onChangeText={(t) => setFormData((p) => ({ ...p, story: t }))}
+                placeholder="L'histoire de la ferme"
+                placeholderTextColor="#9CA3AF"
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
           </View>
 
           {/* Services */}
-          <Text style={styles.sectionTitle}>Services</Text>
-          
-          <View style={styles.servicesContainer}>
+          <View style={styles.card}>
+            <SectionTitle>Services</SectionTitle>
+
             <TouchableOpacity
-              style={[styles.serviceOption, formData.delivery && styles.serviceOptionActive]}
+              style={[styles.optionItem, formData.delivery && styles.optionItemActive]}
               onPress={() => toggleBooleanField('delivery')}
+              activeOpacity={0.9}
             >
-              <Ionicons 
-                name={formData.delivery ? "checkmark-circle" : "checkmark-circle-outline"} 
-                size={24} 
-                color={formData.delivery ? "#4CAF50" : "#E0E0E0"} 
+              <Ionicons
+                name={formData.delivery ? 'checkmark-circle' : 'checkmark-circle-outline'}
+                size={22}
+                color={formData.delivery ? COLORS.accent : '#E0E0E0'}
               />
-              <Text style={styles.serviceText}>Livraison</Text>
+              <Text style={styles.optionText}>Livraison</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.serviceOption, formData.pickup && styles.serviceOptionActive]}
+              style={[styles.optionItem, formData.pickup && styles.optionItemActive]}
               onPress={() => toggleBooleanField('pickup')}
+              activeOpacity={0.9}
             >
-              <Ionicons 
-                name={formData.pickup ? "checkmark-circle" : "checkmark-circle-outline"} 
-                size={24} 
-                color={formData.pickup ? "#4CAF50" : "#E0E0E0"} 
+              <Ionicons
+                name={formData.pickup ? 'checkmark-circle' : 'checkmark-circle-outline'}
+                size={22}
+                color={formData.pickup ? COLORS.accent : '#E0E0E0'}
               />
-              <Text style={styles.serviceText}>Retrait sur place</Text>
+              <Text style={styles.optionText}>Retrait sur place</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.serviceOption, formData.farmShop && styles.serviceOptionActive]}
-              onPress={() => toggleBooleanField('farmShop')}
+              style={[styles.optionItem, formData.farm_shop && styles.optionItemActive]}
+              onPress={() => toggleBooleanField('farm_shop')}
+              activeOpacity={0.9}
             >
-              <Ionicons 
-                name={formData.farmShop ? "checkmark-circle" : "checkmark-circle-outline"} 
-                size={24} 
-                color={formData.farmShop ? "#4CAF50" : "#E0E0E0"} 
+              <Ionicons
+                name={formData.farm_shop ? 'checkmark-circle' : 'checkmark-circle-outline'}
+                size={22}
+                color={formData.farm_shop ? COLORS.accent : '#E0E0E0'}
               />
-              <Text style={styles.serviceText}>Magasin à la ferme</Text>
+              <Text style={styles.optionText}>Magasin à la ferme</Text>
             </TouchableOpacity>
+          </View>
+
+          {/* Certifications */}
+          <View style={styles.card}>
+            <SectionTitle>Certifications</SectionTitle>
+            <View style={styles.chipsWrap}>
+              {availableCertifications.map((c) => (
+                <Chip
+                  key={c}
+                  label={c}
+                  active={formData.certifications.includes(c)}
+                  onPress={() => toggleCertification(c)}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Pratiques durables */}
+          <View style={styles.card}>
+            <SectionTitle>Pratiques durables</SectionTitle>
+            <View style={styles.chipsWrap}>
+              {availablePractices.map((p) => (
+                <Chip
+                  key={p}
+                  label={p}
+                  active={formData.sustainable_practices.includes(p)}
+                  onPress={() => togglePractice(p)}
+                />
+              ))}
+            </View>
           </View>
 
           {/* Contact */}
-          <Text style={styles.sectionTitle}>Contact</Text>
+          <View style={styles.card}>
+            <SectionTitle>Contact</SectionTitle>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Téléphone</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.contact.phone}
-              onChangeText={(text) => setFormData({ 
-                ...formData, 
-                contact: { ...formData.contact, phone: text }
-              })}
-              placeholder="Numéro de téléphone"
-              keyboardType="phone-pad"
-              placeholderTextColor="#999"
-            />
-          </View>
+            <View style={styles.field}>
+              <Text style={styles.label}>Téléphone</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.contact.phone}
+                onChangeText={(t) =>
+                  setFormData((p) => ({ ...p, contact: { ...p.contact, phone: t } }))
+                }
+                placeholder="Numéro de téléphone"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="phone-pad"
+              />
+            </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.contact.email}
-              onChangeText={(text) => setFormData({ 
-                ...formData, 
-                contact: { ...formData.contact, email: text }
-              })}
-              placeholder="Adresse email"
-              keyboardType="email-address"
-              placeholderTextColor="#999"
-            />
-          </View>
+            <View style={styles.field}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.contact.email}
+                onChangeText={(t) =>
+                  setFormData((p) => ({ ...p, contact: { ...p.contact, email: t } }))
+                }
+                placeholder="Adresse email"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Site web</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.contact.website}
-              onChangeText={(text) => setFormData({ 
-                ...formData, 
-                contact: { ...formData.contact, website: text }
-              })}
-              placeholder="Site web (optionnel)"
-              placeholderTextColor="#999"
-            />
+            <View style={styles.field}>
+              <Text style={styles.label}>Site web</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.contact.website}
+                onChangeText={(t) =>
+                  setFormData((p) => ({ ...p, contact: { ...p.contact, website: t } }))
+                }
+                placeholder="https://exemple.com"
+                placeholderTextColor="#9CA3AF"
+                autoCapitalize="none"
+              />
+            </View>
           </View>
-        </Container>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Footer avec boutons */}
-      <View style={styles.footer}>
-        <Button
-          title="Annuler"
-          onPress={() => navigation.goBack()}
-          variant="outline"
-          style={styles.cancelButton}
-          disabled={isUploading}
-        />
-        <Button
-          title={mode === 'add' ? 'Ajouter' : 'Modifier'}
+      {/* Footer collé en bas */}
+      <View style={[styles.footer, { height: FOOTER_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
+        <OutlineButton title="Annuler" onPress={() => navigation.goBack()} disabled={uploading} style={{ flex: 1 }} />
+        <PrimaryButton
+          title={mode === 'add' ? 'Ajouter' : 'Enregistrer'}
           onPress={handleSave}
-          variant="primary"
-          style={styles.saveButton}
-          loading={uploading || loading || isUploading}
+          loading={uploading || loading}
+          disabled={uploading || loading}
+          style={{ flex: 1 }}
         />
       </View>
 
-      {/* Modal de chargement */}
-      {isUploading && (
-        <View style={styles.uploadModalOverlay}>
-          <View style={styles.uploadModalContent}>
-            <ActivityIndicator size="large" color="#4CAF50" />
-            <Text style={styles.uploadModalText}>Enregistrement...</Text>
+      {/* Overlay d'enregistrement */}
+      {(uploading) && (
+        <View style={styles.overlay}>
+          <View style={styles.overlayCard}>
+            <ActivityIndicator size="large" color={COLORS.ink} />
+            <Text style={styles.overlayText}>Enregistrement…</Text>
           </View>
         </View>
       )}
-    </ScreenWrapper>
+    </SafeAreaWrapper>
   );
 }
 
+/* ==== Styles ==== */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.card,
   },
-  keyboardAvoidingView: {
-    flex: 1,
-  },
-  backButton: {
+  iconBtn: {
     padding: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(40,49,6,0.06)',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#283106',
     flex: 1,
     textAlign: 'center',
+    color: COLORS.ink,
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
-  placeholder: {
-    width: 40,
+
+  content: { padding: 16 },
+
+  card: {
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  formSection: {
-    paddingVertical: 20,
-  },
+
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#283106',
-    marginBottom: 16,
-    marginTop: 8,
+    color: COLORS.ink,
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    marginBottom: 8,
   },
-  // Image section
-  imageSection: {
-    marginBottom: 16,
+  sectionHairline: { height: 1, backgroundColor: COLORS.border, opacity: 0.9 },
+
+  field: { marginBottom: 12 },
+  label: { color: COLORS.muted, fontSize: 13, fontWeight: '700', marginBottom: 6 },
+  input: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: COLORS.ink,
   },
+  textarea: { minHeight: 110, textAlignVertical: 'top' },
+
+  row: { flexDirection: 'row', gap: 10 },
+  col: { flex: 1 },
+
+  /* Images */
   imagePreview: {
     width: '100%',
     height: 200,
-    backgroundColor: '#F5F5F5',
     borderRadius: 12,
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     overflow: 'hidden',
+    backgroundColor: '#FAFAFA',
+    marginBottom: 10,
   },
-  previewImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imagePlaceholder: {
+  previewImage: { width: '100%', height: '100%' },
+
+  imageDrop: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  imagePlaceholderText: {
-    fontSize: 16,
-    color: '#777E5C',
-    marginTop: 8,
-  },
-  imageButton: {
+  imageDropText: { marginTop: 8, color: COLORS.muted, fontWeight: '600' },
+
+  imageAddBtn: {
     flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F5F5F5',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 8,
-  },
-  imageButtonText: {
-    fontSize: 16,
-    color: '#4CAF50',
-    fontWeight: '500',
-  },
-  // Form styles
-  formGroup: {
-    marginBottom: 16,
-  },
-  formRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#283106',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    borderColor: COLORS.border,
     paddingVertical: 12,
-    fontSize: 16,
-    color: '#283106',
+    borderRadius: 10,
   },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  // Services
-  servicesContainer: {
-    marginBottom: 16,
-  },
-  serviceOption: {
+  imageAddText: { color: COLORS.accent, fontWeight: '700' },
+
+  /* Options & chips */
+  optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
+    borderColor: COLORS.border,
+    borderRadius: 10,
     marginBottom: 8,
-    gap: 12,
   },
-  serviceOptionActive: {
-    backgroundColor: '#E8F5E8',
+  optionItemActive: { backgroundColor: '#E8F5E8' },
+  optionText: { color: COLORS.ink, fontWeight: '600' },
+
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
   },
-  serviceText: {
-    fontSize: 16,
-    color: '#283106',
-    fontWeight: '500',
-  },
-  // Footer
+  chipActive: { borderColor: COLORS.accent, backgroundColor: '#F0FDF4' },
+  chipText: { color: COLORS.muted, fontWeight: '700', fontSize: 12 },
+  chipTextActive: { color: COLORS.accent },
+
+  /* Footer ABSOLU collé en bas */
   footer: {
-    flexDirection: 'row',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-  },
-  saveButton: {
-    flex: 1,
-  },
-  uploadModalOverlay: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border,
+    backgroundColor: COLORS.card,
+  },
+  btnPrimary: {
+    backgroundColor: COLORS.ink,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  btnPrimaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  btnDisabled: { opacity: 0.6 },
+  btnOutline: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+  },
+  btnOutlineText: { color: COLORS.ink, fontSize: 15, fontWeight: '700' },
+  btnOutlineDisabled: { opacity: 0.6 },
+
+  /* Overlay */
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 9999,
   },
-  uploadModalContent: {
-    backgroundColor: '#FFFFFF',
+  overlayCard: {
+    backgroundColor: COLORS.card,
     borderRadius: 16,
-    padding: 32,
+    padding: 22,
+    minWidth: 220,
     alignItems: 'center',
-    minWidth: 250,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
-  uploadModalText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#283106',
-    marginTop: 12,
-    textAlign: 'center',
-  },
+  overlayText: { marginTop: 10, color: COLORS.ink, fontWeight: '700' },
 });

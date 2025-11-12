@@ -1,4 +1,11 @@
 import { supabase, ORDER_STATUS } from '../config/supabase';
+import {
+  validateAndSanitizeText,
+  validateAndSanitizeName,
+  validateAndSanitizePhone,
+  validateAndSanitizeEmail,
+  sanitizeString,
+} from '../../utils/inputSanitizer';
 
 export const orderService = {
   // Récupérer toutes les commandes (admin seulement)
@@ -88,12 +95,96 @@ export const orderService = {
       // Générer un numéro de commande unique
       const orderNumber = `DM-${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
 
+      // Nettoyer les données de la commande
+      const cleanedOrderData = {
+        ...orderData,
+        order_number: orderNumber,
+      };
+
+      // Nettoyer l'adresse de livraison
+      if (orderData.delivery_address) {
+        const addressResult = validateAndSanitizeText(orderData.delivery_address, {
+          maxLength: 500,
+          required: false,
+        });
+        if (addressResult.valid) {
+          cleanedOrderData.delivery_address = addressResult.cleaned;
+        } else {
+          throw new Error(`Adresse de livraison: ${addressResult.error}`);
+        }
+      }
+
+      // Nettoyer le numéro de téléphone
+      if (orderData.phone_number) {
+        const phoneResult = validateAndSanitizePhone(orderData.phone_number);
+        if (phoneResult.valid) {
+          cleanedOrderData.phone_number = phoneResult.cleaned;
+        } else {
+          throw new Error(`Numéro de téléphone: ${phoneResult.error}`);
+        }
+      }
+
+      // Nettoyer les notes
+      if (orderData.notes) {
+        const notesResult = validateAndSanitizeText(orderData.notes, {
+          maxLength: 1000,
+          required: false,
+        });
+        if (notesResult.valid) {
+          cleanedOrderData.notes = notesResult.cleaned;
+        } else {
+          throw new Error(`Notes: ${notesResult.error}`);
+        }
+      }
+
+      // Nettoyer les noms du client
+      if (orderData.customer_first_name) {
+        const firstNameResult = validateAndSanitizeName(orderData.customer_first_name, {
+          maxLength: 100,
+          required: false,
+        });
+        if (firstNameResult.valid) {
+          cleanedOrderData.customer_first_name = firstNameResult.cleaned;
+        } else {
+          throw new Error(`Prénom: ${firstNameResult.error}`);
+        }
+      }
+
+      if (orderData.customer_last_name) {
+        const lastNameResult = validateAndSanitizeName(orderData.customer_last_name, {
+          maxLength: 100,
+          required: false,
+        });
+        if (lastNameResult.valid) {
+          cleanedOrderData.customer_last_name = lastNameResult.cleaned;
+        } else {
+          throw new Error(`Nom: ${lastNameResult.error}`);
+        }
+      }
+
+      // Nettoyer l'email du client
+      if (orderData.customer_email) {
+        const emailResult = validateAndSanitizeEmail(orderData.customer_email);
+        if (emailResult.valid) {
+          cleanedOrderData.customer_email = emailResult.cleaned;
+        } else {
+          throw new Error(`Email: ${emailResult.error}`);
+        }
+      }
+
+      // Nettoyer les noms de produits dans les items
+      if (orderData.items && Array.isArray(orderData.items)) {
+        cleanedOrderData.items = orderData.items.map(item => ({
+          ...item,
+          product_name: item.product_name
+            ? sanitizeString(item.product_name, { maxLength: 255 })
+            : item.product_name,
+        }));
+      }
+
       const { data, error } = await supabase
         .from('orders')
-        .insert([{
-          ...orderData,
-          order_number: orderNumber,
-        }])
+        .insert([cleanedOrderData])
         .select()
         .single();
 

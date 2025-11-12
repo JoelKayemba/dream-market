@@ -1,6 +1,7 @@
 // Remplacer TOUT le contenu de src/backend/services/passwordResetService.js par ceci :
 
 import { supabase } from '../config/supabase';
+import { validateAndSanitizeEmail, sanitizeString } from '../../utils/inputSanitizer';
 
 // Clé API Resend (gratuit 3000 emails/mois)
 // À ajouter dans votre fichier .env : EXPO_PUBLIC_RESEND_API_KEY=re_votre_cle
@@ -10,9 +11,15 @@ export const passwordResetService = {
   // Demander un code de réinitialisation
   requestResetCode: async (email) => {
     try {
+      // Valider et nettoyer l'email
+      const emailResult = validateAndSanitizeEmail(email);
+      if (!emailResult.valid) {
+        throw new Error(emailResult.error);
+      }
+
       // 1. Générer le code via fonction SQL
       const { data: codeData, error: codeError } = await supabase.rpc('request_password_reset', {
-        user_email: email
+        user_email: emailResult.cleaned
       });
       
       if (codeError) {
@@ -29,7 +36,7 @@ export const passwordResetService = {
           },
           body: JSON.stringify({
             from: 'Dream Market <kayembajoel.info>', // Remplacez par votre domaine vérifié
-            to: email,
+            to: emailResult.cleaned,
             subject: 'Code de réinitialisation Dream Market',
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
@@ -104,11 +111,49 @@ export const passwordResetService = {
   // Réinitialiser le mot de passe avec le code
   resetPasswordWithCode: async (email, code, newPassword) => {
     try {
+      // Valider et nettoyer l'email
+      const emailResult = validateAndSanitizeEmail(email);
+      if (!emailResult.valid) {
+        throw new Error(emailResult.error);
+      }
+
+      // Nettoyer le code (6 chiffres)
+      const cleanedCode = sanitizeString(String(code || ''), {
+        maxLength: 6,
+        escapeHtml: false,
+      }).replace(/\D/g, ''); // Garder uniquement les chiffres
+
+      if (cleanedCode.length !== 6) {
+        throw new Error('Code de réinitialisation invalide (6 chiffres requis)');
+      }
+
+      // Valider le nouveau mot de passe
+      if (!newPassword || typeof newPassword !== 'string') {
+        throw new Error('Le mot de passe est requis');
+      }
+
+      // Vérifier la longueur minimale du mot de passe
+      if (newPassword.length < 6) {
+        throw new Error('Le mot de passe doit contenir au moins 6 caractères');
+      }
+
+      // Vérifier la longueur maximale du mot de passe
+      if (newPassword.length > 128) {
+        throw new Error('Le mot de passe ne doit pas dépasser 128 caractères');
+      }
+
+      // Nettoyer le mot de passe (supprimer les caractères de contrôle)
+      const cleanedPassword = sanitizeString(newPassword, {
+        maxLength: 128,
+        escapeHtml: false,
+        allowNewlines: false,
+      });
+
       // Appeler la fonction SQL qui vérifie le code et change le mot de passe
       const { data, error } = await supabase.rpc('reset_password_with_code', {
-        user_email: email,
-        user_code: code,
-        new_password: newPassword
+        user_email: emailResult.cleaned,
+        user_code: cleanedCode,
+        new_password: cleanedPassword
       });
       
       if (error) {

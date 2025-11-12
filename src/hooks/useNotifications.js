@@ -235,15 +235,53 @@ export const useNotifications = () => {
   // Configuration des notifications push
   const configurePushNotifications = async () => {
     try {
+      // Vérifier si on est dans Expo Go (SDK 53+ ne supporte pas les push Android)
+      const Constants = require('expo-constants').default;
+      const isExpoGo = Constants?.executionEnvironment === 'storeClient' || 
+                       (typeof __DEV__ !== 'undefined' && __DEV__ && !Constants?.isDevice);
+      
+      if (isExpoGo) {
+        console.warn('⚠️ [useNotifications] Expo Go détecté - Les notifications push Android ne sont pas disponibles');
+        console.warn('💡 Utilisez un development build pour tester les notifications push');
+        return false;
+      }
+
+      // Configurer le canal de notification Android
+      try {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'Notifications Dream Market',
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#2F8F46',
+          sound: 'default',
+          enableVibrate: true,
+          showBadge: true,
+        });
+      } catch (channelError) {
+        // Ignorer l'erreur si on n'est pas sur Android ou dans Expo Go
+        const errorMsg = channelError?.message || String(channelError);
+        if (!errorMsg.includes('Android') && !errorMsg.includes('Expo Go')) {
+          console.warn('⚠️ [useNotifications] Erreur configuration canal Android:', errorMsg);
+        }
+      }
+
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       
       if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
+        const { status } = await Notifications.requestPermissionsAsync({
+          ios: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+            allowAnnouncements: false,
+          },
+        });
         finalStatus = status;
       }
       
       if (finalStatus !== 'granted') {
+        console.warn('⚠️ [useNotifications] Permissions de notification refusées');
         return false;
       }
 
@@ -257,9 +295,10 @@ export const useNotifications = () => {
         }),
       });
 
+      console.log('✅ [useNotifications] Notifications push configurées avec succès');
       return true;
     } catch (error) {
-      console.error('Erreur lors de la configuration des notifications:', error);
+      console.error('❌ [useNotifications] Erreur lors de la configuration des notifications:', error);
       return false;
     }
   };

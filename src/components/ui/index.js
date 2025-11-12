@@ -13,6 +13,7 @@ export { default as SectionHeader } from './SectionHeader';
 export { default as FarmCard } from './FarmCard';
 export { default as ServiceCard } from './ServiceCard';
 export { default as ImagePreviewModal } from './ImagePreviewModal';
+export { default as InvoiceModal } from './InvoiceModal';
 export { default as ScreenWrapper } from '../ScreenWrapper';
 
 // Composants de notifications

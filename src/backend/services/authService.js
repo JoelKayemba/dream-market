@@ -1,12 +1,73 @@
 import { supabase, USER_ROLES } from '../config/supabase';
+import {
+  validateAndSanitizeEmail,
+  validateAndSanitizeName,
+  validateAndSanitizePhone,
+  validateAndSanitizeText,
+  sanitizeString,
+} from '../../utils/inputSanitizer';
 
 export const authService = {
   // Inscription
   signUp: async (email, password, userData = {}) => {
     try {
+      // Valider et nettoyer l'email
+      const emailResult = validateAndSanitizeEmail(email);
+      if (!emailResult.valid) {
+        throw new Error(emailResult.error);
+      }
+
+      // Valider et nettoyer les noms
+      const firstNameResult = validateAndSanitizeName(userData.firstName || '', {
+        maxLength: 100,
+        required: false,
+      });
+      if (!firstNameResult.valid) {
+        throw new Error(firstNameResult.error);
+      }
+
+      const lastNameResult = validateAndSanitizeName(userData.lastName || '', {
+        maxLength: 100,
+        required: false,
+      });
+      if (!lastNameResult.valid) {
+        throw new Error(lastNameResult.error);
+      }
+
+      // Valider et nettoyer le téléphone
+      let phone = null;
+      if (userData.phone) {
+        const phoneResult = validateAndSanitizePhone(userData.phone);
+        if (phoneResult.valid) {
+          phone = phoneResult.cleaned;
+        } else {
+          throw new Error(phoneResult.error);
+        }
+      }
+
+      // Valider et nettoyer l'adresse
+      let address = null;
+      if (userData.address) {
+        const addressResult = validateAndSanitizeText(userData.address, {
+          maxLength: 500,
+          required: false,
+        });
+        if (addressResult.valid) {
+          address = addressResult.cleaned;
+        } else {
+          throw new Error(addressResult.error);
+        }
+      }
+
+      // Valider et nettoyer l'URL de l'avatar
+      let avatarUrl = null;
+      if (userData.avatarUrl) {
+        avatarUrl = sanitizeString(userData.avatarUrl, { maxLength: 500 });
+      }
+
       // Créer l'utilisateur avec Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
+        email: emailResult.cleaned,
         password,
       });
 
@@ -19,13 +80,13 @@ export const authService = {
           .from('profiles')
           .insert([{
             id: authData.user.id,
-            email: authData.user.email,
-            first_name: userData.firstName || null,
-            last_name: userData.lastName || null,
-            phone: userData.phone || null,
-            address: userData.address || null,
+            email: emailResult.cleaned,
+            first_name: firstNameResult.cleaned || null,
+            last_name: lastNameResult.cleaned || null,
+            phone,
+            address,
             role: userData.role || USER_ROLES.CUSTOMER,
-            avatar_url: userData.avatarUrl || null,
+            avatar_url: avatarUrl,
           }])
           .select()
           .single();
@@ -48,8 +109,14 @@ export const authService = {
   // Connexion
   signIn: async (email, password) => {
     try {
+      // Valider et nettoyer l'email
+      const emailResult = validateAndSanitizeEmail(email);
+      if (!emailResult.valid) {
+        throw new Error(emailResult.error);
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: emailResult.cleaned,
         password,
       });
 
@@ -112,12 +179,71 @@ export const authService = {
   // Mettre à jour le profil utilisateur
   updateProfile: async (userId, updates) => {
     try {
+      const cleanedUpdates = {
+        updated_at: new Date().toISOString(),
+      };
+
+      // Valider et nettoyer les champs si présents
+      if (updates.first_name !== undefined) {
+        const firstNameResult = validateAndSanitizeName(updates.first_name, {
+          maxLength: 100,
+          required: false,
+        });
+        if (!firstNameResult.valid) {
+          throw new Error(firstNameResult.error);
+        }
+        cleanedUpdates.first_name = firstNameResult.cleaned || null;
+      }
+
+      if (updates.last_name !== undefined) {
+        const lastNameResult = validateAndSanitizeName(updates.last_name, {
+          maxLength: 100,
+          required: false,
+        });
+        if (!lastNameResult.valid) {
+          throw new Error(lastNameResult.error);
+        }
+        cleanedUpdates.last_name = lastNameResult.cleaned || null;
+      }
+
+      if (updates.phone !== undefined) {
+        if (updates.phone) {
+          const phoneResult = validateAndSanitizePhone(updates.phone);
+          if (phoneResult.valid) {
+            cleanedUpdates.phone = phoneResult.cleaned;
+          } else {
+            throw new Error(phoneResult.error);
+          }
+        } else {
+          cleanedUpdates.phone = null;
+        }
+      }
+
+      if (updates.address !== undefined) {
+        if (updates.address) {
+          const addressResult = validateAndSanitizeText(updates.address, {
+            maxLength: 500,
+            required: false,
+          });
+          if (addressResult.valid) {
+            cleanedUpdates.address = addressResult.cleaned;
+          } else {
+            throw new Error(addressResult.error);
+          }
+        } else {
+          cleanedUpdates.address = null;
+        }
+      }
+
+      if (updates.avatar_url !== undefined) {
+        cleanedUpdates.avatar_url = updates.avatar_url
+          ? sanitizeString(updates.avatar_url, { maxLength: 500 })
+          : null;
+      }
+
       const { data, error } = await supabase
         .from('profiles')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
+        .update(cleanedUpdates)
         .eq('id', userId)
         .select()
         .single();

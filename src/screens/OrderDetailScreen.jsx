@@ -15,8 +15,10 @@ import {
   Container, 
   Button, 
   Divider,
-  SectionHeader
-, ScreenWrapper } from '../components/ui';
+  SectionHeader,
+  ScreenWrapper,
+  InvoiceModal
+} from '../components/ui';
 import { 
   fetchOrderById,
   selectCurrentOrder,
@@ -32,6 +34,7 @@ export default function OrderDetailScreen({ navigation, route }) {
   const order = useSelector(selectCurrentOrder);
   const loading = useSelector(selectOrdersLoading);
   const error = useSelector(selectOrdersError);
+  const [showInvoiceModal, setShowInvoiceModal] = React.useState(false);
 
   // Vérifier que orderId est valide
   if (!orderId) {
@@ -274,7 +277,12 @@ export default function OrderDetailScreen({ navigation, route }) {
                 )}
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemName}>{item.product_name || 'Produit'}</Text>
-                  <Text style={styles.itemFarm}>Dream Market</Text>
+                  {item.farm_name && (
+                    <View style={styles.farmRow}>
+                      <Ionicons name="leaf-outline" size={12} color="#4CAF50" />
+                      <Text style={styles.itemFarm}>{item.farm_name}</Text>
+                    </View>
+                  )}
                   <Text style={styles.itemPrice}>
                     {formatPrice(item.product_price, item.product_currency)} × {item.quantity}
                   </Text>
@@ -397,6 +405,33 @@ export default function OrderDetailScreen({ navigation, route }) {
           </View>
         </Container>
 
+        {/* Facture */}
+        <Container style={styles.section}>
+          <SectionHeader
+            title="Facture"
+            subtitle="Téléchargez ou consultez votre facture"
+          />
+          
+          <View style={styles.invoiceCard}>
+            <View style={styles.invoiceInfo}>
+              <Ionicons name="receipt-outline" size={24} color="#4CAF50" />
+              <View style={styles.invoiceDetails}>
+                <Text style={styles.invoiceTitle}>Facture #{order.order_number || order.orderNumber}</Text>
+                <Text style={styles.invoiceSubtitle}>
+                  Générée le {formatDate(order.date || order.created_at)}
+                </Text>
+              </View>
+            </View>
+            
+            <Button
+              title="Voir la facture"
+              onPress={() => setShowInvoiceModal(true)}
+              variant="primary"
+              style={styles.invoiceButton}
+            />
+          </View>
+        </Container>
+
         {/* Actions */}
         <Container style={styles.section}>
           <View style={styles.noticeContainer}>
@@ -417,6 +452,13 @@ export default function OrderDetailScreen({ navigation, route }) {
         {/* Espacement */}
         <View style={{ height: 20 }} />
       </ScrollView>
+
+      {/* Modal Facture */}
+      <InvoiceModal
+        visible={showInvoiceModal}
+        order={order}
+        onClose={() => setShowInvoiceModal(false)}
+      />
     </ScreenWrapper>
   );
 }
@@ -541,11 +583,16 @@ const styles = StyleSheet.create({
     color: '#283106',
     marginBottom: 4,
   },
+  farmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
   itemFarm: {
     fontSize: 12,
-    color: '#777E5C',
-    marginBottom: 4,
-    fontStyle: 'italic',
+    color: '#4CAF50',
+    fontWeight: '600',
   },
   itemPrice: {
     fontSize: 14,
@@ -680,6 +727,41 @@ const styles = StyleSheet.create({
   },
   supportButton: {
     marginTop: 8,
+  },
+  invoiceCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E8F5E9',
+  },
+  invoiceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  invoiceDetails: {
+    flex: 1,
+  },
+  invoiceTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#283106',
+    marginBottom: 4,
+  },
+  invoiceSubtitle: {
+    fontSize: 12,
+    color: '#777E5C',
+  },
+  invoiceButton: {
+    marginTop: 0,
   },
   loadingContainer: {
     flex: 1,

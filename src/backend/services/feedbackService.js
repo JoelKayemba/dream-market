@@ -1,4 +1,10 @@
 import { supabase } from '../config/supabase';
+import {
+  validateAndSanitizeTitle,
+  validateAndSanitizeText,
+  validateAndSanitizeNumber,
+  sanitizeString,
+} from '../../utils/inputSanitizer';
 
 /**
  * Service pour gérer les retours et feedbacks des utilisateurs
@@ -15,18 +21,65 @@ export const feedbackService = {
       throw new Error('Utilisateur non authentifié');
     }
 
+    // Valider et nettoyer le type
+    const allowedTypes = ['bug', 'feature', 'improvement', 'complaint', 'compliment', 'other'];
+    const type = allowedTypes.includes(feedbackData.type) ? feedbackData.type : 'other';
+
+    // Valider et nettoyer la catégorie
+    const category = feedbackData.category
+      ? sanitizeString(feedbackData.category, { maxLength: 100 })
+      : null;
+
+    // Valider et nettoyer le sujet
+    const subjectResult = validateAndSanitizeTitle(feedbackData.subject, {
+      required: true,
+      maxLength: 255,
+    });
+    if (!subjectResult.valid) {
+      return { data: null, error: subjectResult.error };
+    }
+
+    // Valider et nettoyer le message
+    const messageResult = validateAndSanitizeText(feedbackData.message, {
+      required: true,
+      maxLength: 10000,
+    });
+    if (!messageResult.valid) {
+      return { data: null, error: messageResult.error };
+    }
+
+    // Valider et nettoyer le rating
+    let rating = null;
+    if (feedbackData.rating !== null && feedbackData.rating !== undefined) {
+      const ratingResult = validateAndSanitizeNumber(feedbackData.rating, {
+        min: 1,
+        max: 5,
+        allowDecimals: false,
+        allowNegative: false,
+      });
+      if (ratingResult.valid) {
+        rating = ratingResult.cleaned;
+      }
+    }
+
+    // Valider et nettoyer la priorité
+    const allowedPriorities = ['low', 'normal', 'high', 'urgent'];
+    const priority = allowedPriorities.includes(feedbackData.priority)
+      ? feedbackData.priority
+      : 'normal';
+
     const { data, error } = await supabase
       .from('feedbacks')
       .insert([
         {
           user_id: user.id,
-          type: feedbackData.type || 'other',
-          category: feedbackData.category || null,
-          subject: feedbackData.subject,
-          message: feedbackData.message,
-          rating: feedbackData.rating || null,
+          type,
+          category,
+          subject: subjectResult.cleaned,
+          message: messageResult.cleaned,
+          rating,
           status: 'pending',
-          priority: feedbackData.priority || 'normal',
+          priority,
         }
       ])
       .select()
@@ -281,7 +334,16 @@ export const feedbackService = {
       };
 
       if (adminNotes) {
-        updateData.admin_notes = adminNotes;
+        // Nettoyer les notes admin
+        const notesResult = validateAndSanitizeText(adminNotes, {
+          maxLength: 5000,
+          required: false,
+        });
+        if (notesResult.valid) {
+          updateData.admin_notes = notesResult.cleaned;
+        } else {
+          return { data: null, error: notesResult.error };
+        }
       }
 
       if (status === 'resolved' || status === 'closed') {
