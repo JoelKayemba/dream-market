@@ -543,7 +543,10 @@ export default function SearchScreen({ navigation, route }) {
                 {searchResults.products.length > 6 && (
                   <TouchableOpacity 
                     style={styles.seeMoreButton}
-                    onPress={() => navigation.navigate('AllProducts', { filter: 'all' })}
+                    onPress={() => navigation.navigate('AllProducts', { 
+                      filter: 'all',
+                      searchQuery: searchQuery 
+                    })}
                   >
                     <Text style={styles.seeMoreText}>Voir tous les produits</Text>
                     <Ionicons name="arrow-forward" size={16} color="#4CAF50" />

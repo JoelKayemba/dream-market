@@ -18,7 +18,10 @@ export const productService = {
         farmId = null,
         search = null,
         isActive = null,
-        includeInactive = false
+        includeInactive = false,
+        isNew = null,
+        isPopular = null,
+        hasPromotion = null
       } = options;
 
       let query = supabase
@@ -55,6 +58,17 @@ export const productService = {
       } else if (!includeInactive) {
         // Par défaut, ne charger que les produits actifs
         query = query.eq('is_active', true);
+      }
+      // Filtres pour nouveaux produits, populaires et promotions
+      if (isNew === true) {
+        query = query.eq('is_new', true);
+      }
+      if (isPopular === true) {
+        query = query.eq('is_popular', true);
+      }
+      if (hasPromotion === true) {
+        // Produits en promotion : old_price n'est pas null et > 0
+        query = query.not('old_price', 'is', null).gt('old_price', 0);
       }
 
       const { data, error, count } = await query;

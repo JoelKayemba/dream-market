@@ -1,31 +1,76 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, FlatList, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Container, Badge, Button, SearchBar, ProductCard , ScreenWrapper } from '../components/ui';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   selectClientProducts, 
-  selectClientCategories, 
+  selectClientCategories,
+  selectNewProducts,
+  selectPopularProducts,
+  selectPromotionProducts,
   selectClientProductsLoading,
   selectClientProductsLoadingMore,
   selectClientProductsPagination,
   fetchProducts,
-  fetchCategories 
+  fetchCategories,
+  fetchNewProducts,
+  fetchPopularProducts,
+  fetchPromotionProducts
 } from '../store/client';
 
 export default function AllProductsScreen({ navigation, route }) {
-  const { filter, farmId } = route.params || {};
+  const { filter: routeFilter, farmId, searchQuery: initialSearchQuery } = route.params || {};
+  const filter = routeFilter || 'all'; // Par défaut 'all' si non défini
   const dispatch = useDispatch();
-  const products = useSelector(selectClientProducts);
+  
+  console.log('[AllProductsScreen] Route params:', { routeFilter, filter, farmId, initialSearchQuery });
+  
+  // Utiliser les sélecteurs selon le filtre
+  const allProducts = useSelector(selectClientProducts);
+  const newProducts = useSelector(selectNewProducts);
+  const popularProducts = useSelector(selectPopularProducts);
+  const promotionProducts = useSelector(selectPromotionProducts);
+  
+  // Obtenir les produits selon le filtre avec useMemo pour recalculer quand les données changent
+  const sourceProducts = useMemo(() => {
+    let products = [];
+    switch (filter) {
+      case 'new':
+        products = newProducts || [];
+        break;
+      case 'featured':
+        products = popularProducts || [];
+        break;
+      case 'promotions':
+        products = promotionProducts || [];
+        break;
+      case 'all':
+      default:
+        products = allProducts || [];
+        break;
+    }
+    
+    console.log(`[AllProductsScreen] sourceProducts pour filter="${filter}":`, {
+      filter,
+      count: products.length,
+      newProductsCount: newProducts?.length || 0,
+      popularProductsCount: popularProducts?.length || 0,
+      promotionProductsCount: promotionProducts?.length || 0,
+      allProductsCount: allProducts?.length || 0
+    });
+    
+    return products;
+  }, [filter, newProducts, popularProducts, promotionProducts, allProducts]);
+  
   const categories = useSelector(selectClientCategories);
   const loading = useSelector(selectClientProductsLoading);
   const loadingMore = useSelector(selectClientProductsLoadingMore);
   const pagination = useSelector(selectClientProductsPagination);
   
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery || '');
   const [sortBy, setSortBy] = useState('name');
-  const [priceRange, setPriceRange] = useState({ min: 0, max: 1000 });
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedFarms, setSelectedFarms] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -45,41 +90,89 @@ export default function AllProductsScreen({ navigation, route }) {
     }
   };
 
-  // Charger les données au montage du composant
+  // Charger les données selon le filtre au montage
   useEffect(() => {
-    loadData(0, true);
-    dispatch(fetchCategories());
-  }, [dispatch]);
+    const loadDataForFilter = async () => {
+      try {
+        console.log(`[AllProductsScreen] Chargement des données pour filter="${filter}"`);
+        await dispatch(fetchCategories());
+        
+        // Charger les produits selon le filtre
+        switch (filter) {
+          case 'new':
+            console.log('[AllProductsScreen] Appel fetchNewProducts');
+            await dispatch(fetchNewProducts());
+            break;
+          case 'featured':
+            console.log('[AllProductsScreen] Appel fetchPopularProducts');
+            await dispatch(fetchPopularProducts());
+            break;
+          case 'promotions':
+            console.log('[AllProductsScreen] Appel fetchPromotionProducts');
+            await dispatch(fetchPromotionProducts());
+            break;
+          case 'all':
+          default:
+            console.log('[AllProductsScreen] Appel fetchProducts');
+            await dispatch(fetchProducts({ page: 0, refresh: true }));
+            break;
+        }
+        console.log(`[AllProductsScreen] Données chargées pour filter="${filter}"`);
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+      }
+    };
+    
+    loadDataForFilter();
+  }, [dispatch, filter]);
 
-  const loadData = async (page = 0, refresh = false) => {
-    try {
-      const categoryId = selectedCategories.length === 1 ? selectedCategories[0] : null;
-      const farmIdParam = farmId || null;
-      const search = searchQuery || null;
-
-      await dispatch(fetchProducts({
-        page,
-        refresh,
-        categoryId,
-        farmId: farmIdParam,
-        search
-      }));
-    } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
+  // Réinitialiser les filtres locaux quand le filtre principal change
+  useEffect(() => {
+    setSelectedCategories([]);
+    setSelectedFarms([]);
+    if (initialSearchQuery !== undefined) {
+      setSearchQuery(initialSearchQuery || '');
     }
-  };
+  }, [filter, farmId, initialSearchQuery]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData(0, true);
-    setRefreshing(false);
+    try {
+      await dispatch(fetchCategories());
+      
+      switch (filter) {
+        case 'new':
+          await dispatch(fetchNewProducts());
+          break;
+        case 'featured':
+          await dispatch(fetchPopularProducts());
+          break;
+        case 'promotions':
+          await dispatch(fetchPromotionProducts());
+          break;
+        case 'all':
+        default:
+          await dispatch(fetchProducts({ page: 0, refresh: true }));
+          break;
+      }
+    } catch (error) {
+      console.error('Erreur lors du refresh:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const loadMore = useCallback(() => {
-    if (!loadingMore && pagination.hasMore && !refreshing) {
-      loadData(pagination.page + 1, false);
+    // Pour les filtres spécifiques (new, featured, promotions), on ne charge pas plus
+    // car ils sont déjà chargés en entier
+    if (filter && filter !== 'all') {
+      return;
     }
-  }, [loadingMore, pagination.hasMore, pagination.page, refreshing, selectedCategories, farmId, searchQuery]);
+    
+    if (!loadingMore && pagination.hasMore && !refreshing) {
+      dispatch(fetchProducts({ page: pagination.page + 1, refresh: false }));
+    }
+  }, [loadingMore, pagination.hasMore, pagination.page, refreshing, filter, dispatch]);
 
   const renderFooter = () => {
     if (!loadingMore) return null;
@@ -91,59 +184,67 @@ export default function AllProductsScreen({ navigation, route }) {
     );
   };
 
-  // Appliquer les filtres locaux (tri, prix) sur les produits chargés
+  // Appliquer les filtres locaux (tri, prix, catégories multiples) sur les produits chargés
+  // Le filtre principal (new, featured, promotions) est déjà appliqué via les sélecteurs
   useEffect(() => {
-    if (products && products.length > 0) {
+    console.log(`[AllProductsScreen] useEffect applyFilters déclenché:`, {
+      sourceProductsCount: sourceProducts?.length || 0,
+      sortBy,
+      selectedFarmsCount: selectedFarms.length,
+      selectedCategoriesCount: selectedCategories.length,
+      filter
+    });
+    
+    if (sourceProducts && sourceProducts.length > 0) {
       applyFilters();
+    } else {
+      console.log('[AllProductsScreen] sourceProducts est vide, filteredProducts = []');
+      setFilteredProducts([]);
     }
-  }, [products, sortBy, priceRange, selectedFarms, filter]);
+  }, [sourceProducts, sortBy, selectedFarms, selectedCategories, filter]);
 
   const applyFilters = () => {
-    if (!products || !Array.isArray(products)) {
+    if (!sourceProducts || !Array.isArray(sourceProducts)) {
       setFilteredProducts([]);
       return;
     }
     
-    let filtered = [...products];
-
-    // Appliquer le filtre initial reçu
-    switch (filter) {
-      case 'featured':
-        filtered = filtered.filter(product => product.rating >= 4);
-        break;
-      case 'new':
-        filtered = filtered.filter(product => product.is_new);
-        break;
-      case 'promotions':
-        filtered = filtered.filter(product => product.discount > 0);
-        break;
-      case 'all':
-      default:
-        // Pas de filtre, tous les produits
-        break;
+    let filtered = [...sourceProducts];
+    const initialCount = filtered.length;
+    
+    // Filtrer par farmId si fourni
+    if (farmId) {
+      const beforeFarmFilter = filtered.length;
+      filtered = filtered.filter(product => 
+        product.farm_id === farmId || product.farms?.id === farmId
+      );
+      console.log(`[AllProductsScreen] Filtre farmId: ${beforeFarmFilter} -> ${filtered.length}`);
     }
-
-    // Filtre par recherche (si pas déjà fait côté serveur)
-    // La recherche est maintenant gérée côté serveur via loadData
 
     // Filtre par catégories (si plusieurs catégories sélectionnées, filtrer côté client)
     if (selectedCategories.length > 1) {
+      const beforeCategoryFilter = filtered.length;
       filtered = filtered.filter(product =>
         selectedCategories.includes(product.categories?.name)
       );
+      console.log(`[AllProductsScreen] Filtre catégories multiples: ${beforeCategoryFilter} -> ${filtered.length}`);
+    } else if (selectedCategories.length === 1) {
+      // Si une seule catégorie, filtrer côté client
+      const beforeCategoryFilter = filtered.length;
+      filtered = filtered.filter(product =>
+        product.categories?.name === selectedCategories[0]
+      );
+      console.log(`[AllProductsScreen] Filtre catégorie unique: ${beforeCategoryFilter} -> ${filtered.length}`);
     }
 
-    // Filtre par prix
-    filtered = filtered.filter(product => {
-      const price = parseFloat(product.price);
-      return price >= priceRange.min && price <= priceRange.max;
-    });
 
     // Filtre par fermes sélectionnées
     if (selectedFarms.length > 0) {
+      const beforeFarmFilter = filtered.length;
       filtered = filtered.filter(product =>
-        selectedFarms.includes(product.farm)
+        selectedFarms.includes(product.farms?.name)
       );
+      console.log(`[AllProductsScreen] Filtre fermes: ${beforeFarmFilter} -> ${filtered.length}`);
     }
 
     // Tri
@@ -156,12 +257,13 @@ export default function AllProductsScreen({ navigation, route }) {
         case 'rating':
           return (b.rating || 0) - (a.rating || 0);
         case 'newest':
-          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+          return new Date(b.created_at || b.createdAt || 0) - new Date(a.created_at || a.createdAt || 0);
         default:
           return a.name.localeCompare(b.name);
       }
     });
 
+    console.log(`[AllProductsScreen] applyFilters: ${initialCount} produits initiaux -> ${filtered.length} produits filtrés`);
     setFilteredProducts(filtered);
   };
 
@@ -171,22 +273,16 @@ export default function AllProductsScreen({ navigation, route }) {
   };
 
   const getFarmsList = () => {
-    if (!products || !Array.isArray(products)) return [];
-    const farms = [...new Set(products.map(p => p.farms?.name).filter(Boolean))];
+    if (!sourceProducts || !Array.isArray(sourceProducts)) return [];
+    const farms = [...new Set(sourceProducts.map(p => p.farms?.name).filter(Boolean))];
     return farms;
   };
 
-  const toggleCategoryFilter = (category) => {
+  const toggleCategoryFilter = (categoryName) => {
     setSelectedCategories(prev => {
-      const newCategories = prev.includes(category) 
-        ? prev.filter(c => c !== category)
-        : [...prev, category];
-      // Recharger avec la nouvelle catégorie
-      if (newCategories.length === 1) {
-        loadData(0, true);
-      } else if (newCategories.length === 0) {
-        loadData(0, true);
-      }
+      const newCategories = prev.includes(categoryName) 
+        ? prev.filter(c => c !== categoryName)
+        : [...prev, categoryName];
       return newCategories;
     });
   };
@@ -202,7 +298,6 @@ export default function AllProductsScreen({ navigation, route }) {
   const resetFilters = () => {
     setSearchQuery('');
     setSortBy('name');
-    setPriceRange({ min: 0, max: 1000 });
     setSelectedCategories([]);
     setSelectedFarms([]);
   };
@@ -288,22 +383,6 @@ export default function AllProductsScreen({ navigation, route }) {
         </ScrollView>
       </View>
 
-      {/* Prix */}
-      <View style={styles.filterSection}>
-        <Text style={styles.filterTitle}>Fourchette de prix</Text>
-        <View style={styles.priceRangeContainer}>
-          <Text style={styles.priceRangeText}>
-            {priceRange.min}$ - {priceRange.max}$
-          </Text>
-          <TouchableOpacity
-            style={styles.resetPriceButton}
-            onPress={() => setPriceRange({ min: 0, max: 1000 })}
-          >
-            <Text style={styles.resetPriceText}>Réinitialiser</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
       {/* Fermes */}
       <View style={styles.filterSection}>
         <Text style={styles.filterTitle}>Filtrer par ferme</Text>
@@ -359,7 +438,7 @@ export default function AllProductsScreen({ navigation, route }) {
             {farmId ? 
               (() => {
                 // Trouver la ferme dans les produits
-                const productWithFarm = products.find(p => p.farm_id === farmId);
+                const productWithFarm = sourceProducts.find(p => p.farm_id === farmId || p.farms?.id === farmId);
                 return productWithFarm ? `Produits de ${productWithFarm.farms?.name}` : 'Produits de la ferme';
               })() :
              getTitle()}
@@ -468,7 +547,6 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   searchContainer: {
-
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
@@ -543,7 +621,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: '#FFFFFF',
     minWidth: 80,
- 
     justifyContent: 'center',
   },
   selectedCategoryButton: {
@@ -557,24 +634,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  priceRangeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  priceRangeText: {
-    fontSize: 14,
-    color: '#777E5C',
-  },
-  resetPriceButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  resetPriceText: {
-    color: '#4CAF50',
-    fontSize: 12,
-    fontWeight: '500',
   },
   farmsContainer: {
     gap: 8,

@@ -457,7 +457,7 @@ export default function HomeScreen({ navigation }) {
                 </View>
                 <View>
                   <Text style={styles.sectionTitle}>Tous les produits</Text>
-                  <Text style={styles.sectionSubtitle}>Tout ce qui est disponible maintenant</Text>
+                  <Text style={styles.sectionSubtitle}>Tout ce qui est disponible</Text>
                 </View>
               </View>
               <TouchableOpacity 

@@ -27,7 +27,17 @@ export const fetchProducts = createAsyncThunk(
   'clientProducts/fetchProducts',
   async (options = {}, { rejectWithValue, getState }) => {
     try {
-      const { page = 0, limit = 20, refresh = false, categoryId = null, farmId = null, search = null } = options;
+      const { 
+        page = 0, 
+        limit = 20, 
+        refresh = false, 
+        categoryId = null, 
+        farmId = null, 
+        search = null,
+        isNew = null,
+        isPopular = null,
+        hasPromotion = null
+      } = options;
       const offset = page * limit;
 
       const result = await productService.getProducts({
@@ -37,7 +47,10 @@ export const fetchProducts = createAsyncThunk(
         farmId,
         search,
         isActive: true,
-        includeInactive: false
+        includeInactive: false,
+        isNew,
+        isPopular,
+        hasPromotion
       });
 
       return {
