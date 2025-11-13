@@ -1,14 +1,16 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import {
   View,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   Text,
   TextInput,
   Alert,
   Image,
   SafeAreaView,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -19,7 +21,9 @@ import {
   toggleProductStatus,
   selectAdminProducts,
   selectAdminProductsLoading,
+  selectAdminProductsLoadingMore,
   selectAdminProductsError,
+  selectAdminProductsPagination,
   setSearch,
   setStatusFilter,
   setCategoryFilter,
@@ -38,11 +42,14 @@ export default function ProductsManagement({ navigation, route }) {
   // Local UI state
   const [searchQuery, setSearchQueryLocal] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Redux selectors
   const products = useSelector(selectAdminProducts);
   const filteredProducts = useSelector(selectFilteredProducts);
   const loading = useSelector(selectAdminProductsLoading);
+  const loadingMore = useSelector(selectAdminProductsLoadingMore);
+  const pagination = useSelector(selectAdminProductsPagination);
   const error = useSelector(selectAdminProductsError);
   const filters = useSelector(selectAdminProductsFilters);
   const categories = useSelector(selectAdminCategories) || [];
@@ -50,10 +57,37 @@ export default function ProductsManagement({ navigation, route }) {
 
   // Fetch initial data
   useEffect(() => {
-    dispatch(fetchProducts());
+    dispatch(fetchProducts({ page: 0, refresh: true }));
     dispatch(fetchCategories());
     dispatch(fetchFarms());
   }, [dispatch]);
+
+  // Recharger quand les filtres changent
+  useEffect(() => {
+    dispatch(fetchProducts({ page: 0, refresh: true }));
+  }, [dispatch, filters.category, filters.farm, filters.status, filters.search]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await dispatch(fetchProducts({ page: 0, refresh: true }));
+    setRefreshing(false);
+  };
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && pagination?.hasMore && !refreshing) {
+      dispatch(fetchProducts({ page: (pagination?.page ?? 0) + 1, refresh: false }));
+    }
+  }, [loadingMore, pagination, refreshing, dispatch]);
+
+  const renderFooter = () => {
+    if (!loadingMore) return <View style={{ height: 8 }} />;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#4CAF50" />
+        <Text style={styles.footerLoaderText}>Chargement...</Text>
+      </View>
+    );
+  };
 
   // Sync search to store
   useEffect(() => {
@@ -310,10 +344,10 @@ export default function ProductsManagement({ navigation, route }) {
     );
   });
 
-  // --- Render ----------------------------------------------------
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
+  // ---------------- Fixed header (immobile) ----------------
+  const FixedHeader = () => (
+    <>
+      {/* Top bar */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.menuButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#283106" />
@@ -326,7 +360,7 @@ export default function ProductsManagement({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      {/* Search */}
+      {/* Search bar */}
       <View style={styles.searchSection}>
         <View style={styles.searchBar}>
           <Ionicons name="search-outline" size={20} color="#777E5C" style={styles.searchIcon} />
@@ -355,141 +389,178 @@ export default function ProductsManagement({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </View>
+    </>
+  );
 
+  // -------- Scrolling header (dans la FlatList) --------------
+  const ScrollingHeader = () => (
+    <View>
       {/* Filters */}
       {showFilters ? (
         <>
           {/* Farm filter */}
           <View style={styles.filterSection}>
             <Text style={styles.filterSectionTitle}>Filtrer par ferme</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              <FilterChip
-                icon="list-outline"
-                text="Toutes"
-                active={!filters.farm}
-                onPress={() => dispatch(setFarmFilter(null))}
-              />
-              {farms.map((f) => (
-                <FilterChip
-                  key={f.id}
-                  icon="business-outline"
-                  text={f.name}
-                  active={filters.farm === f.id}
-                  onPress={() => dispatch(setFarmFilter(f.id))}
-                />
-              ))}
-            </ScrollView>
+            <FlatList
+              data={[{ id: '__all__', name: 'Toutes' }, ...farms]}
+              keyExtractor={(item) => String(item.id || item.name)}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const isAll = item.id === '__all__';
+                const active = isAll ? !filters.farm : filters.farm === item.id;
+                return (
+                  <FilterChip
+                    icon={isAll ? 'list-outline' : 'business-outline'}
+                    text={isAll ? 'Toutes' : item.name}
+                    active={active}
+                    onPress={() => dispatch(setFarmFilter(isAll ? null : item.id))}
+                  />
+                );
+              }}
+            />
           </View>
 
           {/* Category filter */}
           <View style={styles.filterSection}>
             <Text style={styles.filterSectionTitle}>Filtrer par catégorie</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              <FilterChip
-                icon="list-outline"
-                text="Toutes"
-                active={!filters.category}
-                onPress={() => dispatch(setCategoryFilter(null))}
-              />
-              {categories.map((c) => (
-                <FilterChip
-                  key={c.id}
-                  icon="grid-outline"
-                  text={c.name}
-                  active={filters.category === c.id}
-                  onPress={() => dispatch(setCategoryFilter(c.id))}
-                />
-              ))}
-            </ScrollView>
+            <FlatList
+              data={[{ id: '__all__', name: 'Toutes' }, ...categories]}
+              keyExtractor={(item) => String(item.id || item.name)}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const isAll = item.id === '__all__';
+                const active = isAll ? !filters.category : filters.category === item.id;
+                return (
+                  <FilterChip
+                    icon="grid-outline"
+                    text={isAll ? 'Toutes' : item.name}
+                    active={active}
+                    onPress={() => dispatch(setCategoryFilter(isAll ? null : item.id))}
+                  />
+                );
+              }}
+            />
           </View>
 
           {/* Status filter */}
           <View style={styles.filterSection}>
             <Text style={styles.filterSectionTitle}>Filtrer par statut</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              <FilterChip
-                icon="list-outline"
-                text="Tous"
-                active={filters.status === 'all'}
-                onPress={() => dispatch(setStatusFilter('all'))}
-              />
-              <FilterChip
-                icon="checkmark-circle-outline"
-                text="Actifs"
-                active={filters.status === 'active'}
-                onPress={() => dispatch(setStatusFilter('active'))}
-              />
-              <FilterChip
-                icon="pause-circle-outline"
-                text="Inactifs"
-                active={filters.status === 'inactive'}
-                onPress={() => dispatch(setStatusFilter('inactive'))}
-                activeColor="#F44336"
-              />
-            </ScrollView>
+            <FlatList
+              data={[
+                { id: 'all', label: 'Tous', icon: 'list-outline' },
+                { id: 'active', label: 'Actifs', icon: 'checkmark-circle-outline' },
+                { id: 'inactive', label: 'Inactifs', icon: 'pause-circle-outline', color: '#F44336' },
+              ]}
+              keyExtractor={(item) => String(item.id)}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <FilterChip
+                  icon={item.icon}
+                  text={item.label}
+                  active={filters.status === item.id}
+                  onPress={() => dispatch(setStatusFilter(item.id))}
+                  activeColor={item.color || '#4CAF50'}
+                />
+              )}
+            />
           </View>
         </>
       ) : null}
 
-      {/* Body */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Stats */}
-        <View style={styles.statsContainer}>
-          <StatCard icon="cube-outline" color="#4CAF50" value={displayProducts.length} label="Total" />
-          <StatCard
-            icon="checkmark-circle-outline"
-            color="#4CAF50"
-            value={displayProducts.filter((p) => p.is_active).length}
-            label="Actifs"
-          />
-          <StatCard
-            icon="close-circle-outline"
-            color="#F44336"
-            value={displayProducts.filter((p) => !p.is_active).length}
-            label="Inactifs"
-          />
+      {/* Stats */}
+      <View style={styles.statsContainer}>
+        <StatCard
+          icon="cube-outline"
+          color="#4CAF50"
+          value={pagination?.total ?? displayProducts.length}
+          label="Total"
+        />
+        <StatCard
+          icon="checkmark-circle-outline"
+          color="#4CAF50"
+          value={displayProducts.filter((p) => p.is_active).length}
+          label="Actifs"
+        />
+        <StatCard
+          icon="close-circle-outline"
+          color="#F44336"
+          value={displayProducts.filter((p) => !p.is_active).length}
+          label="Inactifs"
+        />
+      </View>
+
+      {/* Error banner */}
+      {error ? (
+        <View style={styles.errorBanner}>
+          <Ionicons name="alert-circle-outline" size={18} color="#C62828" />
+          <Text style={styles.errorText}>
+            {String(error?.message || 'Une erreur est survenue.')}
+          </Text>
         </View>
+      ) : null}
+    </View>
+  );
 
-        {/* Error (optionnel) */}
-        {error ? (
-          <View style={styles.errorBanner}>
-            <Ionicons name="alert-circle-outline" size={18} color="#C62828" />
-            <Text style={styles.errorText}>
-              {String(error?.message || 'Une erreur est survenue.')}
-            </Text>
-          </View>
-        ) : null}
+  // Empty state
+  const ListEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="leaf-outline" size={64} color="#CBD5E0" />
+      <Text style={styles.emptyTitle}>
+        {searchQuery ? 'Aucun produit trouvé' : 'Aucun produit'}
+      </Text>
+      <Text style={styles.emptySubtitle}>
+        {searchQuery ? "Essayez avec d'autres mots-clés" : 'Commencez par ajouter un produit'}
+      </Text>
+      {!searchQuery ? (
+        <TouchableOpacity style={styles.addFirstButton} onPress={handleAddProduct}>
+          <Ionicons name="add-circle" size={20} color="#FFFFFF" />
+          <Text style={styles.addFirstButtonText}>Ajouter un produit</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
 
-        {/* Loading / Empty / List */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <Ionicons name="hourglass-outline" size={48} color="#4CAF50" />
-            <Text style={styles.loadingText}>Chargement des produits...</Text>
-          </View>
-        ) : displayProducts.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="leaf-outline" size={64} color="#CBD5E0" />
-            <Text style={styles.emptyTitle}>
-              {searchQuery ? 'Aucun produit trouvé' : 'Aucun produit'}
-            </Text>
-            <Text style={styles.emptySubtitle}>
-              {searchQuery ? "Essayez avec d'autres mots-clés" : 'Commencez par ajouter un produit'}
-            </Text>
-            {!searchQuery ? (
-              <TouchableOpacity style={styles.addFirstButton} onPress={handleAddProduct}>
-                <Ionicons name="add-circle" size={20} color="#FFFFFF" />
-                <Text style={styles.addFirstButtonText}>Ajouter un produit</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        ) : (
-          <View style={styles.productsList}>
-            {displayProducts.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </View>
-        )}
-      </ScrollView>
+  // --- Render ----------------------------------------------------
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Header + Search FIXES */}
+      <FixedHeader />
+
+      {/* Tout le reste défile dans CETTE FlatList */}
+      {loading && products.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <Ionicons name="hourglass-outline" size={48} color="#4CAF50" />
+          <Text style={styles.loadingText}>Chargement des produits...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={displayProducts}
+          renderItem={({ item }) => <ProductCard product={item} />}
+          keyExtractor={(item) => String(item.id)}
+          numColumns={1}
+          contentContainerStyle={styles.productsList}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#4CAF50']}
+              tintColor="#4CAF50"
+            />
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListHeaderComponent={<ScrollingHeader />}
+          ListFooterComponent={renderFooter}
+          ListEmptyComponent={<ListEmpty />}
+          removeClippedSubviews
+          initialNumToRender={8}
+          windowSize={10}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -498,6 +569,7 @@ export default function ProductsManagement({ navigation, route }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
 
+  /* Fixed header */
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -517,6 +589,7 @@ const styles = StyleSheet.create({
   },
   addButton: { padding: 4 },
 
+  /* Fixed search */
   searchSection: {
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -538,15 +611,15 @@ const styles = StyleSheet.create({
   clearButton: { padding: 4, marginLeft: 8 },
   filterToggleButton: { padding: 4, marginLeft: 8 },
 
+  /* Scrolling header */
   filterSection: {
     paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    //backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   filterSectionTitle: { fontSize: 13, fontWeight: '600', color: '#777E5C', marginBottom: 8 },
-  filterScroll: { paddingLeft: 0 },
 
   filterChip: {
     flexDirection: 'row',
@@ -564,8 +637,7 @@ const styles = StyleSheet.create({
   filterChipText: { fontSize: 13, fontWeight: '600', color: '#777E5C' },
   filterChipTextActive: { color: '#4CAF50' },
 
-  content: { flex: 1 },
-
+  /* Stats */
   statsContainer: { flexDirection: 'row', padding: 20, gap: 12 },
   statCard: {
     flex: 1,
@@ -584,6 +656,7 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 24, fontWeight: '700', color: '#283106', marginTop: 8 },
   statLabel: { fontSize: 12, color: '#777E5C', marginTop: 4, fontWeight: '500' },
 
+  /* Error banner */
   errorBanner: {
     marginHorizontal: 20,
     marginBottom: 8,
@@ -598,24 +671,10 @@ const styles = StyleSheet.create({
   },
   errorText: { color: '#C62828', fontWeight: '600', flexShrink: 1 },
 
-  loadingContainer: { alignItems: 'center', paddingVertical: 60 },
-  loadingText: { fontSize: 16, color: '#777E5C', marginTop: 16 },
-
-  emptyContainer: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#666666', marginTop: 16, marginBottom: 8 },
-  emptySubtitle: { fontSize: 14, color: '#999999', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  addFirstButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  addFirstButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-
-  productsList: { padding: 20, gap: 16 },
+  /* List & items */
+  productsList: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28, rowGap: 16 },
+  footerLoader: { paddingVertical: 20, alignItems: 'center', justifyContent: 'center' },
+  footerLoaderText: { marginTop: 8, fontSize: 12, color: '#777E5C' },
 
   productCard: {
     backgroundColor: '#FFFFFF',
@@ -628,6 +687,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
+    marginBottom: 16,
   },
   productImageContainer: { width: '100%', height: 180, backgroundColor: '#F8FAFC', position: 'relative' },
   productImage: { width: '100%', height: '100%' },
@@ -700,4 +760,22 @@ const styles = StyleSheet.create({
   actionButtonTextDisable: { color: '#F44336' },
   actionButtonTextEnable: { color: '#4CAF50' },
   actionButtonTextDelete: { color: '#F44336' },
+
+  /* Loading & Empty */
+  loadingContainer: { alignItems: 'center', paddingVertical: 60 },
+  loadingText: { fontSize: 16, color: '#777E5C', marginTop: 16 },
+
+  emptyContainer: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#666666', marginTop: 16, marginBottom: 8 },
+  emptySubtitle: { fontSize: 14, color: '#999999', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  addFirstButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  addFirstButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
 });

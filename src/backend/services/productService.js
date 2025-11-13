@@ -8,10 +8,20 @@ import {
 } from '../../utils/inputSanitizer';
 
 export const productService = {
-  // Récupérer tous les produits
-  getProducts: async () => {
+  // Récupérer tous les produits avec pagination
+  getProducts: async (options = {}) => {
     try {
-      const { data, error } = await supabase
+      const {
+        limit = 20,
+        offset = 0,
+        categoryId = null,
+        farmId = null,
+        search = null,
+        isActive = null,
+        includeInactive = false
+      } = options;
+
+      let query = supabase
         .from('products')
         .select(`
           *,
@@ -26,11 +36,38 @@ export const productService = {
             name,
             emoji
           )
-        `)
-        .order('created_at', { ascending: false });
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      // Filtres optionnels
+      if (categoryId) {
+        query = query.eq('category_id', categoryId);
+      }
+      if (farmId) {
+        query = query.eq('farm_id', farmId);
+      }
+      if (search) {
+        query = query.ilike('name', `%${search}%`);
+      }
+      if (isActive !== null) {
+        query = query.eq('is_active', isActive);
+      } else if (!includeInactive) {
+        // Par défaut, ne charger que les produits actifs
+        query = query.eq('is_active', true);
+      }
+
+      const { data, error, count } = await query;
 
       if (error) throw error;
-      return data;
+
+      return {
+        data: data || [],
+        total: count || 0,
+        hasMore: (offset + limit) < (count || 0),
+        limit,
+        offset
+      };
     } catch (error) {
       throw error;
     }

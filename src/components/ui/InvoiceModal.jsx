@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { generateInvoiceHTML, getInvoiceFileName } from '../../utils/invoiceService';
+import { Asset } from 'expo-asset';
 
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -28,18 +29,59 @@ try {
 export default function InvoiceModal({ visible, order, onClose }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [webViewError, setWebViewError] = useState(false);
+  const [logoUri, setLogoUri] = useState(null);
+
+  // Charger le logo au montage du composant et le convertir en base64
+  useEffect(() => {
+    const loadLogo = async () => {
+      try {
+        const asset = Asset.fromModule(require('../../../assets/Dream_logo.png'));
+        await asset.downloadAsync();
+        const uri = asset.localUri || asset.uri;
+        
+        // Convertir l'image en base64 pour une meilleure compatibilité avec expo-print
+        try {
+          // Utiliser fetch pour lire le fichier
+          const response = await fetch(uri);
+          const arrayBuffer = await response.arrayBuffer();
+          
+          // Convertir ArrayBuffer en base64 manuellement
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = '';
+          for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          const base64 = btoa(binary);
+          
+          // Déterminer le type MIME (PNG dans ce cas)
+          const mimeType = 'image/png';
+          setLogoUri(`data:${mimeType};base64,${base64}`);
+        } catch (base64Error) {
+          // Si la conversion base64 échoue, utiliser l'URI directement
+          console.warn('⚠️ [InvoiceModal] Impossible de convertir le logo en base64, utilisation de l\'URI:', base64Error);
+          setLogoUri(uri);
+        }
+      } catch (error) {
+        console.warn('⚠️ [InvoiceModal] Impossible de charger le logo:', error);
+      }
+    };
+    
+    if (visible) {
+      loadLogo();
+    }
+  }, [visible]);
 
   if (!order) return null;
 
-  const invoiceHTML = generateInvoiceHTML(order);
+  const invoiceHTML = generateInvoiceHTML(order, logoUri);
   const fileName = getInvoiceFileName(order, 'pdf');
 
   const handleDownload = async () => {
     try {
       setIsGenerating(true);
 
-      // Générer le HTML de la facture
-      const html = generateInvoiceHTML(order);
+      // Générer le HTML de la facture avec le logo
+      const html = generateInvoiceHTML(order, logoUri);
 
       // Générer le PDF à partir du HTML
       const { uri } = await Print.printToFileAsync({

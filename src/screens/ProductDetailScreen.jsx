@@ -11,7 +11,7 @@ import {
   Platform,
   Modal,
   ActivityIndicator,
-  SafeAreaView,
+  
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -20,6 +20,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import { formatPrice } from '../utils/currency';
 import { farmService } from '../backend';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import SafeAreaWrapper from '../components/SafeAreaWrapper';
 
 const { width } = Dimensions.get('window');
 
@@ -157,7 +158,7 @@ export default function ProductDetailScreen({ route, navigation }) {
   const contentBottomPadding = STICKY_BAR_HEIGHT + stickyBottomPad + 16;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+    <SafeAreaWrapper style={{ flex: 1, backgroundColor: COLORS.bg }}>
       {/* Loader ferme */}
       <Modal visible={loadingFarm} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -443,7 +444,7 @@ export default function ProductDetailScreen({ route, navigation }) {
           <Text style={styles.ctaText}>{isInCart ? 'Retirer du panier' : 'Ajouter au panier'}</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 

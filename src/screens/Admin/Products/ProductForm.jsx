@@ -117,10 +117,7 @@ export default function ProductForm({ route, navigation }) {
       Alert.alert('Erreur', 'Veuillez remplir le nom, le prix et la catégorie');
       return;
     }
-    if (!formData.farm_id) {
-      Alert.alert('Erreur', 'Veuillez sélectionner une ferme');
-      return;
-    }
+    
     if (selectedImages.length === 0) {
       Alert.alert('Erreur', 'Veuillez ajouter au moins une image');
       return;

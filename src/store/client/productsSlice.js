@@ -9,19 +9,44 @@ const initialState = {
   newProducts: [],
   promotionProducts: [],
   loading: false,
-  initialLoading: false, // Nouveau: loading pour le premier chargement
+  loadingMore: false, // Chargement de plus d'éléments
+  initialLoading: false, // Loading pour le premier chargement
   error: null,
   lastUpdated: null,
-  hasInitialized: false, // Nouveau: flag pour savoir si les données ont été chargées
+  hasInitialized: false,
+  pagination: {
+    page: 0,
+    limit: 20,
+    total: 0,
+    hasMore: true
+  }
 };
 
 // Actions asynchrones
 export const fetchProducts = createAsyncThunk(
   'clientProducts/fetchProducts',
-  async (_, { rejectWithValue }) => {
+  async (options = {}, { rejectWithValue, getState }) => {
     try {
-      const products = await productService.getProducts();
-      return products;
+      const { page = 0, limit = 20, refresh = false, categoryId = null, farmId = null, search = null } = options;
+      const offset = page * limit;
+
+      const result = await productService.getProducts({
+        limit,
+        offset,
+        categoryId,
+        farmId,
+        search,
+        isActive: true,
+        includeInactive: false
+      });
+
+      return {
+        items: result.data,
+        total: result.total,
+        hasMore: result.hasMore,
+        page,
+        refresh
+      };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -44,8 +69,13 @@ export const fetchPopularProducts = createAsyncThunk(
   'clientProducts/fetchPopularProducts',
   async (_, { rejectWithValue }) => {
     try {
-      const products = await productService.getProducts();
-      const popularProducts = products.filter(product => 
+      // Charger seulement les premiers produits populaires (limite de 10)
+      const result = await productService.getProducts({
+        limit: 10,
+        offset: 0,
+        isActive: true
+      });
+      const popularProducts = result.data.filter(product => 
         product.is_popular && product.is_active
       );
       return popularProducts;
@@ -59,8 +89,13 @@ export const fetchNewProducts = createAsyncThunk(
   'clientProducts/fetchNewProducts',
   async (_, { rejectWithValue }) => {
     try {
-      const products = await productService.getProducts();
-      const newProducts = products.filter(product => 
+      // Charger seulement les premiers nouveaux produits (limite de 10)
+      const result = await productService.getProducts({
+        limit: 10,
+        offset: 0,
+        isActive: true
+      });
+      const newProducts = result.data.filter(product => 
         product.is_new && product.is_active
       );
       return newProducts;
@@ -74,8 +109,13 @@ export const fetchPromotionProducts = createAsyncThunk(
   'clientProducts/fetchPromotionProducts',
   async (_, { rejectWithValue }) => {
     try {
-      const products = await productService.getProducts();
-      const promotionProducts = products.filter(product => 
+      // Charger seulement les premiers produits en promotion (limite de 10)
+      const result = await productService.getProducts({
+        limit: 10,
+        offset: 0,
+        isActive: true
+      });
+      const promotionProducts = result.data.filter(product => 
         product.old_price && product.old_price > 0 && product.is_active
       );
       return promotionProducts;
@@ -103,21 +143,41 @@ const clientProductsSlice = createSlice({
   extraReducers: (builder) => {
     // Fetch Products
     builder
-      .addCase(fetchProducts.pending, (state) => {
-        // Loading seulement si pas encore initialisé
-        if (!state.hasInitialized) {
+      .addCase(fetchProducts.pending, (state, action) => {
+        const { refresh = false } = action.meta.arg || {};
+        if (refresh || !state.hasInitialized) {
           state.initialLoading = true;
+          state.loadingMore = false;
+        } else {
+          state.loadingMore = true;
         }
         state.error = null;
       })
       .addCase(fetchProducts.fulfilled, (state, action) => {
+        const { items, total, hasMore, page, refresh } = action.payload;
         state.initialLoading = false;
-        state.products = action.payload;
+        state.loadingMore = false;
+        
+        if (refresh || page === 0) {
+          // Nouveau chargement ou refresh
+          state.products = items;
+        } else {
+          // Chargement de plus d'éléments
+          state.products = [...state.products, ...items];
+        }
+        
+        state.pagination = {
+          page,
+          limit: 20,
+          total,
+          hasMore
+        };
         state.hasInitialized = true;
         state.lastUpdated = new Date().toISOString();
       })
       .addCase(fetchProducts.rejected, (state, action) => {
         state.initialLoading = false;
+        state.loadingMore = false;
         state.error = action.payload;
       })
       
@@ -184,7 +244,9 @@ export const selectPopularProducts = (state) => state.client?.products?.popularP
 export const selectNewProducts = (state) => state.client?.products?.newProducts || [];
 export const selectPromotionProducts = (state) => state.client?.products?.promotionProducts || [];
 export const selectClientProductsLoading = (state) => state.client?.products?.initialLoading || false;
+export const selectClientProductsLoadingMore = (state) => state.client?.products?.loadingMore || false;
 export const selectClientProductsError = (state) => state.client?.products?.error || null;
 export const selectClientProductsLastUpdated = (state) => state.client?.products?.lastUpdated || null;
+export const selectClientProductsPagination = (state) => state.client?.products?.pagination || { page: 0, limit: 20, total: 0, hasMore: true };
 
 export default clientProductsSlice.reducer;

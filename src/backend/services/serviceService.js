@@ -7,10 +7,18 @@ import {
 } from '../../utils/inputSanitizer';
 
 export const serviceService = {
-  // Récupérer tous les services
-  getServices: async () => {
+  // Récupérer tous les services avec pagination
+  getServices: async (options = {}) => {
     try {
-      const { data, error } = await supabase
+      const {
+        limit = 20,
+        offset = 0,
+        categoryId = null,
+        search = null,
+        isActive = null
+      } = options;
+
+      let query = supabase
         .from('services')
         .select(`
           *,
@@ -19,11 +27,35 @@ export const serviceService = {
             name,
             emoji
           )
-        `)
-        .order('created_at', { ascending: false });
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      // Filtres optionnels
+      if (categoryId) {
+        query = query.eq('category_id', categoryId);
+      }
+      if (search) {
+        query = query.ilike('name', `%${search}%`);
+      }
+      if (isActive !== null) {
+        query = query.eq('is_active', isActive);
+      } else {
+        // Par défaut, ne charger que les services actifs
+        query = query.eq('is_active', true);
+      }
+
+      const { data, error, count } = await query;
 
       if (error) throw error;
-      return data;
+
+      return {
+        data: data || [],
+        total: count || 0,
+        hasMore: (offset + limit) < (count || 0),
+        limit,
+        offset
+      };
     } catch (error) {
       throw error;
     }

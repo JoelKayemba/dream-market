@@ -27,11 +27,14 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.dreammarket.app",
+      "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
-        "WAKE_LOCK"
+        "WAKE_LOCK",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
       ]
     },
     "web": {
@@ -50,6 +53,11 @@
           "androidCollapsedTitle": "Nouvelles notifications"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "45c17e9d-9f8c-4f30-94c4-905b9f5c51f2"
+      }
+    }
   }
 }

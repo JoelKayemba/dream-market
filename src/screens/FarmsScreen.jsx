@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Text, RefreshControl } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, FlatList, Dimensions, TouchableOpacity, Text, RefreshControl, ActivityIndicator } from 'react-native';
 import { 
   Container, 
   SearchBar,
@@ -12,6 +12,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { 
   selectClientFarms, 
   selectClientFarmsLoading,
+  selectClientFarmsLoadingMore,
+  selectClientFarmsPagination,
   fetchFarms
 } from '../store/client';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
@@ -22,38 +24,57 @@ export default function FarmsScreen({ navigation }) {
   const dispatch = useDispatch();
   const farms = useSelector(selectClientFarms);
   const loading = useSelector(selectClientFarmsLoading);
+  const loadingMore = useSelector(selectClientFarmsLoadingMore);
+  const pagination = useSelector(selectClientFarmsPagination);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
-    const loadDataIfNeeded = async () => {
-      try {
-        if (!hasLoaded && (!farms || farms.length === 0)) {
-          setHasLoaded(true);
-          await dispatch(fetchFarms());
-        } else if (farms && farms.length > 0) {
-          setHasLoaded(true);
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement des données:', error);
-        setHasLoaded(false);
-      }
-    };
-    
-    loadDataIfNeeded();
-  }, [dispatch, hasLoaded]);
+    loadData(0, true);
+  }, [dispatch]);
+
+  const loadData = async (page = 0, refresh = false) => {
+    try {
+      console.log(`📥 [FarmsScreen] Loading farms - page: ${page}, refresh: ${refresh}, search: ${searchQuery || 'none'}`);
+      const result = await dispatch(fetchFarms({
+        page,
+        refresh,
+        search: searchQuery || null
+      }));
+      console.log(`✅ [FarmsScreen] Farms loaded:`, result.payload);
+    } catch (error) {
+      console.error('❌ [FarmsScreen] Erreur lors du chargement des données:', error);
+    }
+  };
 
   const onRefresh = async () => {
     try {
       setRefreshing(true);
-      await dispatch(fetchFarms());
+      await loadData(0, true);
     } catch (error) {
       console.error('Erreur lors du refresh:', error);
     } finally {
       setRefreshing(false);
     }
+  };
+
+  // Charger plus d'éléments
+  const loadMore = useCallback(() => {
+    if (!loadingMore && pagination.hasMore && !refreshing) {
+      loadData(pagination.page + 1, false);
+    }
+  }, [loadingMore, pagination.hasMore, pagination.page, refreshing, searchQuery]);
+
+  // Footer pour le chargement
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#4CAF50" />
+        <Text style={styles.footerLoaderText}>Chargement...</Text>
+      </View>
+    );
   };
 
   const handleFarmPress = (farm) => {
@@ -127,26 +148,37 @@ export default function FarmsScreen({ navigation }) {
   };
 
   const getFilteredFarms = () => {
-    if (!farms || !Array.isArray(farms)) return [];
-    let filtered = farms;
-    
+    if (!farms || !Array.isArray(farms)) {
+      console.log('⚠️ [FarmsScreen] farms is not an array:', farms);
+      return [];
+    }
+    console.log(`✅ [FarmsScreen] Total farms loaded: ${farms.length}`, farms.map(f => ({ id: f.id, name: f.name })));
+    // Si on a une recherche locale, filtrer côté client
+    // Sinon, les données sont déjà filtrées côté serveur
     if (searchQuery.trim()) {
       const lowerQuery = searchQuery.toLowerCase();
-      filtered = filtered.filter(farm =>
-        farm.name.toLowerCase().includes(lowerQuery) ||
-        farm.description.toLowerCase().includes(lowerQuery) ||
-        farm.specialty.toLowerCase().includes(lowerQuery) ||
-        farm.location.toLowerCase().includes(lowerQuery) ||
-        farm.region.toLowerCase().includes(lowerQuery) ||
-        (farm.products && farm.products.some(product => product.toLowerCase().includes(lowerQuery))) ||
-        (farm.certifications && farm.certifications.some(cert => cert.toLowerCase().includes(lowerQuery)))
+      const filtered = farms.filter(farm =>
+        farm.name?.toLowerCase().includes(lowerQuery) ||
+        (farm.description && farm.description.toLowerCase().includes(lowerQuery)) ||
+        (farm.specialty && farm.specialty.toLowerCase().includes(lowerQuery)) ||
+        (farm.location && farm.location.toLowerCase().includes(lowerQuery)) ||
+        (farm.region && farm.region.toLowerCase().includes(lowerQuery))
       );
+      console.log(`🔍 [FarmsScreen] Filtered farms: ${filtered.length}`);
+      return filtered;
     }
-    
-    return filtered;
+    return farms;
   };
 
-  const filteredFarms = getFilteredFarms();
+  // Recharger quand la recherche change
+  useEffect(() => {
+    if (searchQuery) {
+      const timeoutId = setTimeout(() => {
+        loadData(0, true);
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchQuery]);
 
   if (loading) {
     return (
@@ -209,11 +241,11 @@ export default function FarmsScreen({ navigation }) {
             icon="grid"
           />
           
-          <View style={styles.allFarmsGrid}>
-            {(farms || []).map((farm, index) => (
+          <FlatList
+            data={getFilteredFarms()}
+            renderItem={({ item, index }) => (
               <FarmCard
-                key={farm.id}
-                farm={farm}
+                farm={item}
                 navigation={navigation}
                 onPress={handleFarmPress}
                 onViewProducts={handleViewProducts}
@@ -224,19 +256,23 @@ export default function FarmsScreen({ navigation }) {
                   index % 2 === 0 ? styles.cardEven : styles.cardOdd
                 ]}
               />
-            ))}
-          </View>
-
-          {/* Message si aucune ferme */}
-          {(farms || []).length === 0 && (
-            <View style={styles.emptyState}>
-              <MaterialIcons name="search-off" size={64} color="#CCCCCC" />
-              <Text style={styles.emptyStateTitle}>Aucune ferme trouvée</Text>
-              <Text style={styles.emptyStateText}>
-                Aucune ferme n'est disponible pour le moment.
-              </Text>
-            </View>
-          )}
+            )}
+            keyExtractor={(item) => String(item.id || item.name || Math.random())}
+            numColumns={2}
+            scrollEnabled={false}
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={renderFooter}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <MaterialIcons name="search-off" size={64} color="#CCCCCC" />
+                <Text style={styles.emptyStateTitle}>Aucune ferme trouvée</Text>
+                <Text style={styles.emptyStateText}>
+                  Aucune ferme n'est disponible pour le moment.
+                </Text>
+              </View>
+            }
+          />
         </Container>
 
         {/* Call to Action */}
@@ -407,6 +443,16 @@ const styles = StyleSheet.create({
     color: '#999999',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerLoaderText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#777E5C',
   },
   ctaSection: {
     paddingVertical: 24,

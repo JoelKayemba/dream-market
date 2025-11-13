@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Dimensions, TouchableOpacity, RefreshControl, Text } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, FlatList, Dimensions, TouchableOpacity, RefreshControl, Text, ActivityIndicator } from 'react-native';
 import { 
   Container, 
   CategoryCard,
@@ -18,6 +18,8 @@ import {
   selectNewProducts,
   selectPromotionProducts,
   selectClientProductsLoading,
+  selectClientProductsLoadingMore,
+  selectClientProductsPagination,
   fetchProducts,
   fetchCategories,
   fetchPopularProducts,
@@ -37,6 +39,8 @@ export default function ProductsScreen({ navigation, route }) {
   const newProducts = useSelector(selectNewProducts);
   const promotionProducts = useSelector(selectPromotionProducts);
   const loading = useSelector(selectClientProductsLoading);
+  const loadingMore = useSelector(selectClientProductsLoadingMore);
+  const pagination = useSelector(selectClientProductsPagination);
   
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,10 +50,14 @@ export default function ProductsScreen({ navigation, route }) {
     loadData();
   }, [dispatch]);
 
-  const loadData = async () => {
+  const loadData = async (page = 0, refresh = false) => {
     try {
       await Promise.all([
-        dispatch(fetchProducts()),
+        dispatch(fetchProducts({ 
+          page, 
+          refresh,
+          categoryId: selectedCategory?.id || null
+        })),
         dispatch(fetchCategories()),
         dispatch(fetchPopularProducts()),
         dispatch(fetchNewProducts()),
@@ -74,12 +82,30 @@ export default function ProductsScreen({ navigation, route }) {
   const onRefresh = async () => {
     try {
       setRefreshing(true);
-      await loadData();
+      await loadData(0, true);
     } catch (error) {
       console.error('Erreur lors du refresh:', error);
     } finally {
       setRefreshing(false);
     }
+  };
+
+  // Charger plus d'éléments
+  const loadMore = useCallback(() => {
+    if (!loadingMore && pagination.hasMore && !refreshing) {
+      loadData(pagination.page + 1, false);
+    }
+  }, [loadingMore, pagination.hasMore, pagination.page, refreshing]);
+
+  // Footer pour le chargement
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#4CAF50" />
+        <Text style={styles.footerLoaderText}>Chargement...</Text>
+      </View>
+    );
   };
 
   // Gestionnaire de recherche
@@ -90,6 +116,8 @@ export default function ProductsScreen({ navigation, route }) {
   // Gestionnaire de sélection de catégorie
   const handleCategorySelect = (category) => {
     setSelectedCategory(category);
+    // Recharger les produits avec la nouvelle catégorie
+    dispatch(fetchProducts({ page: 0, refresh: true, categoryId: category.id }));
   };
 
   // Obtenir les produits de la catégorie sélectionnée
@@ -361,29 +389,34 @@ export default function ProductsScreen({ navigation, route }) {
               </TouchableOpacity>
             </View>
             
-            <View style={styles.categoryProductsGrid}>
-              {getCategoryProducts().map((product) => (
+            <FlatList
+              data={getCategoryProducts()}
+              renderItem={({ item }) => (
                 <ProductCard
-                  key={product.id}
-                  product={product}
+                  product={item}
                   navigation={navigation}
                   variant="default"
                   size="fullWidth"
                   fullWidth={true}
                   style={styles.categoryProductCard}
                 />
-              ))}
-            </View>
-
-            {getCategoryProducts().length === 0 && (
-              <View style={styles.emptyState}>
-                <MaterialIcons name="inventory" size={64} color="#CCCCCC" />
-                <Text style={styles.emptyStateTitle}>Aucun produit dans cette catégorie</Text>
-                <Text style={styles.emptyStateText}>
-                  Aucun produit n'est disponible dans la catégorie {selectedCategory.name} pour le moment.
-                </Text>
-              </View>
-            )}
+              )}
+              keyExtractor={(item) => item.id}
+              numColumns={1}
+              scrollEnabled={false}
+              onEndReached={loadMore}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={renderFooter}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <MaterialIcons name="inventory" size={64} color="#CCCCCC" />
+                  <Text style={styles.emptyStateTitle}>Aucun produit dans cette catégorie</Text>
+                  <Text style={styles.emptyStateText}>
+                    Aucun produit n'est disponible dans la catégorie {selectedCategory.name} pour le moment.
+                  </Text>
+                </View>
+              }
+            />
           </Container>
         )}
       </ScrollView>
@@ -628,6 +661,16 @@ const styles = StyleSheet.create({
   },
   categoryProductCard: {
     marginBottom: 16,
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerLoaderText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#777E5C',
   },
   loadingContainer: {
     flex: 1,

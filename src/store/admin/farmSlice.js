@@ -4,10 +4,27 @@ import { farmService } from '../../backend';
 // Actions asynchrones avec backend Supabase
 export const fetchFarms = createAsyncThunk(
   'farms/fetchFarms',
-  async (_, { rejectWithValue }) => {
+  async (options = {}, { rejectWithValue, getState }) => {
     try {
-      const farms = await farmService.getFarms();
-      return farms;
+      const { page = 0, limit = 20, refresh = false } = options;
+      const state = getState();
+      const filters = state.admin?.farms?.filters || {};
+      
+      const result = await farmService.getFarms({
+        limit,
+        offset: page * limit,
+        search: filters.search || null,
+        verified: filters.verified !== null ? filters.verified : null,
+        region: filters.region || null
+      });
+
+      return {
+        items: result.data,
+        total: result.total,
+        hasMore: result.hasMore,
+        page,
+        refresh
+      };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -130,12 +147,24 @@ export const verifyFarm = createAsyncThunk(
 const initialState = {
   farms: [],
   loading: false,
+  loadingMore: false,
   uploading: false, // Pour les uploads d'images
   error: null,
   searchQuery: '',
   filter: 'all', // 'all', 'verified', 'pending'
   sortBy: 'name', // 'name', 'rating', 'createdAt'
-  sortOrder: 'asc' // 'asc', 'desc'
+  sortOrder: 'asc', // 'asc', 'desc'
+  filters: {
+    search: '',
+    verified: null,
+    region: null
+  },
+  pagination: {
+    page: 0,
+    limit: 20,
+    total: 0,
+    hasMore: true
+  }
 };
 
 const farmSlice = createSlice({
@@ -161,16 +190,37 @@ const farmSlice = createSlice({
   extraReducers: (builder) => {
     // Fetch farms
     builder
-      .addCase(fetchFarms.pending, (state) => {
-        state.loading = true;
+      .addCase(fetchFarms.pending, (state, action) => {
+        const { refresh = false } = action.meta.arg || {};
+        if (refresh || state.farms.length === 0) {
+          state.loading = true;
+          state.loadingMore = false;
+        } else {
+          state.loadingMore = true;
+        }
         state.error = null;
       })
       .addCase(fetchFarms.fulfilled, (state, action) => {
+        const { items, total, hasMore, page, refresh } = action.payload;
         state.loading = false;
-        state.farms = action.payload;
+        state.loadingMore = false;
+        
+        if (refresh || page === 0) {
+          state.farms = items;
+        } else {
+          state.farms = [...state.farms, ...items];
+        }
+        
+        state.pagination = {
+          page,
+          limit: 20,
+          total,
+          hasMore
+        };
       })
       .addCase(fetchFarms.rejected, (state, action) => {
         state.loading = false;
+        state.loadingMore = false;
         state.error = action.payload;
       })
       
@@ -244,6 +294,8 @@ export const { setSearchQuery, setFilter, setSortBy, setSortOrder, clearError } 
 // Selectors
 export const selectAllFarms = (state) => state.admin.farms.farms;
 export const selectFarmsLoading = (state) => state.admin.farms.loading;
+export const selectFarmsLoadingMore = (state) => state.admin.farms.loadingMore || false;
+export const selectFarmsPagination = (state) => state.admin.farms.pagination || { page: 0, limit: 20, total: 0, hasMore: true };
 export const selectFarmsUploading = (state) => state.admin.farms.uploading;
 export const selectFarmsError = (state) => state.admin.farms.error;
 export const selectSearchQuery = (state) => state.admin.farms.searchQuery;

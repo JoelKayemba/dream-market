@@ -22,7 +22,7 @@ export default function TestNotifications({ navigation }) {
   const handleTestNotification = async () => {
     setIsTesting(true);
     try {
-      await dispatch(fetchOrders());
+      await dispatch(fetchOrders({ page: 0, refresh: true }));
       Alert.alert('Test', 'Rechargement des commandes effectué. Vérifiez les notifications !');
     } catch (error) {
       Alert.alert('Erreur', 'Erreur lors du test : ' + error.message);

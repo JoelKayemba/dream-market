@@ -208,17 +208,7 @@ export default function FarmCard({
           
 
             <View style={styles.actionsRow}>
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleViewProducts();
-                }}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="basket-outline" size={15} color="#E8F9EC" />
-                <Text style={styles.secondaryButtonText}>Produits</Text>
-              </TouchableOpacity>
+              
               
               <TouchableOpacity
                 style={styles.primaryButton}

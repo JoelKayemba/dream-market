@@ -17,6 +17,7 @@ import {
   updateOrderStatus,
   selectOrderById,
 } from '../../../store/admin/ordersSlice';
+import { openWhatsApp, openPhoneCall, openEmail } from '../../../utils/contactInfo';
 
 /* === Palette conservée === */
 const COLORS = {
@@ -180,14 +181,33 @@ export default function OrderDetail({ route, navigation }) {
     const orderNumber = order.orderNumber || order.order_number;
 
     const actions = {
-      call: () => Alert.alert('Appel', `Appel vers ${phone}`),
-      whatsapp: () => Alert.alert('WhatsApp', `Ouverture WhatsApp vers ${phone}`),
-      email: () => Alert.alert('Email', `Envoi d'email à ${email}`),
+      call: () => {
+        if (phone) {
+          openPhoneCall(phone);
+        } else {
+          Alert.alert('Contact non disponible', 'Le numéro de téléphone du client n\'est pas disponible.');
+        }
+      },
+      whatsapp: () => {
+        if (phone) {
+          openWhatsApp(phone, `Bonjour, concernant votre commande ${orderNumber}`);
+        } else {
+          Alert.alert('Contact non disponible', 'Le numéro de téléphone du client n\'est pas disponible.');
+        }
+      },
+      email: () => {
+        if (email) {
+          openEmail(email, `Commande ${orderNumber}`, `Bonjour,\n\nConcernant votre commande ${orderNumber}...`);
+        } else {
+          Alert.alert('Contact non disponible', 'L\'adresse email du client n\'est pas disponible.');
+        }
+      },
     };
 
     if (actions[method]) {
       actions[method]();
-      Alert.alert('Contact Client', `Contact ${method} initié pour la commande ${orderNumber}`);
+    } else {
+      Alert.alert('Erreur', 'Méthode de contact non reconnue.');
     }
   };
 
@@ -455,19 +475,35 @@ export default function OrderDetail({ route, navigation }) {
           <SectionTitle>Actions rapides</SectionTitle>
 
           <View style={styles.actions}>
-            <GhostButton
-              onPress={() => handleContactCustomer('call')}
-              icon={<Ionicons name="call" size={18} color={COLORS.accent} />}
-            >
-              Appeler
-            </GhostButton>
+            <View style={styles.actionsRow}>
+            {customerPhone && (
+              <GhostButton
+                onPress={() => handleContactCustomer('call')}
+                icon={<Ionicons name="call" size={18} color={COLORS.accent} />}
+              >
+                Appeler
+              </GhostButton>
+            )}
 
-            <GhostButton
-              onPress={() => handleContactCustomer('whatsapp')}
-              icon={<Ionicons name="logo-whatsapp" size={18} color="#25D366" />}
-            >
-              WhatsApp
-            </GhostButton>
+            {customerPhone && (
+              <GhostButton
+                onPress={() => handleContactCustomer('whatsapp')}
+                icon={<Ionicons name="logo-whatsapp" size={18} color="#25D366" />}
+              >
+                WhatsApp
+              </GhostButton>
+            )}
+            </View>
+            <View style={styles.actionsRow}>
+
+            {customerEmail && (
+              <GhostButton
+                onPress={() => handleContactCustomer('email')}
+                icon={<Ionicons name="mail-outline" size={18} color={COLORS.accent} />}
+              >
+                Email
+              </GhostButton>
+            )}
 
             {!!getNextStatus() && (
               <SolidButton
@@ -478,6 +514,7 @@ export default function OrderDetail({ route, navigation }) {
                 {getStatusLabel(getNextStatus())}
               </SolidButton>
             )}
+            </View>            
           </View>
         </Card>
       </ScrollView>
@@ -667,7 +704,7 @@ const styles = StyleSheet.create({
   mutedStrong: { color: COLORS.accent, fontWeight: '800' },
 
   /* Actions */
-  actions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  actionsRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
   ghostBtn: {
     flex: 1,
     flexDirection: 'row',

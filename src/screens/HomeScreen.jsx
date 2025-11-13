@@ -1,13 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   View, 
   StyleSheet, 
   ScrollView, 
+  FlatList,
   Animated, 
   Dimensions,
   TouchableOpacity,
   Image,
   RefreshControl,
+  ActivityIndicator,
   Text
 } from 'react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
@@ -31,6 +33,8 @@ import {
   selectPromotionProducts,
   selectClientProducts,
   selectClientProductsLoading,
+  selectClientProductsLoadingMore,
+  selectClientProductsPagination,
   fetchCategories,
   fetchPopularProducts,
   fetchNewProducts,
@@ -58,6 +62,8 @@ export default function HomeScreen({ navigation }) {
   const promotionProducts = useSelector(selectPromotionProducts);
   const allProducts = useSelector(selectClientProducts);
   const loading = useSelector(selectClientProductsLoading);
+  const loadingMore = useSelector(selectClientProductsLoadingMore);
+  const pagination = useSelector(selectClientProductsPagination);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -67,6 +73,23 @@ export default function HomeScreen({ navigation }) {
     loadData();
     startAnimations();
   }, []);
+
+  // Charger plus de produits pour la section "Tous les produits"
+  const loadMoreProducts = useCallback(() => {
+    if (!loadingMore && pagination.hasMore) {
+      dispatch(fetchProducts({ page: pagination.page + 1, refresh: false }));
+    }
+  }, [loadingMore, pagination.hasMore, pagination.page]);
+
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#4CAF50" />
+        <Text style={styles.footerLoaderText}>Chargement...</Text>
+      </View>
+    );
+  };
 
   const startAnimations = () => {
     Animated.timing(fadeAnim, {
@@ -446,27 +469,33 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
     
-            <View style={styles.allProductsGrid}>
-              {(allProducts || []).slice(0, 6).map((product) => (
+            <FlatList
+              data={allProducts || []}
+              renderItem={({ item }) => (
                 <ProductCard
-                  key={product.id}
-                  product={product}
+                  product={item}
                   navigation={navigation}
                   variant="default"
                   size="fullWidth"
                   fullWidth={true}
                   style={styles.allProductCard}
                 />
-              ))}
-              {(!allProducts || allProducts.length === 0) && (
+              )}
+              keyExtractor={(item) => item.id}
+              numColumns={1}
+              scrollEnabled={false}
+              onEndReached={loadMoreProducts}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={renderFooter}
+              ListEmptyComponent={
                 <View style={styles.allProductsEmpty}>
                   <Ionicons name="leaf-outline" size={24} color="#2F8F46" />
                   <Text style={styles.allProductsEmptyText}>
                     Aucun produit disponible pour le moment.
                   </Text>
                 </View>
-              )}
-            </View>
+              }
+            />
           </Container>
     
           <View style={styles.spacer} />
@@ -887,6 +916,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: 0.2,
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerLoaderText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#777E5C',
   },
   spacer: {
     height: 24,

@@ -8,10 +8,18 @@ import {
 } from '../../utils/inputSanitizer';
 
 export const orderService = {
-  // Récupérer toutes les commandes (admin seulement)
-  getAllOrders: async () => {
+  // Récupérer toutes les commandes (admin seulement) avec pagination
+  getAllOrders: async (options = {}) => {
     try {
-      const { data, error } = await supabase
+      const {
+        limit = 20,
+        offset = 0,
+        status = null,
+        search = null,
+        userId = null
+      } = options;
+
+      let query = supabase
         .from('orders')
         .select(`
           *,
@@ -22,35 +30,76 @@ export const orderService = {
             email,
             phone
           )
-        `)
-        .order('created_at', { ascending: false });
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      // Filtres optionnels
+      if (status) {
+        query = query.eq('status', status);
+      }
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+      if (search) {
+        query = query.or(`order_number.ilike.%${search}%,delivery_address.ilike.%${search}%`);
+      }
+
+      const { data, error, count } = await query;
 
       if (error) {
         console.error('❌ [OrderService] getAllOrders Supabase error:', error);
         throw error;
       }
-      return data;
+
+      return {
+        data: data || [],
+        total: count || 0,
+        hasMore: (offset + limit) < (count || 0),
+        limit,
+        offset
+      };
     } catch (error) {
       console.error('❌ [OrderService] getAllOrders error:', error);
       throw error;
     }
   },
 
-  // Récupérer les commandes d'un utilisateur
-  getUserOrders: async (userId) => {
+  // Récupérer les commandes d'un utilisateur avec pagination
+  getUserOrders: async (userId, options = {}) => {
     try {
-      const { data, error } = await supabase
+      const {
+        limit = 20,
+        offset = 0,
+        status = null
+      } = options;
+
+      let query = supabase
         .from('orders')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      // Filtres optionnels
+      if (status) {
+        query = query.eq('status', status);
+      }
+
+      const { data, error, count } = await query;
 
       if (error) {
         console.error('❌ [OrderService] getUserOrders Supabase error:', error);
         throw error;
       }
-      
-      return data;
+
+      return {
+        data: data || [],
+        total: count || 0,
+        hasMore: (offset + limit) < (count || 0),
+        limit,
+        offset
+      };
     } catch (error) {
       console.error('❌ [OrderService] Error fetching orders:', error);
       throw error;

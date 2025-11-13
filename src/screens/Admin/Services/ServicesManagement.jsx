@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, Alert, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, FlatList, TouchableOpacity, Text, TextInput, Alert, Image, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -9,6 +9,8 @@ import {
   toggleServiceStatus,
   selectAdminServices,
   selectAdminServicesLoading,
+  selectAdminServicesLoadingMore,
+  selectAdminServicesPagination,
   selectAdminServicesError,
   selectAdminServicesFilters,
   selectFilteredServices,
@@ -24,29 +26,61 @@ export default function ServicesManagement({ navigation }) {
   const dispatch = useDispatch();
   const [searchQuery, setSearchQueryLocal] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  
-  // Sélecteurs Redux
+
+  // Redux selectors
   const services = useSelector(selectAdminServices);
   const loading = useSelector(selectAdminServicesLoading);
+  const loadingMore = useSelector(selectAdminServicesLoadingMore);
+  const pagination = useSelector(selectAdminServicesPagination);
   const error = useSelector(selectAdminServicesError);
   const filters = useSelector(selectAdminServicesFilters);
   const filteredServices = useSelector(selectFilteredServices);
   const stats = useSelector(selectServiceStats);
   const categories = useSelector(selectAdminCategories);
 
-  // Charger les services et catégories au montage du composant
+  const [refreshing, setRefreshing] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  // Load services + categories on mount
   useEffect(() => {
-    dispatch(fetchServices());
+    dispatch(fetchServices({ page: 0, refresh: true }));
     dispatch(fetchCategories());
   }, [dispatch]);
 
-  // Gestion de la recherche
+  // Reload when filters change
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
+    dispatch(fetchServices({ page: 0, refresh: true }));
+  }, [dispatch, filters.category, filters.status, filters.search]);
+
+  // Debounced search
+  useEffect(() => {
+    const t = setTimeout(() => {
       dispatch(setSearchQuery(searchQuery));
     }, 300);
-    return () => clearTimeout(timeoutId);
+    return () => clearTimeout(t);
   }, [searchQuery, dispatch]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await dispatch(fetchServices({ page: 0, refresh: true }));
+    setRefreshing(false);
+  };
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && pagination?.hasMore && !refreshing) {
+      dispatch(fetchServices({ page: (pagination?.page ?? 0) + 1, refresh: false }));
+    }
+  }, [dispatch, loadingMore, pagination, refreshing]);
+
+  const renderFooter = () => {
+    if (!loadingMore) return <View style={{ height: 8 }} />;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#4CAF50" />
+        <Text style={styles.footerLoaderText}>Chargement...</Text>
+      </View>
+    );
+  };
 
   const categoryOptions = [
     { id: 'all', label: 'Toutes', icon: 'list-outline', count: stats.total },
@@ -64,15 +98,6 @@ export default function ServicesManagement({ navigation }) {
     { id: 'active', label: 'Actifs', icon: 'checkmark-circle-outline', count: stats.active },
     { id: 'inactive', label: 'Inactifs', icon: 'close-circle-outline', count: stats.inactive }
   ];
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
 
   const handleViewService = (service) => {
     navigation.navigate('AdminServiceDetail', { service });
@@ -122,31 +147,24 @@ export default function ServicesManagement({ navigation }) {
   };
 
   const ServiceCard = ({ service }) => {
-    // Récupérer l'image comme dans ServiceDetail.jsx
     const serviceImage = service.image || null;
-    const isActive = service.is_active || false;
-    
+    const isActive = !!service.is_active;
+
     return (
-    <TouchableOpacity 
-      style={styles.serviceCard}
-      onPress={() => handleViewService(service)}
+      <TouchableOpacity 
+        style={styles.serviceCard}
+        onPress={() => handleViewService(service)}
         activeOpacity={0.7}
-    >
-        {/* Image du service */}
+      >
+        {/* Image */}
         <View style={styles.serviceImageContainer}>
           {serviceImage ? (
-        <Image 
-              source={{ uri: serviceImage }}
-          style={styles.serviceImage}
-          resizeMode="cover"
-        />
+            <Image source={{ uri: serviceImage }} style={styles.serviceImage} resizeMode="cover" />
           ) : (
             <View style={styles.serviceImagePlaceholder}>
               <Ionicons name="image-outline" size={32} color="#CBD5E0" />
             </View>
           )}
-          
-          {/* Badges overlay */}
           <View style={styles.imageBadges}>
             {!isActive && (
               <View style={[styles.badge, styles.badgeInactive]}>
@@ -154,10 +172,10 @@ export default function ServicesManagement({ navigation }) {
                 <Text style={styles.badgeText}>Inactif</Text>
               </View>
             )}
+          </View>
         </View>
-      </View>
 
-        {/* Informations du service */}
+        {/* Infos */}
         <View style={styles.serviceContent}>
           <View style={styles.serviceHeader}>
             <View style={styles.serviceInfo}>
@@ -169,13 +187,13 @@ export default function ServicesManagement({ navigation }) {
                   <Ionicons name="grid-outline" size={14} color="#777E5C" />
                   <Text style={styles.metaText}>
                     {service.categories?.name || 'Non catégorisé'}
-          </Text>
-        </View>
+                  </Text>
+                </View>
               </View>
-        </View>
-      </View>
-          
-          {/* Prix et détails */}
+            </View>
+          </View>
+
+          {/* Prix + rating */}
           <View style={styles.serviceFooter}>
             <View style={styles.priceContainer}>
               <Ionicons name="cash-outline" size={16} color="#4CAF50" />
@@ -185,65 +203,46 @@ export default function ServicesManagement({ navigation }) {
               <View style={styles.ratingContainer}>
                 <Ionicons name="star" size={16} color="#FF9800" />
                 <Text style={styles.ratingText}>
-                  {service.rating.toFixed(1)} ({service.review_count || 0})
+                  {Number(service.rating).toFixed(1)} ({service.review_count || 0})
                 </Text>
               </View>
             )}
           </View>
-          
+
           {/* Actions */}
           <View style={styles.serviceActions}>
-          <TouchableOpacity 
+            <TouchableOpacity 
               style={[styles.actionButton, styles.actionButtonEdit]}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleEditService(service);
-              }}
+              onPress={(e) => { e.stopPropagation(); handleEditService(service); }}
               activeOpacity={0.7}
             >
               <Ionicons name="create-outline" size={18} color="#2196F3" />
-            <Text style={styles.actionButtonText}>Modifier</Text>
-          </TouchableOpacity>
-        
-          <TouchableOpacity 
-              style={[
-                styles.actionButton,
-                isActive ? styles.actionButtonDisable : styles.actionButtonEnable
-              ]}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleToggleStatus(service);
-              }}
+              <Text style={styles.actionButtonText}>Modifier</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionButton, isActive ? styles.actionButtonDisable : styles.actionButtonEnable]}
+              onPress={(e) => { e.stopPropagation(); handleToggleStatus(service); }}
               activeOpacity={0.7}
-          >
-            <Ionicons 
-                name={isActive ? 'pause-outline' : 'play-outline'} 
-                size={18} 
-                color={isActive ? '#F44336' : '#4CAF50'} 
-            />
-            <Text style={[
-              styles.actionButtonText, 
-                isActive ? styles.actionButtonTextDisable : styles.actionButtonTextEnable
-            ]}>
+            >
+              <Ionicons name={isActive ? 'pause-outline' : 'play-outline'} size={18} color={isActive ? '#F44336' : '#4CAF50'} />
+              <Text style={[styles.actionButtonText, isActive ? styles.actionButtonTextDisable : styles.actionButtonTextEnable]}>
                 {isActive ? 'Désactiver' : 'Activer'}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
               style={[styles.actionButton, styles.actionButtonDelete]}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleDeleteService(service);
-              }}
+              onPress={(e) => { e.stopPropagation(); handleDeleteService(service); }}
               activeOpacity={0.7}
             >
               <Ionicons name="trash-outline" size={18} color="#F44336" />
               <Text style={styles.actionButtonTextDelete}>Supprimer</Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
   };
 
   const renderEmptyState = () => (
@@ -253,8 +252,7 @@ export default function ServicesManagement({ navigation }) {
       <Text style={styles.emptySubtitle}>
         {filters.category === 'all' && filters.status === 'all'
           ? "Aucun service n'a été créé"
-          : "Aucun service ne correspond aux filtres sélectionnés"
-        }
+          : "Aucun service ne correspond aux filtres sélectionnés"}
       </Text>
       <TouchableOpacity 
         style={styles.emptyButton}
@@ -265,29 +263,15 @@ export default function ServicesManagement({ navigation }) {
     </View>
   );
 
-  if (loading && services.length === 0) {
-    return (
-    <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Chargement des services...</Text>
-        </View>
-      </View>
-    );
-  }
-
-  const insets = useSafeAreaInsets();
-
-  return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.menuButton}
-          onPress={() => navigation.goBack()}
-        >
+  // Header IMMOBILE (barre supérieure + barre de recherche)
+  const FixedHeader = () => (
+    <>
+      {/* Barre supérieure */}
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#283106" />
         </TouchableOpacity>
-          <Text style={styles.headerTitle}>Gestion des Services</Text>
+        <Text style={styles.headerTitle}>Gestion des Services</Text>
         <TouchableOpacity 
           style={styles.addButton}
           onPress={() => navigation.navigate('AdminServiceForm', { mode: 'add' })}
@@ -297,7 +281,7 @@ export default function ServicesManagement({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Barre de recherche */}
+      {/* Barre de recherche (fixe) */}
       <View style={styles.searchSection}>
         <View style={styles.searchBar}>
           <Ionicons name="search-outline" size={20} color="#777E5C" style={styles.searchIcon} />
@@ -313,31 +297,29 @@ export default function ServicesManagement({ navigation }) {
               <Ionicons name="close-circle" size={20} color="#777E5C" />
             </TouchableOpacity>
           )}
-          <TouchableOpacity 
-            onPress={() => setShowFilters(!showFilters)} 
-            style={styles.filterToggleButton}
-          >
-            <Ionicons 
-              name={showFilters ? "filter" : "filter-outline"} 
-              size={20} 
-              color={showFilters ? "#4CAF50" : "#777E5C"} 
-            />
+          <TouchableOpacity onPress={() => setShowFilters(v => !v)} style={styles.filterToggleButton}>
+            <Ionicons name={showFilters ? "filter" : "filter-outline"} size={20} color={showFilters ? "#4CAF50" : "#777E5C"} />
           </TouchableOpacity>
         </View>
       </View>
+    </>
+  );
 
+  // Header DÉFILANT (s'intègre dans la FlatList)
+  const ScrollingHeader = () => (
+    <View>
       {/* Filtres par catégorie */}
       {showFilters && (
         <View style={styles.filterSection}>
           <Text style={styles.filterSectionTitle}>Filtrer par catégorie</Text>
-          <ScrollView 
-            horizontal 
+          <FlatList
+            data={categoryOptions}
+            keyExtractor={(item) => String(item.id)}
+            horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.filterScroll}
-          >
-            {categoryOptions.map((option) => (
+            contentContainerStyle={{ paddingHorizontal: 0 }}
+            renderItem={({ item: option }) => (
               <TouchableOpacity
-                key={option.id}
                 style={[
                   styles.filterChip,
                   filters.category === option.id && styles.filterChipActive
@@ -367,8 +349,8 @@ export default function ServicesManagement({ navigation }) {
                   </Text>
                 </View>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            )}
+          />
         </View>
       )}
 
@@ -376,14 +358,13 @@ export default function ServicesManagement({ navigation }) {
       {showFilters && (
         <View style={styles.filterSection}>
           <Text style={styles.filterSectionTitle}>Filtrer par statut</Text>
-          <ScrollView 
-            horizontal 
+          <FlatList
+            data={statusOptions}
+            keyExtractor={(item) => String(item.id)}
+            horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.filterScroll}
-          >
-            {statusOptions.map((option) => (
+            renderItem={({ item: option }) => (
               <TouchableOpacity
-                key={option.id}
                 style={[
                   styles.filterChip,
                   filters.status === option.id && styles.filterChipActive
@@ -413,47 +394,64 @@ export default function ServicesManagement({ navigation }) {
                   </Text>
                 </View>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            )}
+          />
         </View>
       )}
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Statistiques */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-            <Ionicons name="construct-outline" size={24} color="#4CAF50" />
-            <Text style={styles.statValue}>{stats.total}</Text>
-              <Text style={styles.statLabel}>Total</Text>
-            </View>
-            <View style={styles.statCard}>
-            <Ionicons name="checkmark-circle-outline" size={24} color="#4CAF50" />
-            <Text style={styles.statValue}>{stats.active}</Text>
-              <Text style={styles.statLabel}>Actifs</Text>
-            </View>
-            <View style={styles.statCard}>
-            <Ionicons name="close-circle-outline" size={24} color="#F44336" />
-            <Text style={styles.statValue}>{stats.inactive}</Text>
-            <Text style={styles.statLabel}>Inactifs</Text>
-          </View>
-          </View>
+      {/* Statistiques */}
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <Ionicons name="construct-outline" size={24} color="#4CAF50" />
+          <Text style={styles.statValue}>{pagination?.total ?? stats.total}</Text>
+          <Text style={styles.statLabel}>Total</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Ionicons name="checkmark-circle-outline" size={24} color="#4CAF50" />
+          <Text style={styles.statValue}>{stats.active}</Text>
+          <Text style={styles.statLabel}>Actifs</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Ionicons name="close-circle-outline" size={24} color="#F44336" />
+          <Text style={styles.statValue}>{stats.inactive}</Text>
+          <Text style={styles.statLabel}>Inactifs</Text>
+        </View>
+      </View>
+    </View>
+  );
 
-        {/* Liste des services */}
-        {loading && filteredServices.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <Ionicons name="hourglass-outline" size={48} color="#4CAF50" />
-            <Text style={styles.loadingText}>Chargement des services...</Text>
-          </View>
-        ) : filteredServices.length === 0 ? (
-          renderEmptyState()
-        ) : (
-          <View style={styles.servicesList}>
-            {filteredServices.map((service) => (
-              <ServiceCard key={service.id} service={service} />
-            ))}
-          </View>
-        )}
-      </ScrollView>
+  if (loading && services.length === 0) {
+    return (
+      <View style={styles.container}>
+        <FixedHeader />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Chargement des services...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* Barre supérieure + Search (fixe) */}
+      <FixedHeader />
+
+      {/* Liste défilante : header = filtres + stats + (puis) cartes */}
+      <FlatList
+        data={filteredServices}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={({ item }) => <ServiceCard service={item} />}
+        numColumns={1}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.servicesList}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListHeaderComponent={<ScrollingHeader />}
+        ListFooterComponent={renderFooter}
+        ListEmptyComponent={renderEmptyState}
+      />
     </View>
   );
 }
@@ -463,6 +461,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
+
+  /* Header fixe */
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -473,9 +473,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
-  menuButton: {
-    padding: 8,
-  },
+  menuButton: { padding: 8 },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
@@ -496,9 +494,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+
+  /* Barre de recherche fixe */
   searchSection: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
@@ -512,23 +512,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
-  searchIcon: {
-    marginRight: 8,
-  },
+  searchIcon: { marginRight: 8 },
   searchInput: {
     flex: 1,
     fontSize: 15,
     color: '#283106',
     paddingVertical: 12,
   },
-  clearButton: {
-    padding: 4,
-    marginLeft: 8,
-  },
-  filterToggleButton: {
-    padding: 4,
-    marginLeft: 8,
-  },
+  clearButton: { padding: 4, marginLeft: 8 },
+  filterToggleButton: { padding: 4, marginLeft: 8 },
+
+  /* Header défilant (dans la FlatList) */
   filterSection: {
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -541,9 +535,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#777E5C',
     marginBottom: 8,
-  },
-  filterScroll: {
-    paddingLeft: 0,
   },
   filterChip: {
     flexDirection: 'row',
@@ -566,9 +557,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#777E5C',
   },
-  filterChipTextActive: {
-    color: '#4CAF50',
-  },
+  filterChipTextActive: { color: '#4CAF50' },
   filterChipCount: {
     backgroundColor: '#F1F5F9',
     paddingHorizontal: 6,
@@ -577,25 +566,22 @@ const styles = StyleSheet.create({
     minWidth: 24,
     alignItems: 'center',
   },
-  filterChipCountActive: {
-    backgroundColor: '#D1FAE5',
-  },
+  filterChipCountActive: { backgroundColor: '#D1FAE5' },
   filterChipCountText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#777E5C',
   },
-  filterChipCountTextActive: {
-    color: '#4CAF50',
-  },
-  content: {
-    flex: 1,
-  },
-  // Statistiques
+  filterChipCountTextActive: { color: '#4CAF50' },
+
+  /* Stats */
   statsContainer: {
     flexDirection: 'row',
     padding: 20,
     gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
   statCard: {
     flex: 1,
@@ -623,18 +609,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: '500',
   },
-  loadingContainer: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#777E5C',
-    marginTop: 16,
-  },
+
+  /* Liste et cartes */
   servicesList: {
-    padding: 20,
-    gap: 16,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 28,
+    rowGap: 16,
   },
   serviceCard: {
     backgroundColor: '#FFFFFF',
@@ -647,6 +628,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     borderWidth: 1,
     borderColor: '#F1F5F9',
+    marginBottom: 16,
   },
   serviceImageContainer: {
     width: '100%',
@@ -654,10 +636,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     position: 'relative',
   },
-  serviceImage: {
-    width: '100%',
-    height: '100%',
-  },
+  serviceImage: { width: '100%', height: '100%' },
   serviceImagePlaceholder: {
     width: '100%',
     height: '100%',
@@ -682,44 +661,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 4,
   },
-  badgeInactive: {
-    backgroundColor: 'rgba(244, 67, 54, 0.9)',
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  serviceContent: {
-    padding: 16,
-  },
-  serviceHeader: {
-    marginBottom: 12,
-  },
-  serviceInfo: {
-    gap: 8,
-  },
-  serviceName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#283106',
-    lineHeight: 24,
-  },
-  serviceMeta: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  metaText: {
-    fontSize: 13,
-    color: '#777E5C',
-    fontWeight: '500',
-  },
+  badgeInactive: { backgroundColor: 'rgba(244, 67, 54, 0.9)' },
+  badgeText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
+
+  serviceContent: { padding: 16 },
+  serviceHeader: { marginBottom: 12 },
+  serviceInfo: { gap: 8 },
+  serviceName: { fontSize: 18, fontWeight: '700', color: '#283106', lineHeight: 24 },
+
+  serviceMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaText: { fontSize: 13, color: '#777E5C', fontWeight: '500' },
+
   serviceFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -729,26 +682,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  servicePrice: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#4CAF50',
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  ratingText: {
-    fontSize: 14,
-    color: '#777E5C',
-    fontWeight: '600',
-  },
+  priceContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  servicePrice: { fontSize: 16, fontWeight: '700', color: '#4CAF50' },
+  ratingContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ratingText: { fontSize: 14, color: '#777E5C', fontWeight: '600' },
+
   serviceActions: {
     flexDirection: 'row',
     gap: 8,
@@ -765,60 +703,25 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 6,
   },
-  actionButtonEdit: {
-    backgroundColor: '#E3F2FD',
-  },
-  actionButtonDisable: {
-    backgroundColor: '#FFEBEE',
-  },
-  actionButtonEnable: {
-    backgroundColor: '#E8F5E9',
-  },
-  actionButtonDelete: {
-    backgroundColor: '#FFEBEE',
-  },
-  actionButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#2196F3',
-  },
-  actionButtonTextDisable: {
-    color: '#F44336',
-  },
-  actionButtonTextEnable: {
-    color: '#4CAF50',
-  },
-  actionButtonTextDelete: {
-    color: '#F44336',
-  },
-  // État vide
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#283106',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: '#777E5C',
-    textAlign: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 20,
-  },
-  emptyButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  emptyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  actionButtonEdit: { backgroundColor: '#E3F2FD' },
+  actionButtonDisable: { backgroundColor: '#FFEBEE' },
+  actionButtonEnable: { backgroundColor: '#E8F5E9' },
+  actionButtonDelete: { backgroundColor: '#FFEBEE' },
+  actionButtonText: { fontSize: 13, fontWeight: '600', color: '#2196F3' },
+  actionButtonTextDisable: { color: '#F44336' },
+  actionButtonTextEnable: { color: '#4CAF50' },
+  actionButtonTextDelete: { color: '#F44336' },
+
+  /* Loading & Empty */
+  loadingContainer: { alignItems: 'center', paddingVertical: 60 },
+  loadingText: { fontSize: 16, color: '#777E5C', marginTop: 16 },
+  emptyContainer: { alignItems: 'center', paddingVertical: 40 },
+  emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#283106', marginTop: 16, marginBottom: 8 },
+  emptySubtitle: { fontSize: 16, color: '#777E5C', textAlign: 'center', marginBottom: 24, paddingHorizontal: 20 },
+  emptyButton: { backgroundColor: '#4CAF50', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+  emptyButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
+
+  /* Footer loader */
+  footerLoader: { paddingVertical: 20, alignItems: 'center', justifyContent: 'center' },
+  footerLoaderText: { marginTop: 8, fontSize: 12, color: '#777E5C' },
 });

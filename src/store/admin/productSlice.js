@@ -5,6 +5,7 @@ import { productService, categoryService } from '../../backend';
 const initialState = {
   products: [],
   loading: false,
+  loadingMore: false,
   error: null,
   lastUpdated: null,
   // Filtres et recherche
@@ -18,10 +19,10 @@ const initialState = {
   },
   // Pagination
   pagination: {
-    currentPage: 1,
-    itemsPerPage: 20,
-    totalItems: 0,
-    totalPages: 0
+    page: 0,
+    limit: 20,
+    total: 0,
+    hasMore: true
   },
   // État de l'édition
   editingProduct: null,
@@ -35,10 +36,29 @@ const initialState = {
 // Actions asynchrones pour les produits
 export const fetchProducts = createAsyncThunk(
   'adminProducts/fetchProducts',
-  async (params = {}, { rejectWithValue }) => {
+  async (options = {}, { rejectWithValue, getState }) => {
     try {
-      const products = await productService.getProducts();
-      return products;
+      const { page = 0, limit = 20, refresh = false } = options;
+      const state = getState();
+      const filters = state.admin?.products?.filters || {};
+      
+      const result = await productService.getProducts({
+        limit,
+        offset: page * limit,
+        categoryId: filters.category || null,
+        farmId: filters.farm || null,
+        search: filters.search || null,
+        isActive: filters.status === 'all' ? null : filters.status === 'active',
+        includeInactive: filters.status !== 'active'
+      });
+
+      return {
+        items: result.data,
+        total: result.total,
+        hasMore: result.hasMore,
+        page,
+        refresh
+      };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -229,17 +249,38 @@ const productSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // Fetch Products
-      .addCase(fetchProducts.pending, (state) => {
-        state.loading = true;
+      .addCase(fetchProducts.pending, (state, action) => {
+        const { refresh = false } = action.meta.arg || {};
+        if (refresh || state.products.length === 0) {
+          state.loading = true;
+          state.loadingMore = false;
+        } else {
+          state.loadingMore = true;
+        }
         state.error = null;
       })
       .addCase(fetchProducts.fulfilled, (state, action) => {
+        const { items, total, hasMore, page, refresh } = action.payload;
         state.loading = false;
-        state.products = action.payload;
+        state.loadingMore = false;
+        
+        if (refresh || page === 0) {
+          state.products = items;
+        } else {
+          state.products = [...state.products, ...items];
+        }
+        
+        state.pagination = {
+          page,
+          limit: 20,
+          total,
+          hasMore
+        };
         state.lastUpdated = new Date().toISOString();
       })
       .addCase(fetchProducts.rejected, (state, action) => {
         state.loading = false;
+        state.loadingMore = false;
         state.error = action.payload;
       })
       // Add Product
@@ -346,9 +387,10 @@ export const {
 // Selectors
 export const selectAdminProducts = (state) => state.admin.products.products;
 export const selectAdminProductsLoading = (state) => state.admin.products.loading;
+export const selectAdminProductsLoadingMore = (state) => state.admin.products.loadingMore || false;
 export const selectAdminProductsError = (state) => state.admin.products.error;
 export const selectAdminProductsFilters = (state) => state.admin.products.filters;
-export const selectAdminProductsPagination = (state) => state.admin.products.pagination;
+export const selectAdminProductsPagination = (state) => state.admin.products.pagination || { page: 0, limit: 20, total: 0, hasMore: true };
 export const selectEditingProduct = (state) => state.admin.products.editingProduct;
 export const selectIsEditingProduct = (state) => state.admin.products.isEditing;
 export const selectAdminProductsUploading = (state) => state.admin.products.uploading;

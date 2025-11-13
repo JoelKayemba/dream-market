@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, FlatList, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, FlatList, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Container, Badge, Button, SearchBar, ProductCard , ScreenWrapper } from '../components/ui';
 import { useDispatch, useSelector } from 'react-redux';
@@ -7,6 +7,8 @@ import {
   selectClientProducts, 
   selectClientCategories, 
   selectClientProductsLoading,
+  selectClientProductsLoadingMore,
+  selectClientProductsPagination,
   fetchProducts,
   fetchCategories 
 } from '../store/client';
@@ -17,15 +19,17 @@ export default function AllProductsScreen({ navigation, route }) {
   const products = useSelector(selectClientProducts);
   const categories = useSelector(selectClientCategories);
   const loading = useSelector(selectClientProductsLoading);
+  const loadingMore = useSelector(selectClientProductsLoadingMore);
+  const pagination = useSelector(selectClientProductsPagination);
   
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('name'); // 'name', 'price', 'rating', 'newest'
+  const [sortBy, setSortBy] = useState('name');
   const [priceRange, setPriceRange] = useState({ min: 0, max: 1000 });
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedFarms, setSelectedFarms] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Fonction pour obtenir le titre selon le filtre
   const getTitle = () => {
@@ -43,69 +47,56 @@ export default function AllProductsScreen({ navigation, route }) {
 
   // Charger les données au montage du composant
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        if (!hasLoaded) {
-          await Promise.all([
-            dispatch(fetchProducts()),
-            dispatch(fetchCategories())
-          ]);
-          setHasLoaded(true);
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement des données:', error);
-        setHasLoaded(false);
-      }
-    };
-    
-    loadData();
-  }, [dispatch, hasLoaded]); // ✅ CORRECTION : Ajout de 'hasLoaded' pour éviter les rechargements
+    loadData(0, true);
+    dispatch(fetchCategories());
+  }, [dispatch]);
 
-  // Initialiser les produits au chargement avec le filtre reçu
-  useEffect(() => {
-    if (products && products.length > 0) {
-      applyInitialFilter();
+  const loadData = async (page = 0, refresh = false) => {
+    try {
+      const categoryId = selectedCategories.length === 1 ? selectedCategories[0] : null;
+      const farmIdParam = farmId || null;
+      const search = searchQuery || null;
+
+      await dispatch(fetchProducts({
+        page,
+        refresh,
+        categoryId,
+        farmId: farmIdParam,
+        search
+      }));
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
     }
-  }, [filter, farmId]); // ✅ CORRECTION : Suppression de 'products' des dépendances
+  };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData(0, true);
+    setRefreshing(false);
+  };
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && pagination.hasMore && !refreshing) {
+      loadData(pagination.page + 1, false);
+    }
+  }, [loadingMore, pagination.hasMore, pagination.page, refreshing, selectedCategories, farmId, searchQuery]);
+
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#4CAF50" />
+        <Text style={styles.footerLoaderText}>Chargement...</Text>
+      </View>
+    );
+  };
+
+  // Appliquer les filtres locaux (tri, prix) sur les produits chargés
   useEffect(() => {
     if (products && products.length > 0) {
       applyFilters();
     }
-  }, [searchQuery, sortBy, priceRange, selectedCategories, selectedFarms]);
-
-  const applyInitialFilter = () => {
-    if (!products || !Array.isArray(products)) {
-      setFilteredProducts([]);
-      return;
-    }
-
-    let filtered = [...products];
-
-    // Appliquer le filtre initial reçu
-    switch (filter) {
-      case 'featured':
-        filtered = filtered.filter(product => product.rating >= 4);
-        break;
-      case 'new':
-        filtered = filtered.filter(product => product.is_new);
-        break;
-      case 'promotions':
-        filtered = filtered.filter(product => product.discount > 0);
-        break;
-      case 'all':
-      default:
-        // Pas de filtre, tous les produits
-        break;
-    }
-
-    // Appliquer le filtre par ferme si spécifié
-    if (farmId) {
-      filtered = filtered.filter(product => product.farmId === farmId);
-    }
-
-    setFilteredProducts(filtered);
-  };
+  }, [products, sortBy, priceRange, selectedFarms, filter]);
 
   const applyFilters = () => {
     if (!products || !Array.isArray(products)) {
@@ -132,17 +123,11 @@ export default function AllProductsScreen({ navigation, route }) {
         break;
     }
 
-    // Filtre par recherche
-    if (searchQuery.trim()) {
-      filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.farm.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
+    // Filtre par recherche (si pas déjà fait côté serveur)
+    // La recherche est maintenant gérée côté serveur via loadData
 
-    // Filtre par catégories
-    if (selectedCategories.length > 0) {
+    // Filtre par catégories (si plusieurs catégories sélectionnées, filtrer côté client)
+    if (selectedCategories.length > 1) {
       filtered = filtered.filter(product =>
         selectedCategories.includes(product.categories?.name)
       );
@@ -192,11 +177,18 @@ export default function AllProductsScreen({ navigation, route }) {
   };
 
   const toggleCategoryFilter = (category) => {
-    setSelectedCategories(prev => 
-      prev.includes(category) 
+    setSelectedCategories(prev => {
+      const newCategories = prev.includes(category) 
         ? prev.filter(c => c !== category)
-        : [...prev, category]
-    );
+        : [...prev, category];
+      // Recharger avec la nouvelle catégorie
+      if (newCategories.length === 1) {
+        loadData(0, true);
+      } else if (newCategories.length === 0) {
+        loadData(0, true);
+      }
+      return newCategories;
+    });
   };
 
   const toggleFarmFilter = (farm) => {
@@ -408,6 +400,17 @@ export default function AllProductsScreen({ navigation, route }) {
         numColumns={1}
         contentContainerStyle={styles.productsContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#4CAF50']}
+            tintColor="#4CAF50"
+          />
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="search-outline" size={64} color="#777E5C" />
@@ -638,5 +641,15 @@ const styles = StyleSheet.create({
   },
   emptyResetButton: {
     minWidth: 200,
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerLoaderText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#777E5C',
   },
 });

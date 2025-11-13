@@ -7,18 +7,41 @@ const initialState = {
   popularFarms: [],
   newFarms: [],
   loading: false,
-  initialLoading: false, // Nouveau: loading pour le premier chargement
+  loadingMore: false,
+  initialLoading: false,
   error: null,
-  hasInitialized: false, // Nouveau: flag pour savoir si les données ont été chargées
+  hasInitialized: false,
+  pagination: {
+    page: 0,
+    limit: 20,
+    total: 0,
+    hasMore: true
+  }
 };
 
 // Async Thunks
 export const fetchFarms = createAsyncThunk(
   'clientFarms/fetchFarms',
-  async (_, { rejectWithValue }) => {
+  async (options = {}, { rejectWithValue }) => {
     try {
-      const farms = await farmService.getFarms();
-      return farms;
+      const { page = 0, limit = 20, refresh = false, search = null, verified = null, region = null } = options;
+      const offset = page * limit;
+
+      const result = await farmService.getFarms({
+        limit,
+        offset,
+        search,
+        verified,
+        region
+      });
+
+      return {
+        items: result.data,
+        total: result.total,
+        hasMore: result.hasMore,
+        page,
+        refresh
+      };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -68,20 +91,47 @@ const clientFarmsSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // Fetch Farms
-      .addCase(fetchFarms.pending, (state) => {
-        // Loading seulement si pas encore initialisé
-        if (!state.hasInitialized) {
+      .addCase(fetchFarms.pending, (state, action) => {
+        const { refresh = false } = action.meta.arg || {};
+        if (refresh || !state.hasInitialized) {
           state.initialLoading = true;
+          state.loadingMore = false;
+        } else {
+          state.loadingMore = true;
         }
         state.error = null;
       })
       .addCase(fetchFarms.fulfilled, (state, action) => {
+        const { items, total, hasMore, page, refresh } = action.payload;
         state.initialLoading = false;
-        state.farms = action.payload;
+        state.loadingMore = false;
+        
+        if (refresh || page === 0) {
+          // Dédupliquer par ID pour éviter les doublons
+          const uniqueFarms = items.filter((farm, index, self) => 
+            index === self.findIndex(f => f.id === farm.id)
+          );
+          state.farms = uniqueFarms;
+          console.log(`✅ [farmsSlice] Loaded ${uniqueFarms.length} unique farms (from ${items.length} items)`);
+        } else {
+          // Ajouter seulement les nouvelles fermes (pas de doublons)
+          const existingIds = new Set(state.farms.map(f => f.id));
+          const newFarms = items.filter(farm => !existingIds.has(farm.id));
+          state.farms = [...state.farms, ...newFarms];
+          console.log(`✅ [farmsSlice] Added ${newFarms.length} new farms (from ${items.length} items)`);
+        }
+        
+        state.pagination = {
+          page,
+          limit: 20,
+          total,
+          hasMore
+        };
         state.hasInitialized = true;
       })
       .addCase(fetchFarms.rejected, (state, action) => {
         state.initialLoading = false;
+        state.loadingMore = false;
         state.error = action.payload;
       })
       // Fetch Categories
@@ -128,7 +178,9 @@ export const selectClientFarmCategories = (state) => state.client?.farms?.catego
 export const selectPopularFarms = (state) => state.client?.farms?.popularFarms || [];
 export const selectNewFarms = (state) => state.client?.farms?.newFarms || [];
 export const selectClientFarmsLoading = (state) => state.client?.farms?.initialLoading || false;
+export const selectClientFarmsLoadingMore = (state) => state.client?.farms?.loadingMore || false;
 export const selectClientFarmsError = (state) => state.client?.farms?.error || null;
+export const selectClientFarmsPagination = (state) => state.client?.farms?.pagination || { page: 0, limit: 20, total: 0, hasMore: true };
 
 export default clientFarmsSlice.reducer;
 

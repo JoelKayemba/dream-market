@@ -17,11 +17,12 @@ const initialState = {
   },
   // Pagination
   pagination: {
-    currentPage: 1,
-    itemsPerPage: 20,
-    totalItems: 0,
-    totalPages: 0
+    page: 0,
+    limit: 20,
+    total: 0,
+    hasMore: true
   },
+  loadingMore: false,
   // État de l'édition
   editingOrder: null,
   isEditing: false
@@ -92,10 +93,27 @@ const transformOrders = (orders = []) => orders
 // Actions asynchrones pour les commandes
 export const fetchOrders = createAsyncThunk(
   'adminOrders/fetchOrders',
-  async (params = {}, { rejectWithValue }) => {
+  async (options = {}, { rejectWithValue, getState }) => {
     try {
-      const orders = await orderService.getAllOrders();
-      return transformOrders(orders);
+      const { page = 0, limit = 20, refresh = false } = options;
+      const state = getState();
+      const filters = state.admin?.orders?.filters || {};
+      
+      const result = await orderService.getAllOrders({
+        limit,
+        offset: page * limit,
+        status: filters.status !== 'all' ? filters.status : null,
+        search: filters.search || null,
+        userId: null
+      });
+
+      return {
+        items: transformOrders(result.data),
+        total: result.total,
+        hasMore: result.hasMore,
+        page,
+        refresh
+      };
     } catch (error) {
       console.error('❌ [AdminOrdersSlice] Error fetching orders:', error);
       return rejectWithValue(error.message);
@@ -173,17 +191,47 @@ const ordersSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // Fetch Orders
-      .addCase(fetchOrders.pending, (state) => {
-        state.loading = true;
+      .addCase(fetchOrders.pending, (state, action) => {
+        const { refresh = false } = action.meta.arg || {};
+        if (refresh || state.orders.length === 0) {
+          state.loading = true;
+          state.loadingMore = false;
+        } else {
+          state.loadingMore = true;
+        }
         state.error = null;
       })
       .addCase(fetchOrders.fulfilled, (state, action) => {
+        const { items, total, hasMore, page, refresh } = action.payload;
         state.loading = false;
-        state.orders = action.payload;
+        state.loadingMore = false;
+        
+        if (refresh || page === 0) {
+          // Dédupliquer par ID pour éviter les doublons
+          const uniqueOrders = items.filter((order, index, self) => 
+            index === self.findIndex(o => o.id === order.id)
+          );
+          state.orders = uniqueOrders;
+          console.log(`✅ [ordersSlice] Loaded ${uniqueOrders.length} unique orders (from ${items.length} items)`);
+        } else {
+          // Ajouter seulement les nouvelles commandes (pas de doublons)
+          const existingIds = new Set(state.orders.map(o => o.id));
+          const newOrders = items.filter(order => !existingIds.has(order.id));
+          state.orders = [...state.orders, ...newOrders];
+          console.log(`✅ [ordersSlice] Added ${newOrders.length} new orders (from ${items.length} items), total: ${state.orders.length}`);
+        }
+        
+        state.pagination = {
+          page,
+          limit: 20,
+          total,
+          hasMore
+        };
         state.lastUpdated = new Date().toISOString();
       })
       .addCase(fetchOrders.rejected, (state, action) => {
         state.loading = false;
+        state.loadingMore = false;
         state.error = action.payload;
       })
       // Update Order Status
@@ -240,6 +288,8 @@ export const {
 // Selectors
 export const selectAdminOrders = (state) => state.admin.orders.orders;
 export const selectAdminOrdersLoading = (state) => state.admin.orders.loading;
+export const selectAdminOrdersLoadingMore = (state) => state.admin.orders.loadingMore || false;
+export const selectAdminOrdersPagination = (state) => state.admin.orders.pagination || { page: 0, limit: 20, total: 0, hasMore: true };
 export const selectAdminOrdersError = (state) => state.admin.orders.error;
 export const selectAdminOrdersFilters = (state) => state.admin.orders.filters;
 export const selectIsEditingOrder = (state) => state.admin.orders.isEditing;

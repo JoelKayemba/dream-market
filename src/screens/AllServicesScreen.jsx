@@ -1,62 +1,77 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, FlatList, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, FlatList, Image, ActivityIndicator, RefreshControl } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 import { Container, Badge, Button, SearchBar , ScreenWrapper } from '../components/ui';
-import { services } from '../data/services';
-import { serviceCategories } from '../data/categories';
+import { useDispatch, useSelector } from 'react-redux';
+import { 
+  selectClientServices,
+  selectClientServicesLoading,
+  selectClientServicesLoadingMore,
+  selectClientServicesPagination,
+  fetchServices
+} from '../store/client';
 
 export default function AllServicesScreen({ navigation, route }) {
   const { filter } = route.params || {};
+  const dispatch = useDispatch();
+  const services = useSelector(selectClientServices);
+  const loading = useSelector(selectClientServicesLoading);
+  const loadingMore = useSelector(selectClientServicesLoadingMore);
+  const pagination = useSelector(selectClientServicesPagination);
+  
   const [filteredServices, setFilteredServices] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('name'); // 'name', 'rating', 'price'
+  const [sortBy, setSortBy] = useState('name');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Utiliser les catégories centralisées
-  const categories = serviceCategories;
-
-  // Initialiser les services au chargement avec le filtre reçu
   useEffect(() => {
-    if (services && services.length > 0) {
-      applyInitialFilter();
-    }
-  }, [filter]);
+    loadData(0, true);
+  }, [dispatch]);
 
+  const loadData = async (page = 0, refresh = false) => {
+    try {
+      await dispatch(fetchServices({
+        page,
+        refresh,
+        categoryId: selectedCategory?.id || null,
+        search: searchQuery || null
+      }));
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData(0, true);
+    setRefreshing(false);
+  };
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && pagination.hasMore && !refreshing) {
+      loadData(pagination.page + 1, false);
+    }
+  }, [loadingMore, pagination.hasMore, pagination.page, refreshing, selectedCategory, searchQuery]);
+
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#4CAF50" />
+        <Text style={styles.footerLoaderText}>Chargement...</Text>
+      </View>
+    );
+  };
+
+  // Appliquer les filtres locaux (tri) sur les services chargés
   useEffect(() => {
     if (services && services.length > 0) {
       applyFilters();
     }
-  }, [searchQuery, sortBy, selectedCategory]);
-
-  const applyInitialFilter = () => {
-    if (!services || !Array.isArray(services)) {
-      setFilteredServices([]);
-      return;
-    }
-
-    let filtered = [...services];
-
-    // Appliquer le filtre initial reçu
-    switch (filter) {
-      case 'popular':
-        filtered = filtered.filter(service => service.rating >= 4.5);
-        break;
-      case 'new':
-        filtered = filtered.filter(service => new Date(service.createdAt).getFullYear() >= 2024);
-        break;
-      case 'logistics':
-        filtered = filtered.filter(service => service.category === 'Logistique');
-        break;
-      case 'all':
-      default:
-        // Pas de filtre, tous les services
-        break;
-    }
-
-    setFilteredServices(filtered);
-  };
+  }, [services, sortBy, filter]);
 
   const applyFilters = () => {
     if (!services || !Array.isArray(services)) {
@@ -83,23 +98,7 @@ export default function AllServicesScreen({ navigation, route }) {
         break;
     }
 
-    // Filtre par recherche
-    if (searchQuery.trim()) {
-      const lowerQuery = searchQuery.toLowerCase();
-      filtered = filtered.filter(service =>
-        service.name.toLowerCase().includes(lowerQuery) ||
-        service.description.toLowerCase().includes(lowerQuery) ||
-        service.shortDescription.toLowerCase().includes(lowerQuery) ||
-        service.category.toLowerCase().includes(lowerQuery) ||
-        service.coverage.toLowerCase().includes(lowerQuery) ||
-        (service.features && service.features.some(feature => feature.toLowerCase().includes(lowerQuery)))
-      );
-    }
-
-    // Filtre par catégorie
-    if (selectedCategory) {
-      filtered = filtered.filter(service => service.category === selectedCategory.name);
-    }
+    // La recherche et la catégorie sont maintenant gérées côté serveur via loadData
 
     // Tri
     filtered.sort((a, b) => {
@@ -270,6 +269,17 @@ export default function AllServicesScreen({ navigation, route }) {
         numColumns={1}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#4CAF50']}
+            tintColor="#4CAF50"
+          />
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="construct-outline" size={64} color="#777E5C" />
@@ -469,5 +479,15 @@ const styles = StyleSheet.create({
     color: '#777E5C',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerLoaderText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#777E5C',
   },
 });

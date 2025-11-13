@@ -56,10 +56,10 @@ export default function AdminDashboard({ navigation }) {
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
     Promise.all([
-      dispatch(fetchOrders()),
-      dispatch(fetchServices()),
-      dispatch(fetchProducts()),
-      dispatch(fetchFarms()),
+      dispatch(fetchOrders({ page: 0, limit: 100, refresh: true })),
+      dispatch(fetchServices({ page: 0, limit: 100, refresh: true })),
+      dispatch(fetchProducts({ page: 0, limit: 100, refresh: true })),
+      dispatch(fetchFarms({ page: 0, limit: 100, refresh: true })),
       dispatch(fetchUserStats()),
       dispatch(fetchAllAnalytics())
     ]).finally(() => {

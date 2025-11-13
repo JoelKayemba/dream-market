@@ -5,6 +5,7 @@ import { serviceService, categoryService } from '../../backend';
 const initialState = {
   services: [],
   loading: false,
+  loadingMore: false,
   error: null,
   lastUpdated: null,
   // Filtres et recherche
@@ -17,10 +18,10 @@ const initialState = {
   },
   // Pagination
   pagination: {
-    currentPage: 1,
-    itemsPerPage: 20,
-    totalItems: 0,
-    totalPages: 0
+    page: 0,
+    limit: 20,
+    total: 0,
+    hasMore: true
   },
   // État de l'édition
   editingService: null,
@@ -32,10 +33,27 @@ const initialState = {
 // Actions asynchrones pour les services
 export const fetchServices = createAsyncThunk(
   'adminServices/fetchServices',
-  async (_, { rejectWithValue }) => {
+  async (options = {}, { rejectWithValue, getState }) => {
     try {
-      const services = await serviceService.getServices();
-      return services;
+      const { page = 0, limit = 20, refresh = false } = options;
+      const state = getState();
+      const filters = state.admin?.services?.filters || {};
+      
+      const result = await serviceService.getServices({
+        limit,
+        offset: page * limit,
+        categoryId: filters.category !== 'all' ? filters.category : null,
+        search: filters.search || null,
+        isActive: filters.status === 'all' ? null : filters.status === 'active'
+      });
+
+      return {
+        items: result.data,
+        total: result.total,
+        hasMore: result.hasMore,
+        page,
+        refresh
+      };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -164,17 +182,38 @@ const servicesSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // Fetch Services
-      .addCase(fetchServices.pending, (state) => {
-        state.loading = true;
+      .addCase(fetchServices.pending, (state, action) => {
+        const { refresh = false } = action.meta.arg || {};
+        if (refresh || state.services.length === 0) {
+          state.loading = true;
+          state.loadingMore = false;
+        } else {
+          state.loadingMore = true;
+        }
         state.error = null;
       })
       .addCase(fetchServices.fulfilled, (state, action) => {
+        const { items, total, hasMore, page, refresh } = action.payload;
         state.loading = false;
-        state.services = action.payload;
+        state.loadingMore = false;
+        
+        if (refresh || page === 0) {
+          state.services = items;
+        } else {
+          state.services = [...state.services, ...items];
+        }
+        
+        state.pagination = {
+          page,
+          limit: 20,
+          total,
+          hasMore
+        };
         state.lastUpdated = new Date().toISOString();
       })
       .addCase(fetchServices.rejected, (state, action) => {
         state.loading = false;
+        state.loadingMore = false;
         state.error = action.payload;
       })
       // Fetch Categories
@@ -281,9 +320,10 @@ export const {
 // Selectors
 export const selectAdminServices = (state) => state.admin.services.services;
 export const selectAdminServicesLoading = (state) => state.admin.services.loading;
+export const selectAdminServicesLoadingMore = (state) => state.admin.services.loadingMore || false;
 export const selectAdminServicesError = (state) => state.admin.services.error;
 export const selectAdminServicesFilters = (state) => state.admin.services.filters;
-export const selectAdminServicesPagination = (state) => state.admin.services.pagination;
+export const selectAdminServicesPagination = (state) => state.admin.services.pagination || { page: 0, limit: 20, total: 0, hasMore: true };
 export const selectEditingService = (state) => state.admin.services.editingService;
 export const selectIsEditingService = (state) => state.admin.services.isEditing;
 export const selectAdminCategories = (state) => state.admin.services.categories;

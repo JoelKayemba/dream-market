@@ -1,62 +1,77 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, FlatList } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 import { Container, Badge, Button, SearchBar, FarmCard , ScreenWrapper } from '../components/ui';
-import { farms } from '../data/farms';
-import { farmCategories } from '../data/categories';
+import { useDispatch, useSelector } from 'react-redux';
+import { 
+  selectClientFarms,
+  selectClientFarmsLoading,
+  selectClientFarmsLoadingMore,
+  selectClientFarmsPagination,
+  fetchFarms
+} from '../store/client';
 
 export default function AllFarmsScreen({ navigation, route }) {
   const { filter } = route.params || {};
+  const dispatch = useDispatch();
+  const farms = useSelector(selectClientFarms);
+  const loading = useSelector(selectClientFarmsLoading);
+  const loadingMore = useSelector(selectClientFarmsLoadingMore);
+  const pagination = useSelector(selectClientFarmsPagination);
+  
   const [filteredFarms, setFilteredFarms] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('name'); // 'name', 'rating', 'newest'
+  const [sortBy, setSortBy] = useState('name');
   const [selectedSpecialty, setSelectedSpecialty] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Utiliser les catégories centralisées
-  const specialties = farmCategories;
-
-  // Initialiser les fermes au chargement avec le filtre reçu
   useEffect(() => {
-    if (farms && farms.length > 0) {
-      applyInitialFilter();
-    }
-  }, [filter]);
+    loadData(0, true);
+  }, [dispatch]);
 
+  const loadData = async (page = 0, refresh = false) => {
+    try {
+      await dispatch(fetchFarms({
+        page,
+        refresh,
+        search: searchQuery || null,
+        verified: filter === 'verified' ? true : null
+      }));
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData(0, true);
+    setRefreshing(false);
+  };
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && pagination.hasMore && !refreshing) {
+      loadData(pagination.page + 1, false);
+    }
+  }, [loadingMore, pagination.hasMore, pagination.page, refreshing, searchQuery]);
+
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#4CAF50" />
+        <Text style={styles.footerLoaderText}>Chargement...</Text>
+      </View>
+    );
+  };
+
+  // Appliquer les filtres locaux (tri, spécialité) sur les fermes chargées
   useEffect(() => {
     if (farms && farms.length > 0) {
       applyFilters();
     }
-  }, [searchQuery, sortBy, selectedSpecialty]);
-
-  const applyInitialFilter = () => {
-    if (!farms || !Array.isArray(farms)) {
-      setFilteredFarms([]);
-      return;
-    }
-
-    let filtered = [...farms];
-
-    // Appliquer le filtre initial reçu
-    switch (filter) {
-      case 'popular':
-        filtered = filtered.filter(farm => farm.rating >= 4.5);
-        break;
-      case 'new':
-        filtered = filtered.filter(farm => farm.established >= 2020);
-        break;
-      case 'organic':
-        filtered = filtered.filter(farm => farm.specialty === 'organic');
-        break;
-      case 'all':
-      default:
-        // Pas de filtre, toutes les fermes
-        break;
-    }
-
-    setFilteredFarms(filtered);
-  };
+  }, [farms, sortBy, selectedSpecialty, filter]);
 
   const applyFilters = () => {
     if (!farms || !Array.isArray(farms)) {
@@ -83,19 +98,7 @@ export default function AllFarmsScreen({ navigation, route }) {
         break;
     }
 
-    // Filtre par recherche
-    if (searchQuery.trim()) {
-      const lowerQuery = searchQuery.toLowerCase();
-      filtered = filtered.filter(farm =>
-        farm.name.toLowerCase().includes(lowerQuery) ||
-        farm.description.toLowerCase().includes(lowerQuery) ||
-        farm.specialty.toLowerCase().includes(lowerQuery) ||
-        farm.location.toLowerCase().includes(lowerQuery) ||
-        farm.region.toLowerCase().includes(lowerQuery) ||
-        (farm.products && farm.products.some(product => product.toLowerCase().includes(lowerQuery))) ||
-        (farm.certifications && farm.certifications.some(cert => cert.toLowerCase().includes(lowerQuery)))
-      );
-    }
+    // La recherche est maintenant gérée côté serveur via loadData
 
     // Filtre par spécialité
     if (selectedSpecialty) {
@@ -181,34 +184,7 @@ export default function AllFarmsScreen({ navigation, route }) {
       {/* Filtres */}
       {showFilters && (
         <View style={styles.filtersContainer}>
-          {/* Filtres par spécialité */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Spécialité</Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.specialtiesContainer}
-            >
-              {specialties.map((specialty) => (
-                <TouchableOpacity
-                  key={specialty.id}
-                  style={[
-                    styles.specialtyButton,
-                    selectedSpecialty?.id === specialty.id && styles.selectedSpecialtyButton,
-                    { borderColor: specialty.color }
-                  ]}
-                  onPress={() => setSelectedSpecialty(specialty)}
-                >
-                  <Text style={[styles.specialtyEmoji, { color: specialty.color }]}>
-                    {specialty.emoji}
-                  </Text>
-                  <Text style={[styles.specialtyName, { color: specialty.color }]}>
-                    {specialty.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          {/* Filtres par spécialité - À implémenter avec les catégories Redux */}
 
           {/* Tri */}
           <View style={styles.filterSection}>
@@ -251,6 +227,17 @@ export default function AllFarmsScreen({ navigation, route }) {
         numColumns={1}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#4CAF50']}
+            tintColor="#4CAF50"
+          />
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="leaf-outline" size={64} color="#777E5C" />
@@ -396,5 +383,15 @@ const styles = StyleSheet.create({
     color: '#777E5C',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerLoaderText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#777E5C',
   },
 });

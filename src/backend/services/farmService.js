@@ -10,16 +10,45 @@ import {
 } from '../../utils/inputSanitizer';
 
 export const farmService = {
-  // Récupérer toutes les fermes
-  getFarms: async () => {
+  // Récupérer toutes les fermes avec pagination
+  getFarms: async (options = {}) => {
     try {
-      const { data, error } = await supabase
+      const {
+        limit = 20,
+        offset = 0,
+        search = null,
+        verified = null,
+        region = null
+      } = options;
+
+      let query = supabase
         .from('farms')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      // Filtres optionnels
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,location.ilike.%${search}%`);
+      }
+      if (verified !== null) {
+        query = query.eq('verified', verified);
+      }
+      if (region) {
+        query = query.eq('region', region);
+      }
+
+      const { data, error, count } = await query;
 
       if (error) throw error;
-      return data;
+
+      return {
+        data: data || [],
+        total: count || 0,
+        hasMore: (offset + limit) < (count || 0),
+        limit,
+        offset
+      };
     } catch (error) {
       throw error;
     }

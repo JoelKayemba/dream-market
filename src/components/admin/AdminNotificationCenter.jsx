@@ -69,11 +69,15 @@ export default function AdminNotificationCenter({ navigation }) {
       {/* Bouton de notification avec badge */}
       <TouchableOpacity 
         style={styles.notificationButton}
-        onPress={() => setIsVisible(true)}
+        onPress={() => {
+          console.log('🔔 [AdminNotificationCenter] Opening notification modal');
+          setIsVisible(true);
+        }}
+        activeOpacity={0.7}
       >
         <Ionicons name="notifications-outline" size={24} color="#283106" />
         {unreadAdminCount > 0 && (
-          <View style={styles.notificationBadge}>
+          <View style={styles.notificationBadge} pointerEvents="none">
             <Text style={styles.badgeText}>
               {unreadAdminCount > 99 ? '99+' : unreadAdminCount}
             </Text>
