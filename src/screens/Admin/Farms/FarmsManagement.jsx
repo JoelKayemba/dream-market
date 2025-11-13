@@ -1,24 +1,23 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import { 
-  View, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
-  Text, 
-  TextInput, 
-  Alert, 
-  Image, 
-  ActivityIndicator, 
-  RefreshControl, 
-  
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Text,
+  TextInput,
+  Alert,
+  Image,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { 
-  fetchFarms, 
+import {
+  fetchFarms,
   deleteFarm,
   selectAllFarms,
+  selectFilteredFarms,
   selectFarmsLoading,
   selectFarmsLoadingMore,
   selectFarmsPagination,
@@ -27,193 +26,121 @@ import {
 } from '../../../store/admin/farmSlice';
 import SafeAreaWrapper from '../../../components/SafeAreaWrapper';
 
-export default function FarmsManagement({ navigation }) {
-  const dispatch = useDispatch();
-  const insets = useSafeAreaInsets();
+/* ============================
+   Sous-composants EXTERNES
+   ============================ */
 
-  const [searchQuery, setSearchQueryLocal] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
+const FarmCard = memo(function FarmCard({ farm, onViewFarm, onViewProducts, onDelete }) {
+  const farmImage = farm?.main_image || farm?.image || null;
+  const verified = !!farm.verified;
 
-  // Selectors
-  const farms = useSelector(selectAllFarms);
-  const loading = useSelector(selectFarmsLoading);
-  const loadingMore = useSelector(selectFarmsLoadingMore);
-  const pagination = useSelector(selectFarmsPagination);
-  const error = useSelector(selectFarmsError);
-
-  // Initial fetch
-  useEffect(() => {
-    dispatch(fetchFarms({ page: 0, refresh: true }));
-  }, [dispatch]);
-
-  // Search sync (debounced-like simple)
-  useEffect(() => {
-    dispatch(setSearchQuery(searchQuery));
-    dispatch(fetchFarms({ page: 0, refresh: true }));
-  }, [searchQuery, dispatch]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await dispatch(fetchFarms({ page: 0, refresh: true }));
-    setRefreshing(false);
-  };
-
-  const loadMore = useCallback(() => {
-    if (!loadingMore && pagination?.hasMore && !refreshing) {
-      dispatch(fetchFarms({ page: (pagination?.page ?? 0) + 1, refresh: false }));
-    }
-  }, [dispatch, loadingMore, pagination, refreshing]);
-
-  const renderFooter = () => {
-    if (!loadingMore) return <View style={{ height: 8 }} />;
-    return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#4CAF50" />
-        <Text style={styles.footerLoaderText}>Chargement...</Text>
-      </View>
-    );
-  };
-
-  // Local filter (en plus du filtre store)
-  const filteredFarms = (farms || []).filter(farm =>
-    (farm.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (farm.location || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (farm.specialty || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleAddFarm = () => navigation.navigate('FarmForm', { mode: 'add' });
-  const handleViewFarm = (farm) => navigation.navigate('FarmDetail', { farm });
-
-  const handleDeleteFarm = (farm) => {
-    Alert.alert(
-      'Supprimer la ferme',
-      `Voulez-vous vraiment supprimer la ferme "${farm.name}" ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { 
-          text: 'Supprimer', 
-          style: 'destructive',
-          onPress: () => {
-            dispatch(deleteFarm(farm.id));
-            Alert.alert('Succès', 'Ferme supprimée avec succès');
-          }
-        }
-      ]
-    );
-  };
-
-  // === UI Subcomponents ===
-  const FarmCard = memo(function FarmCard({ farm }) {
-    const farmImage = farm?.main_image || farm?.image || null;
-    const verified = !!farm.verified;
-
-    return (
-      <TouchableOpacity 
-        style={styles.farmCard}
-        onPress={() => handleViewFarm(farm)}
-        activeOpacity={0.7}
-      >
-        {/* Image */}
-        <View style={styles.farmImageContainer}>
-          {farmImage ? (
-            <Image source={{ uri: farmImage }} style={styles.farmImage} resizeMode="cover" />
-          ) : (
-            <View style={styles.farmImagePlaceholder}>
-              <Ionicons name="image-outline" size={32} color="#CBD5E0" />
+  return (
+    <TouchableOpacity
+      style={styles.farmCard}
+      onPress={() => onViewFarm(farm)}
+      activeOpacity={0.7}
+    >
+      {/* Image */}
+      <View style={styles.farmImageContainer}>
+        {farmImage ? (
+          <Image source={{ uri: farmImage }} style={styles.farmImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.farmImagePlaceholder}>
+            <Ionicons name="image-outline" size={32} color="#CBD5E0" />
+          </View>
+        )}
+        {/* Badges */}
+        <View style={styles.imageBadges}>
+          {!verified && (
+            <View style={[styles.badge, styles.badgePending]}>
+              <Ionicons name="time-outline" size={12} color="#FFFFFF" />
+              <Text style={styles.badgeText}>En attente</Text>
             </View>
           )}
-          {/* Badges */}
-          <View style={styles.imageBadges}>
-            {!verified && (
-              <View style={[styles.badge, styles.badgePending]}>
-                <Ionicons name="time-outline" size={12} color="#FFFFFF" />
-                <Text style={styles.badgeText}>En attente</Text>
-              </View>
-            )}
-            {verified && (
-              <View style={[styles.badge, styles.badgeVerified]}>
-                <Ionicons name="checkmark-circle" size={12} color="#FFFFFF" />
-                <Text style={styles.badgeText}>Vérifiée</Text>
-              </View>
-            )}
-          </View>
+          {verified && (
+            <View style={[styles.badge, styles.badgeVerified]}>
+              <Ionicons name="checkmark-circle" size={12} color="#FFFFFF" />
+              <Text style={styles.badgeText}>Vérifiée</Text>
+            </View>
+          )}
         </View>
+      </View>
 
-        {/* Infos */}
-        <View style={styles.farmContent}>
-          <View style={styles.farmHeader}>
-            <View style={styles.farmInfo}>
-              <Text style={styles.farmName} numberOfLines={2}>
-                {farm.name || 'Ferme sans nom'}
-              </Text>
-              <View style={styles.farmMeta}>
-                <View style={styles.metaItem}>
-                  <Ionicons name="location-outline" size={14} color="#777E5C" />
-                  <Text style={styles.metaText} numberOfLines={1}>
-                    {farm.location || 'Localisation non spécifiée'}
-                  </Text>
-                </View>
-                {!!farm.specialty && (
-                  <View style={styles.metaItem}>
-                    <Ionicons name="leaf-outline" size={14} color="#777E5C" />
-                    <Text style={styles.metaText} numberOfLines={1}>
-                      {farm.specialty}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          </View>
-
-          {/* Stats */}
-          <View style={styles.farmFooter}>
-            <View style={styles.statItem}>
-              <Ionicons name="cube-outline" size={16} color="#4CAF50" />
-              <Text style={styles.statText}>{farm.products?.length || 0} produits</Text>
-            </View>
-            {!!farm.rating && (
-              <View style={styles.statItem}>
-                <Ionicons name="star" size={16} color="#FF9800" />
-                <Text style={styles.statText}>
-                  {Number(farm.rating).toFixed(1)} ({farm.reviewCount || 0})
+      {/* Infos */}
+      <View style={styles.farmContent}>
+        <View style={styles.farmHeader}>
+          <View style={styles.farmInfo}>
+            <Text style={styles.farmName} numberOfLines={2}>
+              {farm.name || 'Ferme sans nom'}
+            </Text>
+            <View style={styles.farmMeta}>
+              <View style={styles.metaItem}>
+                <Ionicons name="location-outline" size={14} color="#777E5C" />
+                <Text style={styles.metaText} numberOfLines={1}>
+                  {farm.location || 'Localisation non spécifiée'}
                 </Text>
               </View>
-            )}
-          </View>
-
-          {/* Actions */}
-          <View style={styles.farmActions}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.actionButtonView]}
-              onPress={(e) => {
-                e.stopPropagation?.();
-                navigation.navigate('FarmProducts', { farm });
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="cube-outline" size={18} color="#2196F3" />
-              <Text style={styles.actionButtonText}>Produits</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, styles.actionButtonDelete]}
-              onPress={(e) => {
-                e.stopPropagation?.();
-                handleDeleteFarm(farm);
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="trash-outline" size={18} color="#F44336" />
-              <Text style={styles.actionButtonTextDelete}>Supprimer</Text>
-            </TouchableOpacity>
+              {!!farm.specialty && (
+                <View style={styles.metaItem}>
+                  <Ionicons name="leaf-outline" size={14} color="#777E5C" />
+                  <Text style={styles.metaText} numberOfLines={1}>
+                    {farm.specialty}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
-      </TouchableOpacity>
-    );
-  });
 
-  // === Headers ===
-  const FixedHeader = () => (
+        {/* Stats */}
+        <View style={styles.farmFooter}>
+          <View style={styles.statItem}>
+            <Ionicons name="cube-outline" size={16} color="#4CAF50" />
+            <Text style={styles.statText}>{farm.products?.length || 0} produits</Text>
+          </View>
+          {!!farm.rating && (
+            <View style={styles.statItem}>
+              <Ionicons name="star" size={16} color="#FF9800" />
+              <Text style={styles.statText}>
+                {Number(farm.rating).toFixed(1)} ({farm.reviewCount || 0})
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Actions */}
+        <View style={styles.farmActions}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionButtonView]}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onViewProducts(farm);
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="cube-outline" size={18} color="#2196F3" />
+            <Text style={styles.actionButtonText}>Produits</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionButtonDelete]}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onDelete(farm);
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="trash-outline" size={18} color="#F44336" />
+            <Text style={styles.actionButtonTextDelete}>Supprimer</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+function FixedHeader({ navigation, searchQuery, onChangeSearch, onAddFarm }) {
+  return (
     <>
       {/* Top bar (fixe) */}
       <View style={styles.header}>
@@ -221,7 +148,7 @@ export default function FarmsManagement({ navigation }) {
           <Ionicons name="arrow-back" size={24} color="#283106" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Gestion des Fermes</Text>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddFarm}>
+        <TouchableOpacity style={styles.addButton} onPress={onAddFarm}>
           <Ionicons name="add-circle" size={28} color="#4CAF50" />
         </TouchableOpacity>
       </View>
@@ -234,12 +161,12 @@ export default function FarmsManagement({ navigation }) {
             style={styles.searchInput}
             placeholder="Rechercher une ferme..."
             value={searchQuery}
-            onChangeText={setSearchQueryLocal}
+            onChangeText={onChangeSearch}
             placeholderTextColor="#999999"
             returnKeyType="search"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQueryLocal('')} style={styles.clearButton}>
+            <TouchableOpacity onPress={() => onChangeSearch('')} style={styles.clearButton}>
               <Ionicons name="close-circle" size={20} color="#777E5C" />
             </TouchableOpacity>
           )}
@@ -247,8 +174,10 @@ export default function FarmsManagement({ navigation }) {
       </View>
     </>
   );
+}
 
-  const ScrollingHeader = () => (
+function ScrollingHeader({ pagination, filteredFarms, error }) {
+  return (
     <View>
       {/* Stats (défilent avec la liste) */}
       <View style={styles.statsContainer}>
@@ -259,12 +188,12 @@ export default function FarmsManagement({ navigation }) {
         </View>
         <View style={styles.statCard}>
           <Ionicons name="checkmark-circle-outline" size={24} color="#4CAF50" />
-          <Text style={styles.statValue}>{filteredFarms.filter(f => f.verified).length}</Text>
+          <Text style={styles.statValue}>{filteredFarms.filter((f) => f.verified).length}</Text>
           <Text style={styles.statLabel}>Vérifiées</Text>
         </View>
         <View style={styles.statCard}>
           <Ionicons name="time-outline" size={24} color="#FF9800" />
-          <Text style={styles.statValue}>{filteredFarms.filter(f => !f.verified).length}</Text>
+          <Text style={styles.statValue}>{filteredFarms.filter((f) => !f.verified).length}</Text>
           <Text style={styles.statLabel}>En attente</Text>
         </View>
       </View>
@@ -280,8 +209,10 @@ export default function FarmsManagement({ navigation }) {
       ) : null}
     </View>
   );
+}
 
-  const ListEmpty = () => (
+function ListEmpty({ searchQuery, onAddFarm }) {
+  return (
     <View style={styles.emptyContainer}>
       <Ionicons name="leaf-outline" size={64} color="#CBD5E0" />
       <Text style={styles.emptyTitle}>
@@ -291,22 +222,109 @@ export default function FarmsManagement({ navigation }) {
         {searchQuery ? "Essayez avec d'autres mots-clés" : 'Commencez par ajouter une ferme'}
       </Text>
       {!searchQuery && (
-        <TouchableOpacity style={styles.addFirstButton} onPress={handleAddFarm}>
+        <TouchableOpacity style={styles.addFirstButton} onPress={onAddFarm}>
           <Ionicons name="add-circle" size={20} color="#FFFFFF" />
           <Text style={styles.addFirstButtonText}>Ajouter une ferme</Text>
         </TouchableOpacity>
       )}
     </View>
   );
+}
 
-  // === Render ===
+/* ============================
+   Composant principal
+   ============================ */
+
+export default function FarmsManagement({ navigation }) {
+  const dispatch = useDispatch();
+
+  const [searchQuery, setSearchQueryLocal] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Selectors
+  const allFarms = useSelector(selectAllFarms);
+  const farms = useSelector(selectFilteredFarms);
+  const loading = useSelector(selectFarmsLoading);
+  const loadingMore = useSelector(selectFarmsLoadingMore);
+  const pagination = useSelector(selectFarmsPagination);
+  const error = useSelector(selectFarmsError);
+
+  // Initial fetch
+  useEffect(() => {
+    dispatch(fetchFarms({ page: 0, refresh: true }));
+  }, [dispatch]);
+
+  // Sync recherche avec Redux (filtrage côté client)
+  useEffect(() => {
+    dispatch(setSearchQuery(searchQuery));
+  }, [searchQuery, dispatch]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await dispatch(fetchFarms({ page: 0, refresh: true }));
+    setRefreshing(false);
+  };
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && pagination?.hasMore && !refreshing) {
+      dispatch(
+        fetchFarms({
+          page: (pagination?.page ?? 0) + 1,
+          refresh: false,
+        })
+      );
+    }
+  }, [dispatch, loadingMore, pagination, refreshing]);
+
+  const renderFooter = () => {
+    if (!loadingMore) return <View style={{ height: 8 }} />;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#4CAF50" />
+        <Text style={styles.footerLoaderText}>Chargement...</Text>
+      </View>
+    );
+  };
+
+  const filteredFarms = farms || [];
+
+  const handleAddFarm = () => navigation.navigate('FarmForm', { mode: 'add' });
+  const handleViewFarm = (farm) => navigation.navigate('FarmDetail', { farm });
+
+  const handleDeleteFarm = (farm) => {
+    Alert.alert(
+      'Supprimer la ferme',
+      `Voulez-vous vraiment supprimer la ferme "${farm.name}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => {
+            dispatch(deleteFarm(farm.id));
+            Alert.alert('Succès', 'Ferme supprimée avec succès');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleViewProducts = (farm) => {
+    navigation.navigate('FarmProducts', { farm });
+  };
+
   return (
     <SafeAreaWrapper style={styles.container}>
       {/* Header fixe */}
-      <FixedHeader />
+      <FixedHeader
+        navigation={navigation}
+        searchQuery={searchQuery}
+        onChangeSearch={setSearchQueryLocal}
+        onAddFarm={handleAddFarm}
+      />
 
-      {/* Liste qui défile (stats + cartes) */}
-      {loading && farms.length === 0 ? (
+      {/* Liste */}
+      {loading && filteredFarms.length === 0 ? (
         <View style={styles.loadingContainer}>
           <Ionicons name="hourglass-outline" size={48} color="#4CAF50" />
           <Text style={styles.loadingText}>Chargement des fermes...</Text>
@@ -314,7 +332,14 @@ export default function FarmsManagement({ navigation }) {
       ) : (
         <FlatList
           data={filteredFarms}
-          renderItem={({ item }) => <FarmCard farm={item} />}
+          renderItem={({ item }) => (
+            <FarmCard
+              farm={item}
+              onViewFarm={handleViewFarm}
+              onViewProducts={handleViewProducts}
+              onDelete={handleDeleteFarm}
+            />
+          )}
           keyExtractor={(item) => String(item.id)}
           numColumns={1}
           contentContainerStyle={styles.farmsList}
@@ -329,9 +354,15 @@ export default function FarmsManagement({ navigation }) {
           }
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
-          ListHeaderComponent={<ScrollingHeader />}
+          ListHeaderComponent={
+            <ScrollingHeader
+              pagination={pagination}
+              filteredFarms={filteredFarms}
+              error={error}
+            />
+          }
           ListFooterComponent={renderFooter}
-          ListEmptyComponent={<ListEmpty />}
+          ListEmptyComponent={<ListEmpty searchQuery={searchQuery} onAddFarm={handleAddFarm} />}
           removeClippedSubviews
           initialNumToRender={8}
           windowSize={10}
@@ -340,6 +371,10 @@ export default function FarmsManagement({ navigation }) {
     </SafeAreaWrapper>
   );
 }
+
+/* ============================
+   Styles
+   ============================ */
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
@@ -391,7 +426,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 20,
     gap: 12,
-    //backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
@@ -431,6 +465,45 @@ const styles = StyleSheet.create({
   footerLoader: { paddingVertical: 20, alignItems: 'center', justifyContent: 'center' },
   footerLoaderText: { marginTop: 8, fontSize: 12, color: '#777E5C' },
 
+  /* État vide */
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#283106',
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#777E5C',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  addFirstButton: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#4CAF50',
+    borderRadius: 20,
+    gap: 8,
+  },
+  addFirstButtonText: { color: '#FFFFFF', fontWeight: '600', fontSize: 14 },
+
+  /* Loading */
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 40,
+  },
+  loadingText: { marginTop: 12, fontSize: 14, color: '#777E5C' },
+
   /* Carte ferme */
   farmCard: {
     backgroundColor: '#FFFFFF',
@@ -445,7 +518,12 @@ const styles = StyleSheet.create({
     borderColor: '#F1F5F9',
     marginBottom: 16,
   },
-  farmImageContainer: { width: '100%', height: 180, backgroundColor: '#F8FAFC', position: 'relative' },
+  farmImageContainer: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#F8FAFC',
+    position: 'relative',
+  },
   farmImage: { width: '100%', height: '100%' },
   farmImagePlaceholder: {
     width: '100%',
@@ -463,7 +541,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'flex-start',
   },
-  badge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, gap: 4 },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
   badgePending: { backgroundColor: 'rgba(255, 152, 0, 0.9)' },
   badgeVerified: { backgroundColor: 'rgba(76, 175, 80, 0.9)' },
   badgeText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
@@ -489,7 +574,13 @@ const styles = StyleSheet.create({
   statItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   statText: { fontSize: 14, color: '#777E5C', fontWeight: '600' },
 
-  farmActions: { flexDirection: 'row', gap: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  farmActions: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
   actionButton: {
     flex: 1,
     flexDirection: 'row',
@@ -502,5 +593,5 @@ const styles = StyleSheet.create({
   actionButtonView: { backgroundColor: '#E3F2FD' },
   actionButtonDelete: { backgroundColor: '#FFEBEE' },
   actionButtonText: { fontSize: 13, fontWeight: '600', color: '#2196F3' },
-  actionButtonTextDelete: { color: '#F44336' },
+  actionButtonTextDelete: { color: '#F44336', fontWeight: '600', fontSize: 13 },
 });

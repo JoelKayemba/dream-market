@@ -44,21 +44,11 @@ export const productService = {
         .range(offset, offset + limit - 1);
 
       // Filtres optionnels
-      if (categoryId) {
-        query = query.eq('category_id', categoryId);
-      }
-      if (farmId) {
-        query = query.eq('farm_id', farmId);
-      }
-      if (search) {
-        query = query.ilike('name', `%${search}%`);
-      }
-      if (isActive !== null) {
-        query = query.eq('is_active', isActive);
-      } else if (!includeInactive) {
-        // Par défaut, ne charger que les produits actifs
-        query = query.eq('is_active', true);
-      }
+      // NOTE: Tous les filtres (category, farm, search, status) sont désactivés côté serveur
+      // et gérés côté client dans le slice Redux pour éviter les erreurs Supabase
+      // et pour être cohérent avec les autres services
+      
+      // Les filtres category, farm, search et status sont gérés côté client dans selectFilteredProducts
       // Filtres pour nouveaux produits, populaires et promotions
       if (isNew === true) {
         query = query.eq('is_new', true);

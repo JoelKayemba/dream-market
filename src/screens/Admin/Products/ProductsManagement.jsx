@@ -35,6 +35,411 @@ import {
 } from '../../../store/admin/productSlice';
 import { selectAllFarms, fetchFarms } from '../../../store/admin/farmSlice';
 
+/* ============================
+   Helpers & sous-composants
+   ============================ */
+
+const money = (price, currency) => {
+  const p = Number(price || 0);
+  if (currency === 'USD') return `$${p.toFixed(2)}`;
+  return `${Math.round(p).toString()} FC`;
+};
+
+const StatCard = memo(function StatCard({ icon, color, value, label }) {
+  return (
+    <View style={styles.statCard}>
+      <Ionicons name={icon} size={24} color={color} />
+      <Text style={styles.statValue}>{String(value)}</Text>
+      <Text style={styles.statLabel}>{String(label)}</Text>
+    </View>
+  );
+});
+
+const FilterChip = memo(function FilterChip({
+  active,
+  icon,
+  text,
+  onPress,
+  activeColor = '#4CAF50',
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.filterChip, active && styles.filterChipActive]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <Ionicons name={icon} size={16} color={active ? activeColor : '#777E5C'} />
+      <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+        {String(text)}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
+const ProductCard = memo(function ProductCard({
+  product,
+  categories,
+  navigation,
+  onToggleStatus,
+  onDelete,
+}) {
+  const categoryName = product.category_id
+    ? (categories.find((c) => c.id === product.category_id)?.name || 'Non catégorisé')
+    : 'Non catégorisé';
+
+  const productImage = (product.images && product.images[0]) || product.image || null;
+  const stock = Number(product.stock || 0);
+  const hasStock = stock > 0;
+
+  return (
+    <TouchableOpacity
+      style={styles.productCard}
+      onPress={() => navigation.navigate('ProductDetail', { product })}
+      activeOpacity={0.8}
+    >
+      {/* Image */}
+      <View style={styles.productImageContainer}>
+        {productImage ? (
+          <Image source={{ uri: productImage }} style={styles.productImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.productImagePlaceholder}>
+            <Ionicons name="image-outline" size={32} color="#CBD5E0" />
+            <Text style={styles.placeholderMiniText}>Aucune image</Text>
+          </View>
+        )}
+
+        <View style={styles.imageBadges}>
+          {!product.is_active && (
+            <View style={[styles.badge, styles.badgeInactive]}>
+              <Ionicons name="pause-circle" size={12} color="#FFFFFF" />
+              <Text style={styles.badgeText}>Inactif</Text>
+            </View>
+          )}
+          {!hasStock && (
+            <View style={[styles.badge, styles.badgeOutOfStock]}>
+              <Ionicons name="close-circle" size={12} color="#FFFFFF" />
+              <Text style={styles.badgeText}>Rupture</Text>
+            </View>
+          )}
+          {Array.isArray(product.images) && product.images.length > 1 && (
+            <View style={[styles.badge, styles.badgeImageCount]}>
+              <Ionicons name="images" size={12} color="#FFFFFF" />
+              <Text style={styles.badgeText}>{String(product.images.length)}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Contenu */}
+      <View style={styles.productContent}>
+        <View style={styles.productHeader}>
+          <View style={styles.productInfo}>
+            <Text numberOfLines={2} style={styles.productName}>
+              {String(product.name || 'Produit sans nom')}
+            </Text>
+
+            <View style={styles.productMeta}>
+              <View style={styles.metaItem}>
+                <Ionicons name="grid-outline" size={14} color="#777E5C" />
+                <Text style={styles.metaText}>{String(categoryName)}</Text>
+              </View>
+              {product?.farms?.name ? (
+                <View style={styles.metaItem}>
+                  <Ionicons name="business-outline" size={14} color="#777E5C" />
+                  <Text numberOfLines={1} style={styles.metaText}>
+                    {String(product.farms.name)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+        </View>
+
+        {/* Prix / Stock */}
+        <View style={styles.productFooter}>
+          <View style={styles.priceContainer}>
+            <Text style={styles.productPrice}>{money(product.price, product.currency)}</Text>
+            {product.old_price ? (
+              <Text style={styles.oldPrice}>{money(product.old_price, product.currency)}</Text>
+            ) : null}
+          </View>
+
+          <View style={styles.stockContainer}>
+            <Ionicons
+              name={hasStock ? 'checkmark-circle' : 'close-circle'}
+              size={16}
+              color={hasStock ? '#4CAF50' : '#F44336'}
+            />
+            <Text style={[styles.stockText, !hasStock && styles.stockTextOut]}>
+              {`${String(stock)} ${String(product.unit || 'kg')}`}
+            </Text>
+          </View>
+        </View>
+
+        {/* Actions */}
+        <View style={styles.productActions}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionButtonEdit]}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              navigation.navigate('ProductForm', { mode: 'edit', product });
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="create-outline" size={18} color="#2196F3" />
+            <Text style={styles.actionButtonText}>Modifier</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              product.is_active ? styles.actionButtonDisable : styles.actionButtonEnable,
+            ]}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onToggleStatus(product);
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={product.is_active ? 'pause-outline' : 'play-outline'}
+              size={18}
+              color={product.is_active ? '#F44336' : '#4CAF50'}
+            />
+            <Text
+              style={[
+                styles.actionButtonText,
+                product.is_active ? styles.actionButtonTextDisable : styles.actionButtonTextEnable,
+              ]}
+            >
+              {product.is_active ? 'Désactiver' : 'Activer'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionButtonDelete]}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onDelete(product);
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="trash-outline" size={18} color="#F44336" />
+            <Text style={styles.actionButtonTextDelete}>Supprimer</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+function FixedHeader({
+  navigation,
+  farmId,
+  searchQuery,
+  onChangeSearch,
+  showFilters,
+  onToggleFilters,
+  onAddProduct,
+}) {
+  return (
+    <>
+      {/* Top bar */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#283106" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {farmId ? 'Produits de la Ferme' : 'Gestion des Produits'}
+        </Text>
+        <TouchableOpacity style={styles.addButton} onPress={onAddProduct}>
+          <Ionicons name="add-circle" size={28} color="#4CAF50" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Search bar */}
+      <View style={styles.searchSection}>
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={20} color="#777E5C" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Rechercher un produit..."
+            placeholderTextColor="#999999"
+            value={searchQuery}
+            onChangeText={onChangeSearch}
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 ? (
+            <TouchableOpacity onPress={() => onChangeSearch('')} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={20} color="#777E5C" />
+            </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity onPress={onToggleFilters} style={styles.filterToggleButton}>
+            <Ionicons
+              name={showFilters ? 'filter' : 'filter-outline'}
+              size={20}
+              color={showFilters ? '#4CAF50' : '#777E5C'}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </>
+  );
+}
+
+function ScrollingHeader({
+  showFilters,
+  filters,
+  farms,
+  categories,
+  onSetFarmFilter,
+  onSetCategoryFilter,
+  onSetStatusFilter,
+  displayProducts,
+  pagination,
+  error,
+}) {
+  return (
+    <View>
+      {/* Filters */}
+      {showFilters ? (
+        <>
+          {/* Farm filter */}
+          <View style={styles.filterSection}>
+            <Text style={styles.filterSectionTitle}>Filtrer par ferme</Text>
+            <FlatList
+              data={[{ id: '__all__', name: 'Toutes' }, ...farms]}
+              keyExtractor={(item) => String(item.id || item.name)}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const isAll = item.id === '__all__';
+                const active = isAll ? !filters.farm : filters.farm === item.id;
+                return (
+                  <FilterChip
+                    icon={isAll ? 'list-outline' : 'business-outline'}
+                    text={isAll ? 'Toutes' : item.name}
+                    active={active}
+                    onPress={() => onSetFarmFilter(isAll ? null : item.id)}
+                  />
+                );
+              }}
+            />
+          </View>
+
+          {/* Category filter */}
+          <View style={styles.filterSection}>
+            <Text style={styles.filterSectionTitle}>Filtrer par catégorie</Text>
+            <FlatList
+              data={[{ id: '__all__', name: 'Toutes' }, ...categories]}
+              keyExtractor={(item) => String(item.id || item.name)}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const isAll = item.id === '__all__';
+                const active = isAll ? !filters.category : filters.category === item.id;
+                return (
+                  <FilterChip
+                    icon="grid-outline"
+                    text={isAll ? 'Toutes' : item.name}
+                    active={active}
+                    onPress={() => onSetCategoryFilter(isAll ? null : item.id)}
+                  />
+                );
+              }}
+            />
+          </View>
+
+          {/* Status filter */}
+          <View style={styles.filterSection}>
+            <Text style={styles.filterSectionTitle}>Filtrer par statut</Text>
+            <FlatList
+              data={[
+                { id: 'all', label: 'Tous', icon: 'list-outline' },
+                { id: 'active', label: 'Actifs', icon: 'checkmark-circle-outline' },
+                {
+                  id: 'inactive',
+                  label: 'Inactifs',
+                  icon: 'pause-circle-outline',
+                  color: '#F44336',
+                },
+              ]}
+              keyExtractor={(item) => String(item.id)}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <FilterChip
+                  icon={item.icon}
+                  text={item.label}
+                  active={filters.status === item.id}
+                  onPress={() => onSetStatusFilter(item.id)}
+                  activeColor={item.color || '#4CAF50'}
+                />
+              )}
+            />
+          </View>
+        </>
+      ) : null}
+
+      {/* Stats */}
+      <View style={styles.statsContainer}>
+        <StatCard
+          icon="cube-outline"
+          color="#4CAF50"
+          value={pagination?.total ?? displayProducts.length}
+          label="Total"
+        />
+        <StatCard
+          icon="checkmark-circle-outline"
+          color="#4CAF50"
+          value={displayProducts.filter((p) => p.is_active).length}
+          label="Actifs"
+        />
+        <StatCard
+          icon="close-circle-outline"
+          color="#F44336"
+          value={displayProducts.filter((p) => !p.is_active).length}
+          label="Inactifs"
+        />
+      </View>
+
+      {/* Error banner */}
+      {error ? (
+        <View style={styles.errorBanner}>
+          <Ionicons name="alert-circle-outline" size={18} color="#C62828" />
+          <Text style={styles.errorText}>
+            {String(error?.message || 'Une erreur est survenue.')}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function ListEmpty({ searchQuery, onAddProduct }) {
+  return (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="leaf-outline" size={64} color="#CBD5E0" />
+      <Text style={styles.emptyTitle}>
+        {searchQuery ? 'Aucun produit trouvé' : 'Aucun produit'}
+      </Text>
+      <Text style={styles.emptySubtitle}>
+        {searchQuery ? "Essayez avec d'autres mots-clés" : 'Commencez par ajouter un produit'}
+      </Text>
+      {!searchQuery ? (
+        <TouchableOpacity style={styles.addFirstButton} onPress={onAddProduct}>
+          <Ionicons name="add-circle" size={20} color="#FFFFFF" />
+          <Text style={styles.addFirstButtonText}>Ajouter un produit</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
+
+/* ============================
+   Composant principal
+   ============================ */
+
 export default function ProductsManagement({ navigation, route }) {
   const dispatch = useDispatch();
   const { farmId } = (route && route.params) || {};
@@ -61,11 +466,6 @@ export default function ProductsManagement({ navigation, route }) {
     dispatch(fetchCategories());
     dispatch(fetchFarms());
   }, [dispatch]);
-
-  // Recharger quand les filtres changent
-  useEffect(() => {
-    dispatch(fetchProducts({ page: 0, refresh: true }));
-  }, [dispatch, filters.category, filters.farm, filters.status, filters.search]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -98,10 +498,6 @@ export default function ProductsManagement({ navigation, route }) {
 
   const handleAddProduct = () => {
     navigation.navigate('ProductForm', { mode: 'add', farmId });
-  };
-
-  const handleViewProduct = (product) => {
-    navigation.navigate('ProductDetail', { product });
   };
 
   const handleDeleteProduct = (product) => {
@@ -154,382 +550,20 @@ export default function ProductsManagement({ navigation, route }) {
     displayProducts = displayProducts.filter((p) => p.farm_id === farmId);
   }
 
-  // --- Helpers ---------------------------------------------------
-  const money = (price, currency) => {
-    const p = Number(price || 0);
-    if (currency === 'USD') return `$${p.toFixed(2)}`;
-    return `${Math.round(p).toString()} FC`;
-  };
-
-  // --- UI subcomponents -----------------------------------------
-  const StatCard = memo(function StatCard({ icon, color, value, label }) {
-    return (
-      <View style={styles.statCard}>
-        <Ionicons name={icon} size={24} color={color} />
-        <Text style={styles.statValue}>{String(value)}</Text>
-        <Text style={styles.statLabel}>{String(label)}</Text>
-      </View>
-    );
-  });
-
-  const FilterChip = memo(function FilterChip({
-    active,
-    icon,
-    text,
-    onPress,
-    activeColor = '#4CAF50',
-  }) {
-    return (
-      <TouchableOpacity
-        style={[styles.filterChip, active && styles.filterChipActive]}
-        onPress={onPress}
-        activeOpacity={0.8}
-      >
-        <Ionicons name={icon} size={16} color={active ? activeColor : '#777E5C'} />
-        <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-          {String(text)}
-        </Text>
-      </TouchableOpacity>
-    );
-  });
-
-  const ProductCard = memo(function ProductCard({ product }) {
-    const categoryName = product.category_id
-      ? (categories.find((c) => c.id === product.category_id)?.name || 'Non catégorisé')
-      : 'Non catégorisé';
-
-    const productImage = (product.images && product.images[0]) || product.image || null;
-    const stock = Number(product.stock || 0);
-    const hasStock = stock > 0;
-
-    return (
-      <TouchableOpacity
-        style={styles.productCard}
-        onPress={() => handleViewProduct(product)}
-        activeOpacity={0.8}
-      >
-        {/* Image */}
-        <View style={styles.productImageContainer}>
-          {productImage ? (
-            <Image source={{ uri: productImage }} style={styles.productImage} resizeMode="cover" />
-          ) : (
-            <View style={styles.productImagePlaceholder}>
-              <Ionicons name="image-outline" size={32} color="#CBD5E0" />
-              <Text style={styles.placeholderMiniText}>Aucune image</Text>
-            </View>
-          )}
-
-          <View style={styles.imageBadges}>
-            {!product.is_active && (
-              <View style={[styles.badge, styles.badgeInactive]}>
-                <Ionicons name="pause-circle" size={12} color="#FFFFFF" />
-                <Text style={styles.badgeText}>Inactif</Text>
-              </View>
-            )}
-            {!hasStock && (
-              <View style={[styles.badge, styles.badgeOutOfStock]}>
-                <Ionicons name="close-circle" size={12} color="#FFFFFF" />
-                <Text style={styles.badgeText}>Rupture</Text>
-              </View>
-            )}
-            {Array.isArray(product.images) && product.images.length > 1 && (
-              <View style={[styles.badge, styles.badgeImageCount]}>
-                <Ionicons name="images" size={12} color="#FFFFFF" />
-                <Text style={styles.badgeText}>{String(product.images.length)}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Contenu */}
-        <View style={styles.productContent}>
-          <View style={styles.productHeader}>
-            <View style={styles.productInfo}>
-              <Text numberOfLines={2} style={styles.productName}>
-                {String(product.name || 'Produit sans nom')}
-              </Text>
-
-              <View style={styles.productMeta}>
-                <View style={styles.metaItem}>
-                  <Ionicons name="grid-outline" size={14} color="#777E5C" />
-                  <Text style={styles.metaText}>{String(categoryName)}</Text>
-                </View>
-                {product?.farms?.name ? (
-                  <View style={styles.metaItem}>
-                    <Ionicons name="business-outline" size={14} color="#777E5C" />
-                    <Text numberOfLines={1} style={styles.metaText}>
-                      {String(product.farms.name)}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            </View>
-          </View>
-
-          {/* Prix / Stock */}
-          <View style={styles.productFooter}>
-            <View style={styles.priceContainer}>
-              <Text style={styles.productPrice}>{money(product.price, product.currency)}</Text>
-              {product.old_price ? (
-                <Text style={styles.oldPrice}>{money(product.old_price, product.currency)}</Text>
-              ) : null}
-            </View>
-
-            <View style={styles.stockContainer}>
-              <Ionicons
-                name={hasStock ? 'checkmark-circle' : 'close-circle'}
-                size={16}
-                color={hasStock ? '#4CAF50' : '#F44336'}
-              />
-              <Text style={[styles.stockText, !hasStock && styles.stockTextOut]}>
-                {`${String(stock)} ${String(product.unit || 'kg')}`}
-              </Text>
-            </View>
-          </View>
-
-          {/* Actions */}
-          <View style={styles.productActions}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.actionButtonEdit]}
-              onPress={(e) => {
-                e.stopPropagation?.();
-                navigation.navigate('ProductForm', { mode: 'edit', product });
-              }}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="create-outline" size={18} color="#2196F3" />
-              <Text style={styles.actionButtonText}>Modifier</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                product.is_active ? styles.actionButtonDisable : styles.actionButtonEnable,
-              ]}
-              onPress={(e) => {
-                e.stopPropagation?.();
-                handleToggleStatus(product);
-              }}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={product.is_active ? 'pause-outline' : 'play-outline'}
-                size={18}
-                color={product.is_active ? '#F44336' : '#4CAF50'}
-              />
-              <Text
-                style={[
-                  styles.actionButtonText,
-                  product.is_active ? styles.actionButtonTextDisable : styles.actionButtonTextEnable,
-                ]}
-              >
-                {product.is_active ? 'Désactiver' : 'Activer'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, styles.actionButtonDelete]}
-              onPress={(e) => {
-                e.stopPropagation?.();
-                handleDeleteProduct(product);
-              }}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="trash-outline" size={18} color="#F44336" />
-              <Text style={styles.actionButtonTextDelete}>Supprimer</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  });
-
-  // ---------------- Fixed header (immobile) ----------------
-  const FixedHeader = () => (
-    <>
-      {/* Top bar */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#283106" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {farmId ? 'Produits de la Ferme' : 'Gestion des Produits'}
-        </Text>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
-          <Ionicons name="add-circle" size={28} color="#4CAF50" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Search bar */}
-      <View style={styles.searchSection}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search-outline" size={20} color="#777E5C" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Rechercher un produit..."
-            placeholderTextColor="#999999"
-            value={searchQuery}
-            onChangeText={handleSearchChange}
-            returnKeyType="search"
-          />
-          {searchQuery.length > 0 ? (
-            <TouchableOpacity onPress={() => setSearchQueryLocal('')} style={styles.clearButton}>
-              <Ionicons name="close-circle" size={20} color="#777E5C" />
-            </TouchableOpacity>
-          ) : null}
-          <TouchableOpacity
-            onPress={() => setShowFilters((v) => !v)}
-            style={styles.filterToggleButton}
-          >
-            <Ionicons
-              name={showFilters ? 'filter' : 'filter-outline'}
-              size={20}
-              color={showFilters ? '#4CAF50' : '#777E5C'}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </>
-  );
-
-  // -------- Scrolling header (dans la FlatList) --------------
-  const ScrollingHeader = () => (
-    <View>
-      {/* Filters */}
-      {showFilters ? (
-        <>
-          {/* Farm filter */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Filtrer par ferme</Text>
-            <FlatList
-              data={[{ id: '__all__', name: 'Toutes' }, ...farms]}
-              keyExtractor={(item) => String(item.id || item.name)}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => {
-                const isAll = item.id === '__all__';
-                const active = isAll ? !filters.farm : filters.farm === item.id;
-                return (
-                  <FilterChip
-                    icon={isAll ? 'list-outline' : 'business-outline'}
-                    text={isAll ? 'Toutes' : item.name}
-                    active={active}
-                    onPress={() => dispatch(setFarmFilter(isAll ? null : item.id))}
-                  />
-                );
-              }}
-            />
-          </View>
-
-          {/* Category filter */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Filtrer par catégorie</Text>
-            <FlatList
-              data={[{ id: '__all__', name: 'Toutes' }, ...categories]}
-              keyExtractor={(item) => String(item.id || item.name)}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => {
-                const isAll = item.id === '__all__';
-                const active = isAll ? !filters.category : filters.category === item.id;
-                return (
-                  <FilterChip
-                    icon="grid-outline"
-                    text={isAll ? 'Toutes' : item.name}
-                    active={active}
-                    onPress={() => dispatch(setCategoryFilter(isAll ? null : item.id))}
-                  />
-                );
-              }}
-            />
-          </View>
-
-          {/* Status filter */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Filtrer par statut</Text>
-            <FlatList
-              data={[
-                { id: 'all', label: 'Tous', icon: 'list-outline' },
-                { id: 'active', label: 'Actifs', icon: 'checkmark-circle-outline' },
-                { id: 'inactive', label: 'Inactifs', icon: 'pause-circle-outline', color: '#F44336' },
-              ]}
-              keyExtractor={(item) => String(item.id)}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <FilterChip
-                  icon={item.icon}
-                  text={item.label}
-                  active={filters.status === item.id}
-                  onPress={() => dispatch(setStatusFilter(item.id))}
-                  activeColor={item.color || '#4CAF50'}
-                />
-              )}
-            />
-          </View>
-        </>
-      ) : null}
-
-      {/* Stats */}
-      <View style={styles.statsContainer}>
-        <StatCard
-          icon="cube-outline"
-          color="#4CAF50"
-          value={pagination?.total ?? displayProducts.length}
-          label="Total"
-        />
-        <StatCard
-          icon="checkmark-circle-outline"
-          color="#4CAF50"
-          value={displayProducts.filter((p) => p.is_active).length}
-          label="Actifs"
-        />
-        <StatCard
-          icon="close-circle-outline"
-          color="#F44336"
-          value={displayProducts.filter((p) => !p.is_active).length}
-          label="Inactifs"
-        />
-      </View>
-
-      {/* Error banner */}
-      {error ? (
-        <View style={styles.errorBanner}>
-          <Ionicons name="alert-circle-outline" size={18} color="#C62828" />
-          <Text style={styles.errorText}>
-            {String(error?.message || 'Une erreur est survenue.')}
-          </Text>
-        </View>
-      ) : null}
-    </View>
-  );
-
-  // Empty state
-  const ListEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="leaf-outline" size={64} color="#CBD5E0" />
-      <Text style={styles.emptyTitle}>
-        {searchQuery ? 'Aucun produit trouvé' : 'Aucun produit'}
-      </Text>
-      <Text style={styles.emptySubtitle}>
-        {searchQuery ? "Essayez avec d'autres mots-clés" : 'Commencez par ajouter un produit'}
-      </Text>
-      {!searchQuery ? (
-        <TouchableOpacity style={styles.addFirstButton} onPress={handleAddProduct}>
-          <Ionicons name="add-circle" size={20} color="#FFFFFF" />
-          <Text style={styles.addFirstButtonText}>Ajouter un produit</Text>
-        </TouchableOpacity>
-      ) : null}
-    </View>
-  );
-
-  // --- Render ----------------------------------------------------
   return (
     <SafeAreaView style={styles.container}>
       {/* Header + Search FIXES */}
-      <FixedHeader />
+      <FixedHeader
+        navigation={navigation}
+        farmId={farmId}
+        searchQuery={searchQuery}
+        onChangeSearch={handleSearchChange}
+        showFilters={showFilters}
+        onToggleFilters={() => setShowFilters((v) => !v)}
+        onAddProduct={handleAddProduct}
+      />
 
-      {/* Tout le reste défile dans CETTE FlatList */}
+      {/* Liste défilante */}
       {loading && products.length === 0 ? (
         <View style={styles.loadingContainer}>
           <Ionicons name="hourglass-outline" size={48} color="#4CAF50" />
@@ -538,7 +572,15 @@ export default function ProductsManagement({ navigation, route }) {
       ) : (
         <FlatList
           data={displayProducts}
-          renderItem={({ item }) => <ProductCard product={item} />}
+          renderItem={({ item }) => (
+            <ProductCard
+              product={item}
+              categories={categories}
+              navigation={navigation}
+              onToggleStatus={handleToggleStatus}
+              onDelete={handleDeleteProduct}
+            />
+          )}
           keyExtractor={(item) => String(item.id)}
           numColumns={1}
           contentContainerStyle={styles.productsList}
@@ -553,9 +595,24 @@ export default function ProductsManagement({ navigation, route }) {
           }
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
-          ListHeaderComponent={<ScrollingHeader />}
+          ListHeaderComponent={
+            <ScrollingHeader
+              showFilters={showFilters}
+              filters={filters}
+              farms={farms}
+              categories={categories}
+              onSetFarmFilter={(id) => dispatch(setFarmFilter(id))}
+              onSetCategoryFilter={(id) => dispatch(setCategoryFilter(id))}
+              onSetStatusFilter={(id) => dispatch(setStatusFilter(id))}
+              displayProducts={displayProducts}
+              pagination={pagination}
+              error={error}
+            />
+          }
           ListFooterComponent={renderFooter}
-          ListEmptyComponent={<ListEmpty />}
+          ListEmptyComponent={
+            <ListEmpty searchQuery={searchQuery} onAddProduct={handleAddProduct} />
+          }
           removeClippedSubviews
           initialNumToRender={8}
           windowSize={10}
@@ -565,7 +622,10 @@ export default function ProductsManagement({ navigation, route }) {
   );
 }
 
-// --- Styles ------------------------------------------------------
+/* ============================
+   Styles
+   ============================ */
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
 
@@ -615,7 +675,6 @@ const styles = StyleSheet.create({
   filterSection: {
     paddingHorizontal: 20,
     paddingVertical: 12,
-    //backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
@@ -689,7 +748,12 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginBottom: 16,
   },
-  productImageContainer: { width: '100%', height: 180, backgroundColor: '#F8FAFC', position: 'relative' },
+  productImageContainer: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#F8FAFC',
+    position: 'relative',
+  },
   productImage: { width: '100%', height: '100%' },
   productImagePlaceholder: {
     width: '100%',
@@ -709,7 +773,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'flex-start',
   },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
   badgeInactive: { backgroundColor: 'rgba(244, 67, 54, 0.9)' },
   badgeOutOfStock: { backgroundColor: 'rgba(244, 67, 54, 0.9)' },
   badgeImageCount: { backgroundColor: 'rgba(0, 0, 0, 0.6)' },
@@ -741,7 +812,13 @@ const styles = StyleSheet.create({
   stockText: { fontSize: 14, color: '#4CAF50', fontWeight: '600' },
   stockTextOut: { color: '#F44336' },
 
-  productActions: { flexDirection: 'row', gap: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  productActions: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
   actionButton: {
     flex: 1,
     flexDirection: 'row',
@@ -766,8 +843,20 @@ const styles = StyleSheet.create({
   loadingText: { fontSize: 16, color: '#777E5C', marginTop: 16 },
 
   emptyContainer: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#666666', marginTop: 16, marginBottom: 8 },
-  emptySubtitle: { fontSize: 14, color: '#999999', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666666',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#999999',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
   addFirstButton: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -28,15 +28,18 @@ export const farmService = {
         .range(offset, offset + limit - 1);
 
       // Filtres optionnels
-      if (search) {
-        query = query.or(`name.ilike.%${search}%,location.ilike.%${search}%`);
-      }
+      // NOTE: La recherche est désactivée côté serveur et gérée côté client
+      // pour éviter les erreurs Supabase avec or() et ilike
+      
+      // Filtrer uniquement par verified si nécessaire
       if (verified !== null) {
         query = query.eq('verified', verified);
       }
       if (region) {
         query = query.eq('region', region);
       }
+      
+      // La recherche est gérée côté client dans selectFilteredFarms
 
       const { data, error, count } = await query;
 

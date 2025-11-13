@@ -29,10 +29,20 @@ import { formatPrice, getCurrencySymbol } from '../utils/currency';
 export default function OrderScreen({ navigation }) {
   const dispatch = useDispatch();
   const { user } = useAuth();
-  const orders = useSelector(selectOrders);
+  const ordersRaw = useSelector(selectOrders);
+  // Garantir que orders est toujours un tableau
+  const orders = Array.isArray(ordersRaw) ? ordersRaw : [];
   const loading = useSelector(selectOrdersLoading);
   const error = useSelector(selectOrdersError);
-  const ordersStats = useSelector(selectOrdersStats);
+  const ordersStats = useSelector(selectOrdersStats) || {
+    total: 0,
+    pending: 0,
+    confirmed: 0,
+    preparing: 0,
+    shipped: 0,
+    delivered: 0,
+    cancelled: 0
+  };
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -192,14 +202,15 @@ export default function OrderScreen({ navigation }) {
 
   // Rendu des onglets de filtre
   const renderFilterTabs = () => {
+    const ordersArray = Array.isArray(orders) ? orders : [];
     const filters = [
-      { key: 'all', label: 'Toutes', count: orders.length },
-      { key: 'pending', label: 'En attente', count: ordersStats.pending },
-      { key: 'confirmed', label: 'Confirmées', count: ordersStats.confirmed },
-      { key: 'preparing', label: 'En préparation', count: ordersStats.preparing },
-      { key: 'shipped', label: 'Expédiées', count: ordersStats.shipped },
-      { key: 'delivered', label: 'Livrées', count: ordersStats.delivered },
-      { key: 'cancelled', label: 'Annulées', count: ordersStats.cancelled }
+      { key: 'all', label: 'Toutes', count: ordersArray.length },
+      { key: 'pending', label: 'En attente', count: ordersStats?.pending || 0 },
+      { key: 'confirmed', label: 'Confirmées', count: ordersStats?.confirmed || 0 },
+      { key: 'preparing', label: 'En préparation', count: ordersStats?.preparing || 0 },
+      { key: 'shipped', label: 'Expédiées', count: ordersStats?.shipped || 0 },
+      { key: 'delivered', label: 'Livrées', count: ordersStats?.delivered || 0 },
+      { key: 'cancelled', label: 'Annulées', count: ordersStats?.cancelled || 0 }
     ];
 
     return (
@@ -259,14 +270,14 @@ export default function OrderScreen({ navigation }) {
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Mes Commandes</Text>
           <Text style={styles.headerSubtitle}>
-            {orders.length} commande{orders.length > 1 ? 's' : ''}
+            {Array.isArray(orders) ? orders.length : 0} commande{Array.isArray(orders) && orders.length > 1 ? 's' : ''}
           </Text>
         </View>
         <View style={styles.placeholder} />
       </View>
 
       {/* Filtres */}
-      {orders.length > 0 && renderFilterTabs()}
+      {Array.isArray(orders) && orders.length > 0 && renderFilterTabs()}
 
       {/* Liste des commandes */}
       <FlatList

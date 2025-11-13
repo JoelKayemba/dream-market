@@ -32,18 +32,11 @@ export const serviceService = {
         .range(offset, offset + limit - 1);
 
       // Filtres optionnels
-      if (categoryId) {
-        query = query.eq('category_id', categoryId);
-      }
-      if (search) {
-        query = query.ilike('name', `%${search}%`);
-      }
-      if (isActive !== null) {
-        query = query.eq('is_active', isActive);
-      } else {
-        // Par défaut, ne charger que les services actifs
-        query = query.eq('is_active', true);
-      }
+      // NOTE: Tous les filtres (category, search, status) sont désactivés côté serveur
+      // et gérés côté client dans le slice Redux pour éviter les erreurs Supabase
+      // et pour être cohérent avec les autres services
+      
+      // Les filtres category, search et status sont gérés côté client dans selectFilteredServices
 
       const { data, error, count } = await query;
 

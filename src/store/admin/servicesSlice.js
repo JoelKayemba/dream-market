@@ -39,12 +39,14 @@ export const fetchServices = createAsyncThunk(
       const state = getState();
       const filters = state.admin?.services?.filters || {};
       
+      // Tous les filtres (category, search, status) sont gérés côté client
+      // On récupère tous les services sans filtres côté serveur
       const result = await serviceService.getServices({
         limit,
         offset: page * limit,
-        categoryId: filters.category !== 'all' ? filters.category : null,
-        search: filters.search || null,
-        isActive: filters.status === 'all' ? null : filters.status === 'active'
+        categoryId: null, // Filtre désactivé côté serveur, géré côté client
+        search: null, // Recherche désactivée côté serveur, gérée côté client
+        isActive: null // Filtre désactivé côté serveur, géré côté client
       });
 
       return {

@@ -6,8 +6,12 @@ export const fetchUserOrders = createAsyncThunk(
   'orders/fetchUserOrders',
   async (userId, { rejectWithValue }) => {
     try {
-      const orders = await orderService.getUserOrders(userId);
-      return orders;
+      const response = await orderService.getUserOrders(userId);
+      // Le service retourne { data: [...], total: ..., hasMore: ... }
+      // On extrait le tableau data
+      const orders = response?.data || response || [];
+      // S'assurer que c'est un tableau
+      return Array.isArray(orders) ? orders : [];
     } catch (error) {
       console.error('❌ [OrdersSlice] Error fetching orders:', error);
       return rejectWithValue(error.message);
@@ -55,7 +59,7 @@ export const fetchOrderById = createAsyncThunk(
 );
 
 const initialState = {
-  orders: [],
+  orders: [], // Toujours initialisé comme un tableau vide
   currentOrder: null,
   isLoading: false,
   initialLoading: false, // Nouveau: loading pour le premier chargement
@@ -93,7 +97,8 @@ const ordersSlice = createSlice({
       })
       .addCase(fetchUserOrders.fulfilled, (state, action) => {
         state.initialLoading = false;
-        state.orders = action.payload;
+        // S'assurer que orders est toujours un tableau
+        state.orders = Array.isArray(action.payload) ? action.payload : [];
         state.hasInitialized = true;
       })
       .addCase(fetchUserOrders.rejected, (state, action) => {
@@ -109,8 +114,9 @@ const ordersSlice = createSlice({
       .addCase(createOrder.fulfilled, (state, action) => {
         state.isLoading = false;
         state.lastOrder = action.payload;
-        // Ajouter la nouvelle commande au début de la liste
-        state.orders = [action.payload, ...state.orders];
+        // S'assurer que orders est un tableau avant d'ajouter
+        const currentOrders = Array.isArray(state.orders) ? state.orders : [];
+        state.orders = [action.payload, ...currentOrders];
       })
       .addCase(createOrder.rejected, (state, action) => {
         state.isLoading = false;
@@ -162,7 +168,19 @@ export const {
 } = ordersSlice.actions;
 
 // Sélecteurs
-export const selectOrders = (state) => state.orders?.orders || [];
+export const selectOrders = (state) => {
+  // Protection complète : vérifier que state.orders existe
+  if (!state || !state.orders) {
+    return [];
+  }
+  const orders = state.orders.orders;
+  // Vérifier que orders est un tableau
+  if (!Array.isArray(orders)) {
+    console.warn('⚠️ [selectOrders] orders is not an array:', orders);
+    return [];
+  }
+  return orders;
+};
 export const selectCurrentOrder = (state) => state.orders?.currentOrder || null;
 export const selectOrdersLoading = (state) => state.orders?.initialLoading || false;
 export const selectOrdersError = (state) => state.orders?.error || null;
@@ -182,16 +200,50 @@ export const selectOrderById = (orderId) => (state) =>
 
 // Sélecteur pour les statistiques des commandes - Mémorisé
 export const selectOrdersStats = createSelector(
-  [(state) => state.orders.orders || []],
-  (orders) => ({
-    total: orders.length,
-    pending: orders.filter(order => order.status === 'pending').length,
-    confirmed: orders.filter(order => order.status === 'confirmed').length,
-    preparing: orders.filter(order => order.status === 'preparing').length,
-    shipped: orders.filter(order => order.status === 'shipped').length,
-    delivered: orders.filter(order => order.status === 'delivered').length,
-    cancelled: orders.filter(order => order.status === 'cancelled').length,
-  })
+  [(state) => {
+    // Protection complète : vérifier que state.orders existe et que orders est un tableau
+    if (!state || !state.orders) {
+      return [];
+    }
+    const orders = state.orders.orders;
+    return Array.isArray(orders) ? orders : [];
+  }],
+  (orders) => {
+    // Double vérification pour être sûr
+    if (!Array.isArray(orders)) {
+      return {
+        total: 0,
+        pending: 0,
+        confirmed: 0,
+        preparing: 0,
+        shipped: 0,
+        delivered: 0,
+        cancelled: 0,
+      };
+    }
+    // Vérifier que orders a la méthode filter avant de l'utiliser
+    if (typeof orders.filter !== 'function') {
+      console.warn('⚠️ [selectOrdersStats] orders.filter is not a function, orders:', orders);
+      return {
+        total: 0,
+        pending: 0,
+        confirmed: 0,
+        preparing: 0,
+        shipped: 0,
+        delivered: 0,
+        cancelled: 0,
+      };
+    }
+    return {
+      total: orders.length,
+      pending: orders.filter(order => order.status === 'pending').length,
+      confirmed: orders.filter(order => order.status === 'confirmed').length,
+      preparing: orders.filter(order => order.status === 'preparing').length,
+      shipped: orders.filter(order => order.status === 'shipped').length,
+      delivered: orders.filter(order => order.status === 'delivered').length,
+      cancelled: orders.filter(order => order.status === 'cancelled').length,
+    };
+  }
 );
 
 export default ordersSlice.reducer;

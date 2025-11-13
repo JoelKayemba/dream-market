@@ -99,11 +99,13 @@ export const fetchOrders = createAsyncThunk(
       const state = getState();
       const filters = state.admin?.orders?.filters || {};
       
+      // Tous les filtres (status, search) sont gérés côté client
+      // On récupère toutes les commandes sans filtres côté serveur
       const result = await orderService.getAllOrders({
         limit,
         offset: page * limit,
-        status: filters.status !== 'all' ? filters.status : null,
-        search: filters.search || null,
+        status: null, // Filtre désactivé côté serveur, géré côté client
+        search: null, // Recherche désactivée côté serveur, gérée côté client
         userId: null
       });
 

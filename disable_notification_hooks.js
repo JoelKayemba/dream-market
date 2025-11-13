@@ -7,7 +7,7 @@ export const useNotifications = () => {
   const { user } = useAuth();
   
   // DÉSACTIVÉ TEMPORAIREMENT POUR TEST
-  console.log('🔔 [useNotifications] HOOK DÉSACTIVÉ POUR TEST');
+ // console.log('🔔 [useNotifications] HOOK DÉSACTIVÉ POUR TEST');
   
   return {
     notifications: [],
@@ -27,7 +27,7 @@ export const useAdminNotifications = () => {
   const { user } = useAuth();
   
   // DÉSACTIVÉ TEMPORAIREMENT POUR TEST
-  console.log('🔔 [useAdminNotifications] HOOK DÉSACTIVÉ POUR TEST');
+  //console.log('🔔 [useAdminNotifications] HOOK DÉSACTIVÉ POUR TEST');
   
   return {
     adminNotifications: [],
@@ -46,10 +46,10 @@ const NotificationManager = () => {
   const { user } = useAuth();
   
   // DÉSACTIVÉ TEMPORAIREMENT POUR TEST
-  console.log('🔔 [NotificationManager] COMPOSANT DÉSACTIVÉ POUR TEST');
+  //console.log('🔔 [NotificationManager] COMPOSANT DÉSACTIVÉ POUR TEST');
   
   useEffect(() => {
-    console.log('🔔 [NotificationManager] Initialisation désactivée pour test');
+    //console.log('🔔 [NotificationManager] Initialisation désactivée pour test');
     dispatch(setIsInitialized(true));
   }, [dispatch]);
   
@@ -68,12 +68,12 @@ class BackgroundNotificationService {
   }
 
   async startBackgroundTask() {
-    console.log('🔔 [BackgroundNotificationService] TÂCHE DÉSACTIVÉE POUR TEST');
+    //console.log('🔔 [BackgroundNotificationService] TÂCHE DÉSACTIVÉE POUR TEST');
     return false; // Désactivé pour test
   }
 
   async stopBackgroundTask() {
-    console.log('🔔 [BackgroundNotificationService] ARRÊT DÉSACTIVÉ POUR TEST');
+    //console.log('🔔 [BackgroundNotificationService] ARRÊT DÉSACTIVÉ POUR TEST');
     return false; // Désactivé pour test
   }
 }

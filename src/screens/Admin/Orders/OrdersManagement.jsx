@@ -31,6 +31,7 @@ import {
 } from '../../../store/admin/ordersSlice';
 import { openWhatsApp, openPhoneCall, openEmail } from '../../../utils/contactInfo';
 import AdminNotificationCenter from '../../../components/admin/AdminNotificationCenter';
+import SafeAreaWrapper from '../../../components/SafeAreaWrapper';
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Utils simples
@@ -194,13 +195,22 @@ export default function OrdersManagement({ navigation }) {
     dispatch(fetchOrders({ page: 0, refresh: true }));
   }, [dispatch]);
 
+  // Débounce pour la recherche
   useEffect(() => {
-    const t = setTimeout(() => dispatch(setSearch(searchText)), 250);
+    const trimmedSearch = searchText.trim();
+    const t = setTimeout(() => {
+      dispatch(setSearch(trimmedSearch));
+    }, 300);
     return () => clearTimeout(t);
   }, [searchText, dispatch]);
 
+  // Refetch quand les filtres changent (mais pas immédiatement après setSearch)
   useEffect(() => {
-    dispatch(fetchOrders({ page: 0, refresh: true }));
+    // Attendre un peu pour éviter les appels multiples
+    const t = setTimeout(() => {
+      dispatch(fetchOrders({ page: 0, refresh: true }));
+    }, 100);
+    return () => clearTimeout(t);
   }, [filters.status, filters.search, dispatch]);
 
   const onRefresh = async () => {
@@ -349,7 +359,7 @@ export default function OrdersManagement({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaWrapper style={styles.container}>
       {/* Header fixe */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn} activeOpacity={0.8}>
@@ -425,7 +435,7 @@ export default function OrdersManagement({ navigation }) {
           showsVerticalScrollIndicator={false}
         />
       )}
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 

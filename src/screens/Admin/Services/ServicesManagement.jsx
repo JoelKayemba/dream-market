@@ -1,10 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, Text, TextInput, Alert, Image, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback, memo } from 'react';
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Text,
+  TextInput,
+  Alert,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { 
-  fetchServices, 
+import {
+  fetchServices,
   deleteService,
   toggleServiceStatus,
   selectAdminServices,
@@ -19,13 +29,356 @@ import {
   setCategoryFilter,
   setStatusFilter,
   setSearchQuery,
-  fetchCategories
+  fetchCategories,
 } from '../../../store/admin/servicesSlice';
+
+/* ============================
+   Sous-composants et helpers
+   ============================ */
+
+const ServiceCard = memo(function ServiceCard({
+  service,
+  onView,
+  onEdit,
+  onToggleStatus,
+  onDelete,
+}) {
+  const serviceImage = service.image || null;
+  const isActive = !!service.is_active;
+
+  return (
+    <TouchableOpacity
+      style={styles.serviceCard}
+      onPress={() => onView(service)}
+      activeOpacity={0.7}
+    >
+      {/* Image */}
+      <View style={styles.serviceImageContainer}>
+        {serviceImage ? (
+          <Image source={{ uri: serviceImage }} style={styles.serviceImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.serviceImagePlaceholder}>
+            <Ionicons name="image-outline" size={32} color="#CBD5E0" />
+          </View>
+        )}
+        <View style={styles.imageBadges}>
+          {!isActive && (
+            <View style={[styles.badge, styles.badgeInactive]}>
+              <Ionicons name="pause-circle" size={12} color="#FFFFFF" />
+              <Text style={styles.badgeText}>Inactif</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Infos */}
+      <View style={styles.serviceContent}>
+        <View style={styles.serviceHeader}>
+          <View style={styles.serviceInfo}>
+            <Text style={styles.serviceName} numberOfLines={2}>
+              {service.name || 'Service sans nom'}
+            </Text>
+            <View style={styles.serviceMeta}>
+              <View style={styles.metaItem}>
+                <Ionicons name="grid-outline" size={14} color="#777E5C" />
+                <Text style={styles.metaText}>
+                  {service.categories?.name || 'Non catégorisé'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Prix + rating */}
+        <View style={styles.serviceFooter}>
+          <View style={styles.priceContainer}>
+            <Ionicons name="cash-outline" size={16} color="#4CAF50" />
+            <Text style={styles.servicePrice}>{service.price || 'Sur devis'}</Text>
+          </View>
+          {service.rating && (
+            <View style={styles.ratingContainer}>
+              <Ionicons name="star" size={16} color="#FF9800" />
+              <Text style={styles.ratingText}>
+                {Number(service.rating).toFixed(1)} ({service.review_count || 0})
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Actions */}
+        <View style={styles.serviceActions}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionButtonEdit]}
+            onPress={(e) => {
+              e.stopPropagation();
+              onEdit(service);
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="create-outline" size={18} color="#2196F3" />
+            <Text style={styles.actionButtonText}>Modifier</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              isActive ? styles.actionButtonDisable : styles.actionButtonEnable,
+            ]}
+            onPress={(e) => {
+              e.stopPropagation();
+              onToggleStatus(service);
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={isActive ? 'pause-outline' : 'play-outline'}
+              size={18}
+              color={isActive ? '#F44336' : '#4CAF50'}
+            />
+            <Text
+              style={[
+                styles.actionButtonText,
+                isActive ? styles.actionButtonTextDisable : styles.actionButtonTextEnable,
+              ]}
+            >
+              {isActive ? 'Désactiver' : 'Activer'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionButtonDelete]}
+            onPress={(e) => {
+              e.stopPropagation();
+              onDelete(service);
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="trash-outline" size={18} color="#F44336" />
+            <Text style={styles.actionButtonTextDelete}>Supprimer</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+const ListEmpty = memo(function ListEmpty({ filters, onCreate }) {
+  const isAll =
+    (filters.category === 'all' || !filters.category) && (filters.status === 'all' || !filters.status);
+
+  return (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="construct-outline" size={80} color="#777E5C" />
+      <Text style={styles.emptyTitle}>Aucun service</Text>
+      <Text style={styles.emptySubtitle}>
+        {isAll
+          ? "Aucun service n'a été créé"
+          : "Aucun service ne correspond aux filtres sélectionnés"}
+      </Text>
+      <TouchableOpacity style={styles.emptyButton} onPress={onCreate}>
+        <Text style={styles.emptyButtonText}>Créer un service</Text>
+      </TouchableOpacity>
+    </View>
+  );
+});
+
+const FixedHeader = memo(function FixedHeader({
+  navigation,
+  topInset,
+  searchQuery,
+  onChangeSearch,
+  showFilters,
+  onToggleFilters,
+  onAddService,
+}) {
+  return (
+    <>
+      {/* Barre supérieure */}
+      <View style={[styles.header, { paddingTop: topInset }]}>
+        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#283106" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Gestion des Services</Text>
+        <TouchableOpacity style={styles.addButton} onPress={onAddService} activeOpacity={0.7}>
+          <Ionicons name="add" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Barre de recherche (fixe) */}
+      <View style={styles.searchSection}>
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={20} color="#777E5C" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Rechercher un service..."
+            value={searchQuery}
+            onChangeText={onChangeSearch}
+            placeholderTextColor="#999999"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => onChangeSearch('')} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={20} color="#777E5C" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={onToggleFilters} style={styles.filterToggleButton}>
+            <Ionicons
+              name={showFilters ? 'filter' : 'filter-outline'}
+              size={20}
+              color={showFilters ? '#4CAF50' : '#777E5C'}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </>
+  );
+});
+
+const ScrollingHeader = memo(function ScrollingHeader({
+  showFilters,
+  filters,
+  categoryOptions,
+  statusOptions,
+  stats,
+  pagination,
+  onSelectCategory,
+  onSelectStatus,
+}) {
+  return (
+    <View>
+      {/* Filtres par catégorie */}
+      {showFilters && (
+        <View style={styles.filterSection}>
+          <Text style={styles.filterSectionTitle}>Filtrer par catégorie</Text>
+          <FlatList
+            data={categoryOptions}
+            keyExtractor={(item) => String(item.id)}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item: option }) => (
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  filters.category === option.id && styles.filterChipActive,
+                ]}
+                onPress={() => onSelectCategory(option.id)}
+              >
+                <Ionicons
+                  name={option.icon}
+                  size={16}
+                  color={filters.category === option.id ? '#4CAF50' : '#777E5C'}
+                />
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    filters.category === option.id && styles.filterChipTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+                <View
+                  style={[
+                    styles.filterChipCount,
+                    filters.category === option.id && styles.filterChipCountActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipCountText,
+                      filters.category === option.id && styles.filterChipCountTextActive,
+                    ]}
+                  >
+                    {option.count}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
+
+      {/* Filtres par statut */}
+      {showFilters && (
+        <View style={styles.filterSection}>
+          <Text style={styles.filterSectionTitle}>Filtrer par statut</Text>
+          <FlatList
+            data={statusOptions}
+            keyExtractor={(item) => String(item.id)}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item: option }) => (
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  filters.status === option.id && styles.filterChipActive,
+                ]}
+                onPress={() => onSelectStatus(option.id)}
+              >
+                <Ionicons
+                  name={option.icon}
+                  size={16}
+                  color={filters.status === option.id ? '#4CAF50' : '#777E5C'}
+                />
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    filters.status === option.id && styles.filterChipTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+                <View
+                  style={[
+                    styles.filterChipCount,
+                    filters.status === option.id && styles.filterChipCountActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipCountText,
+                      filters.status === option.id && styles.filterChipCountTextActive,
+                    ]}
+                  >
+                    {option.count}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
+
+      {/* Statistiques */}
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <Ionicons name="construct-outline" size={24} color="#4CAF50" />
+          <Text style={styles.statValue}>{pagination?.total ?? stats.total}</Text>
+          <Text style={styles.statLabel}>Total</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Ionicons name="checkmark-circle-outline" size={24} color="#4CAF50" />
+          <Text style={styles.statValue}>{stats.active}</Text>
+          <Text style={styles.statLabel}>Actifs</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Ionicons name="close-circle-outline" size={24} color="#F44336" />
+          <Text style={styles.statValue}>{stats.inactive}</Text>
+          <Text style={styles.statLabel}>Inactifs</Text>
+        </View>
+      </View>
+    </View>
+  );
+});
+
+/* ============================
+   Composant principal
+   ============================ */
 
 export default function ServicesManagement({ navigation }) {
   const dispatch = useDispatch();
   const [searchQuery, setSearchQueryLocal] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const insets = useSafeAreaInsets();
 
   // Redux selectors
   const services = useSelector(selectAdminServices);
@@ -36,10 +389,7 @@ export default function ServicesManagement({ navigation }) {
   const filters = useSelector(selectAdminServicesFilters);
   const filteredServices = useSelector(selectFilteredServices);
   const stats = useSelector(selectServiceStats);
-  const categories = useSelector(selectAdminCategories);
-
-  const [refreshing, setRefreshing] = useState(false);
-  const insets = useSafeAreaInsets();
+  const categories = useSelector(selectAdminCategories) || [];
 
   // Load services + categories on mount
   useEffect(() => {
@@ -47,12 +397,7 @@ export default function ServicesManagement({ navigation }) {
     dispatch(fetchCategories());
   }, [dispatch]);
 
-  // Reload when filters change
-  useEffect(() => {
-    dispatch(fetchServices({ page: 0, refresh: true }));
-  }, [dispatch, filters.category, filters.status, filters.search]);
-
-  // Debounced search
+  // Debounced search -> Redux
   useEffect(() => {
     const t = setTimeout(() => {
       dispatch(setSearchQuery(searchQuery));
@@ -84,19 +429,19 @@ export default function ServicesManagement({ navigation }) {
 
   const categoryOptions = [
     { id: 'all', label: 'Toutes', icon: 'list-outline', count: stats.total },
-    ...categories.map(category => ({
+    ...categories.map((category) => ({
       id: category.id,
       label: category.name,
       icon: 'folder-outline',
       emoji: category.emoji,
-      count: services.filter(s => s.category_id === category.id).length
-    }))
+      count: services.filter((s) => s.category_id === category.id).length,
+    })),
   ];
 
   const statusOptions = [
     { id: 'all', label: 'Tous', icon: 'list-outline', count: stats.total },
     { id: 'active', label: 'Actifs', icon: 'checkmark-circle-outline', count: stats.active },
-    { id: 'inactive', label: 'Inactifs', icon: 'close-circle-outline', count: stats.inactive }
+    { id: 'inactive', label: 'Inactifs', icon: 'close-circle-outline', count: stats.inactive },
   ];
 
   const handleViewService = (service) => {
@@ -113,14 +458,14 @@ export default function ServicesManagement({ navigation }) {
       `Voulez-vous vraiment supprimer le service "${service.name}" ?`,
       [
         { text: 'Annuler', style: 'cancel' },
-        { 
-          text: 'Supprimer', 
+        {
+          text: 'Supprimer',
           style: 'destructive',
           onPress: () => {
             dispatch(deleteService(service.id));
             Alert.alert('Succès', 'Service supprimé avec succès');
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -132,298 +477,37 @@ export default function ServicesManagement({ navigation }) {
       `Voulez-vous ${action} le service "${service.name}" ?`,
       [
         { text: 'Annuler', style: 'cancel' },
-        { 
-          text: action.charAt(0).toUpperCase() + action.slice(1), 
+        {
+          text: action.charAt(0).toUpperCase() + action.slice(1),
           onPress: () => {
-            dispatch(toggleServiceStatus({ 
-              serviceId: service.id, 
-              isActive: !service.is_active 
-            }));
-            Alert.alert('Succès', `Service ${action === 'activer' ? 'activé' : 'désactivé'} avec succès`);
-          }
-        }
+            dispatch(
+              toggleServiceStatus({
+                serviceId: service.id,
+                isActive: !service.is_active,
+              })
+            );
+            Alert.alert(
+              'Succès',
+              `Service ${action === 'activer' ? 'activé' : 'désactivé'} avec succès`
+            );
+          },
+        },
       ]
     );
   };
 
-  const ServiceCard = ({ service }) => {
-    const serviceImage = service.image || null;
-    const isActive = !!service.is_active;
-
-    return (
-      <TouchableOpacity 
-        style={styles.serviceCard}
-        onPress={() => handleViewService(service)}
-        activeOpacity={0.7}
-      >
-        {/* Image */}
-        <View style={styles.serviceImageContainer}>
-          {serviceImage ? (
-            <Image source={{ uri: serviceImage }} style={styles.serviceImage} resizeMode="cover" />
-          ) : (
-            <View style={styles.serviceImagePlaceholder}>
-              <Ionicons name="image-outline" size={32} color="#CBD5E0" />
-            </View>
-          )}
-          <View style={styles.imageBadges}>
-            {!isActive && (
-              <View style={[styles.badge, styles.badgeInactive]}>
-                <Ionicons name="pause-circle" size={12} color="#FFFFFF" />
-                <Text style={styles.badgeText}>Inactif</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Infos */}
-        <View style={styles.serviceContent}>
-          <View style={styles.serviceHeader}>
-            <View style={styles.serviceInfo}>
-              <Text style={styles.serviceName} numberOfLines={2}>
-                {service.name || 'Service sans nom'}
-              </Text>
-              <View style={styles.serviceMeta}>
-                <View style={styles.metaItem}>
-                  <Ionicons name="grid-outline" size={14} color="#777E5C" />
-                  <Text style={styles.metaText}>
-                    {service.categories?.name || 'Non catégorisé'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* Prix + rating */}
-          <View style={styles.serviceFooter}>
-            <View style={styles.priceContainer}>
-              <Ionicons name="cash-outline" size={16} color="#4CAF50" />
-              <Text style={styles.servicePrice}>{service.price || 'Sur devis'}</Text>
-            </View>
-            {service.rating && (
-              <View style={styles.ratingContainer}>
-                <Ionicons name="star" size={16} color="#FF9800" />
-                <Text style={styles.ratingText}>
-                  {Number(service.rating).toFixed(1)} ({service.review_count || 0})
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Actions */}
-          <View style={styles.serviceActions}>
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.actionButtonEdit]}
-              onPress={(e) => { e.stopPropagation(); handleEditService(service); }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="create-outline" size={18} color="#2196F3" />
-              <Text style={styles.actionButtonText}>Modifier</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.actionButton, isActive ? styles.actionButtonDisable : styles.actionButtonEnable]}
-              onPress={(e) => { e.stopPropagation(); handleToggleStatus(service); }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name={isActive ? 'pause-outline' : 'play-outline'} size={18} color={isActive ? '#F44336' : '#4CAF50'} />
-              <Text style={[styles.actionButtonText, isActive ? styles.actionButtonTextDisable : styles.actionButtonTextEnable]}>
-                {isActive ? 'Désactiver' : 'Activer'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.actionButtonDelete]}
-              onPress={(e) => { e.stopPropagation(); handleDeleteService(service); }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="trash-outline" size={18} color="#F44336" />
-              <Text style={styles.actionButtonTextDelete}>Supprimer</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="construct-outline" size={80} color="#777E5C" />
-      <Text style={styles.emptyTitle}>Aucun service</Text>
-      <Text style={styles.emptySubtitle}>
-        {filters.category === 'all' && filters.status === 'all'
-          ? "Aucun service n'a été créé"
-          : "Aucun service ne correspond aux filtres sélectionnés"}
-      </Text>
-      <TouchableOpacity 
-        style={styles.emptyButton}
-        onPress={() => navigation.navigate('AdminServiceForm', { mode: 'add' })}
-      >
-        <Text style={styles.emptyButtonText}>Créer un service</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  // Header IMMOBILE (barre supérieure + barre de recherche)
-  const FixedHeader = () => (
-    <>
-      {/* Barre supérieure */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#283106" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Gestion des Services</Text>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => navigation.navigate('AdminServiceForm', { mode: 'add' })}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="add" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Barre de recherche (fixe) */}
-      <View style={styles.searchSection}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search-outline" size={20} color="#777E5C" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Rechercher un service..."
-            value={searchQuery}
-            onChangeText={setSearchQueryLocal}
-            placeholderTextColor="#999999"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQueryLocal('')} style={styles.clearButton}>
-              <Ionicons name="close-circle" size={20} color="#777E5C" />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity onPress={() => setShowFilters(v => !v)} style={styles.filterToggleButton}>
-            <Ionicons name={showFilters ? "filter" : "filter-outline"} size={20} color={showFilters ? "#4CAF50" : "#777E5C"} />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </>
-  );
-
-  // Header DÉFILANT (s'intègre dans la FlatList)
-  const ScrollingHeader = () => (
-    <View>
-      {/* Filtres par catégorie */}
-      {showFilters && (
-        <View style={styles.filterSection}>
-          <Text style={styles.filterSectionTitle}>Filtrer par catégorie</Text>
-          <FlatList
-            data={categoryOptions}
-            keyExtractor={(item) => String(item.id)}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 0 }}
-            renderItem={({ item: option }) => (
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  filters.category === option.id && styles.filterChipActive
-                ]}
-                onPress={() => dispatch(setCategoryFilter(option.id))}
-              >
-                <Ionicons 
-                  name={option.icon} 
-                  size={16} 
-                  color={filters.category === option.id ? '#4CAF50' : '#777E5C'} 
-                />
-                <Text style={[
-                  styles.filterChipText,
-                  filters.category === option.id && styles.filterChipTextActive
-                ]}>
-                  {option.label}
-                </Text>
-                <View style={[
-                  styles.filterChipCount,
-                  filters.category === option.id && styles.filterChipCountActive
-                ]}>
-                  <Text style={[
-                    styles.filterChipCountText,
-                    filters.category === option.id && styles.filterChipCountTextActive
-                  ]}>
-                    {option.count}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-      )}
-
-      {/* Filtres par statut */}
-      {showFilters && (
-        <View style={styles.filterSection}>
-          <Text style={styles.filterSectionTitle}>Filtrer par statut</Text>
-          <FlatList
-            data={statusOptions}
-            keyExtractor={(item) => String(item.id)}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item: option }) => (
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  filters.status === option.id && styles.filterChipActive
-                ]}
-                onPress={() => dispatch(setStatusFilter(option.id))}
-              >
-                <Ionicons 
-                  name={option.icon} 
-                  size={16} 
-                  color={filters.status === option.id ? '#4CAF50' : '#777E5C'} 
-                />
-                <Text style={[
-                  styles.filterChipText,
-                  filters.status === option.id && styles.filterChipTextActive
-                ]}>
-                  {option.label}
-                </Text>
-                <View style={[
-                  styles.filterChipCount,
-                  filters.status === option.id && styles.filterChipCountActive
-                ]}>
-                  <Text style={[
-                    styles.filterChipCountText,
-                    filters.status === option.id && styles.filterChipCountTextActive
-                  ]}>
-                    {option.count}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-      )}
-
-      {/* Statistiques */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Ionicons name="construct-outline" size={24} color="#4CAF50" />
-          <Text style={styles.statValue}>{pagination?.total ?? stats.total}</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Ionicons name="checkmark-circle-outline" size={24} color="#4CAF50" />
-          <Text style={styles.statValue}>{stats.active}</Text>
-          <Text style={styles.statLabel}>Actifs</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Ionicons name="close-circle-outline" size={24} color="#F44336" />
-          <Text style={styles.statValue}>{stats.inactive}</Text>
-          <Text style={styles.statLabel}>Inactifs</Text>
-        </View>
-      </View>
-    </View>
-  );
-
   if (loading && services.length === 0) {
     return (
       <View style={styles.container}>
-        <FixedHeader />
+        <FixedHeader
+          navigation={navigation}
+          topInset={insets.top}
+          searchQuery={searchQuery}
+          onChangeSearch={setSearchQueryLocal}
+          showFilters={showFilters}
+          onToggleFilters={() => setShowFilters((v) => !v)}
+          onAddService={() => navigation.navigate('AdminServiceForm', { mode: 'add' })}
+        />
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Chargement des services...</Text>
         </View>
@@ -434,13 +518,29 @@ export default function ServicesManagement({ navigation }) {
   return (
     <View style={styles.container}>
       {/* Barre supérieure + Search (fixe) */}
-      <FixedHeader />
+      <FixedHeader
+        navigation={navigation}
+        topInset={insets.top}
+        searchQuery={searchQuery}
+        onChangeSearch={setSearchQueryLocal}
+        showFilters={showFilters}
+        onToggleFilters={() => setShowFilters((v) => !v)}
+        onAddService={() => navigation.navigate('AdminServiceForm', { mode: 'add' })}
+      />
 
-      {/* Liste défilante : header = filtres + stats + (puis) cartes */}
+      {/* Liste défilante */}
       <FlatList
         data={filteredServices}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => <ServiceCard service={item} />}
+        renderItem={({ item }) => (
+          <ServiceCard
+            service={item}
+            onView={handleViewService}
+            onEdit={handleEditService}
+            onToggleStatus={handleToggleStatus}
+            onDelete={handleDeleteService}
+          />
+        )}
         numColumns={1}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.servicesList}
@@ -448,13 +548,33 @@ export default function ServicesManagement({ navigation }) {
         onRefresh={onRefresh}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        ListHeaderComponent={<ScrollingHeader />}
+        ListHeaderComponent={
+          <ScrollingHeader
+            showFilters={showFilters}
+            filters={filters}
+            categoryOptions={categoryOptions}
+            statusOptions={statusOptions}
+            stats={stats}
+            pagination={pagination}
+            onSelectCategory={(id) => dispatch(setCategoryFilter(id))}
+            onSelectStatus={(id) => dispatch(setStatusFilter(id))}
+          />
+        }
         ListFooterComponent={renderFooter}
-        ListEmptyComponent={renderEmptyState}
+        ListEmptyComponent={
+          <ListEmpty
+            filters={filters}
+            onCreate={() => navigation.navigate('AdminServiceForm', { mode: 'add' })}
+          />
+        }
       />
     </View>
   );
 }
+
+/* ============================
+   Styles
+   ============================ */
 
 const styles = StyleSheet.create({
   container: {
@@ -716,9 +836,26 @@ const styles = StyleSheet.create({
   loadingContainer: { alignItems: 'center', paddingVertical: 60 },
   loadingText: { fontSize: 16, color: '#777E5C', marginTop: 16 },
   emptyContainer: { alignItems: 'center', paddingVertical: 40 },
-  emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#283106', marginTop: 16, marginBottom: 8 },
-  emptySubtitle: { fontSize: 16, color: '#777E5C', textAlign: 'center', marginBottom: 24, paddingHorizontal: 20 },
-  emptyButton: { backgroundColor: '#4CAF50', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#283106',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#777E5C',
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  emptyButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
   emptyButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
 
   /* Footer loader */

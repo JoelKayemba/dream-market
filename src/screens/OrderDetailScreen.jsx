@@ -27,6 +27,7 @@ import {
   clearError
 } from '../store/ordersSlice';
 import { formatPrice, getCurrencySymbol } from '../utils/currency';
+import { openWhatsApp, openPhoneCall, openEmail, CONTACT_INFO } from '../utils/contactInfo';
 
 export default function OrderDetailScreen({ navigation, route }) {
   const dispatch = useDispatch();
@@ -180,28 +181,38 @@ export default function OrderDetailScreen({ navigation, route }) {
     }
   };
 
-  // Log avant le rendu principal
+  // Gérer le contact avec le support
   const handleContactSupport = () => {
+    const orderNumber = order.order_number || order.orderNumber || 'N/A';
+    const orderStatus = getStatusLabel(order.status);
+    
+    // Message pré-rempli pour WhatsApp et Email
+    const message = `Bonjour,\n\nJe souhaite contacter le support concernant ma commande #${orderNumber}.\n\nStatut actuel : ${orderStatus}\n\nMerci de votre assistance.`;
+    const emailSubject = `Demande de support - Commande #${orderNumber}`;
+    const emailBody = `Bonjour,\n\nJe souhaite contacter le support concernant ma commande #${orderNumber}.\n\nStatut actuel : ${orderStatus}\n\nMerci de votre assistance.\n\nCordialement`;
+
     Alert.alert(
       'Contacter le support',
-      'Voulez-vous contacter notre équipe pour cette commande ?',
+      'Comment souhaitez-vous contacter notre équipe ?',
       [
-        { text: 'Annuler', style: 'cancel' },
         { 
           text: 'WhatsApp', 
-          onPress: () => {
-            // Ici on pourrait ouvrir WhatsApp avec un message pré-rempli
-            Alert.alert('WhatsApp', 'Redirection vers WhatsApp...');
-          }
+          onPress: () => openWhatsApp(CONTACT_INFO.phone1, message)
         },
         { 
           text: 'Téléphone', 
-          onPress: () => {
-            // Ici on pourrait composer le numéro de support
-            Alert.alert('Téléphone', 'Composition du numéro de support...');
-          }
+          onPress: () => openPhoneCall(CONTACT_INFO.phone1)
+        },
+        { 
+          text: 'Email', 
+          onPress: () => openEmail(CONTACT_INFO.email, emailSubject, emailBody)
+        },
+        { 
+          text: 'Annuler', 
+          style: 'cancel' 
         }
-      ]
+      ],
+      { cancelable: true }
     );
   };
 
@@ -238,16 +249,16 @@ export default function OrderDetailScreen({ navigation, route }) {
               <View style={styles.statusInfo}>
                 <Text style={styles.statusLabel}>{getStatusLabel(order.status)}</Text>
                 <Text style={styles.statusDate}>
-                  Commande passée le {formatDate(order.date)}
+                  Commande passée le {formatDate(order.created_at || order.date)}
                 </Text>
               </View>
             </View>
             
-            {order.estimatedDelivery && (
+            {(order.estimated_delivery || order.estimatedDelivery) && (
               <View style={styles.deliveryInfo}>
                 <Ionicons name="time-outline" size={16} color="#777E5C" />
                 <Text style={styles.deliveryText}>
-                  Livraison estimée : {formatDate(order.estimatedDelivery)}
+                  Livraison estimée : {formatDate(order.estimated_delivery || order.estimatedDelivery)}
                 </Text>
               </View>
             )}
@@ -418,7 +429,7 @@ export default function OrderDetailScreen({ navigation, route }) {
               <View style={styles.invoiceDetails}>
                 <Text style={styles.invoiceTitle}>Facture #{order.order_number || order.orderNumber}</Text>
                 <Text style={styles.invoiceSubtitle}>
-                  Générée le {formatDate(order.date || order.created_at)}
+                  Générée le {formatDate(order.created_at || order.date)}
                 </Text>
               </View>
             </View>

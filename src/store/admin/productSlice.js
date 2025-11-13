@@ -42,14 +42,16 @@ export const fetchProducts = createAsyncThunk(
       const state = getState();
       const filters = state.admin?.products?.filters || {};
       
+      // Tous les filtres (category, farm, search, status) sont gérés côté client
+      // On récupère tous les produits sans filtres côté serveur
       const result = await productService.getProducts({
         limit,
         offset: page * limit,
-        categoryId: filters.category || null,
-        farmId: filters.farm || null,
-        search: filters.search || null,
-        isActive: filters.status === 'all' ? null : filters.status === 'active',
-        includeInactive: filters.status !== 'active'
+        categoryId: null, // Filtre désactivé côté serveur, géré côté client
+        farmId: null, // Filtre désactivé côté serveur, géré côté client
+        search: null, // Recherche désactivée côté serveur, gérée côté client
+        isActive: null, // Filtre désactivé côté serveur, géré côté client
+        includeInactive: true // Inclure tous les produits pour filtrage côté client
       });
 
       return {

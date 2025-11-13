@@ -10,11 +10,12 @@ export const fetchFarms = createAsyncThunk(
       const state = getState();
       const filters = state.admin?.farms?.filters || {};
       
+      // Tous les filtres (search, verified) sont gérés côté client
       const result = await farmService.getFarms({
         limit,
         offset: page * limit,
-        search: filters.search || null,
-        verified: filters.verified !== null ? filters.verified : null,
+        search: null,
+        verified: null,
         region: filters.region || null
       });
 
@@ -35,7 +36,6 @@ export const addFarm = createAsyncThunk(
   'farms/addFarm',
   async (farmData, { rejectWithValue }) => {
     try {
-      // Préparer les données de la ferme
       const farmToCreate = {
         ...farmData,
         verified: false,
@@ -45,16 +45,13 @@ export const addFarm = createAsyncThunk(
         updated_at: new Date().toISOString()
       };
 
-      // Assigner les images directement (comme pour les services)
       if (farmData.images && farmData.images.length > 0) {
         farmToCreate.main_image = farmData.images[0] || null;
         farmToCreate.cover_image = farmData.images[1] || null;
       }
 
-      // Supprimer le champ images qui n'existe pas dans le schéma
       delete farmToCreate.images;
 
-      // Créer la ferme avec les images
       const newFarm = await farmService.addFarm(farmToCreate);
       return newFarm;
     } catch (error) {
@@ -74,20 +71,17 @@ export const updateFarm = createAsyncThunk(
         throw new Error('Ferme non trouvée');
       }
 
-      // Créer l'objet ferme mis à jour (sans les images d'abord)
       const updatedFarmData = {
         ...farmData,
         updated_at: new Date().toISOString()
       };
 
-      // Supprimer les propriétés liées aux images
       delete updatedFarmData.images;
       delete updatedFarmData.newImages;
       delete updatedFarmData.imagesToDelete;
 
       const updatedFarm = await farmService.updateFarm(id, updatedFarmData);
 
-      // Si il y a de nouvelles images, les assigner directement
       if (farmData.images && farmData.images.length > 0) {
         const finalUpdatedFarm = await farmService.updateFarm(id, {
           main_image: farmData.images[0] || null,
@@ -115,7 +109,7 @@ export const deleteFarm = createAsyncThunk(
         throw new Error('Ferme non trouvée');
       }
 
-      // Supprimer les images de la ferme
+      // ⚠️ seulement si tu as bien storageService importé
       if (farm.images && farm.images.length > 0) {
         const deletePromises = farm.images.map(imageUrl => 
           storageService.deleteImage(imageUrl)
@@ -123,7 +117,6 @@ export const deleteFarm = createAsyncThunk(
         await Promise.all(deletePromises);
       }
 
-      // Supprimer la ferme
       await farmService.deleteFarm(farmId);
       return farmId;
     } catch (error) {
@@ -148,7 +141,7 @@ const initialState = {
   farms: [],
   loading: false,
   loadingMore: false,
-  uploading: false, // Pour les uploads d'images
+  uploading: false,
   error: null,
   searchQuery: '',
   filter: 'all', // 'all', 'verified', 'pending'
@@ -188,8 +181,8 @@ const farmSlice = createSlice({
     }
   },
   extraReducers: (builder) => {
-    // Fetch farms
     builder
+      // Fetch farms
       .addCase(fetchFarms.pending, (state, action) => {
         const { refresh = false } = action.meta.arg || {};
         if (refresh || state.farms.length === 0) {
@@ -223,7 +216,7 @@ const farmSlice = createSlice({
         state.loadingMore = false;
         state.error = action.payload;
       })
-      
+
       // Add farm
       .addCase(addFarm.pending, (state) => {
         state.uploading = true;
@@ -237,7 +230,7 @@ const farmSlice = createSlice({
         state.uploading = false;
         state.error = action.payload;
       })
-      
+
       // Update farm
       .addCase(updateFarm.pending, (state) => {
         state.uploading = true;
@@ -247,7 +240,7 @@ const farmSlice = createSlice({
         state.uploading = false;
         const index = state.farms.findIndex(farm => farm.id === action.payload.id);
         if (index !== -1) {
-          state.farms = state.farms.map((farm, i) => 
+          state.farms = state.farms.map((farm, i) =>
             i === index ? action.payload : farm
           );
         }
@@ -256,7 +249,7 @@ const farmSlice = createSlice({
         state.uploading = false;
         state.error = action.payload;
       })
-      
+
       // Delete farm
       .addCase(deleteFarm.pending, (state) => {
         state.loading = true;
@@ -270,7 +263,7 @@ const farmSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      
+
       // Verify farm
       .addCase(verifyFarm.pending, (state) => {
         state.loading = true;
@@ -278,8 +271,10 @@ const farmSlice = createSlice({
       })
       .addCase(verifyFarm.fulfilled, (state, action) => {
         state.loading = false;
-        state.farms = state.farms.map(farm => 
-          farm.id === action.payload ? { ...farm, verified: true } : farm
+        // si l'API retourne l'objet, adapte ici
+        const updated = action.payload;
+        state.farms = state.farms.map(farm =>
+          farm.id === updated.id ? updated : farm
         );
       })
       .addCase(verifyFarm.rejected, (state, action) => {
@@ -294,8 +289,10 @@ export const { setSearchQuery, setFilter, setSortBy, setSortOrder, clearError } 
 // Selectors
 export const selectAllFarms = (state) => state.admin.farms.farms;
 export const selectFarmsLoading = (state) => state.admin.farms.loading;
-export const selectFarmsLoadingMore = (state) => state.admin.farms.loadingMore || false;
-export const selectFarmsPagination = (state) => state.admin.farms.pagination || { page: 0, limit: 20, total: 0, hasMore: true };
+export const selectFarmsLoadingMore = (state) =>
+  state.admin.farms.loadingMore || false;
+export const selectFarmsPagination = (state) =>
+  state.admin.farms.pagination || { page: 0, limit: 20, total: 0, hasMore: true };
 export const selectFarmsUploading = (state) => state.admin.farms.uploading;
 export const selectFarmsError = (state) => state.admin.farms.error;
 export const selectSearchQuery = (state) => state.admin.farms.searchQuery;
@@ -306,73 +303,88 @@ export const selectSortOrder = (state) => state.admin.farms.sortOrder;
 // Selector pour les fermes filtrées et triées
 export const selectFilteredFarms = (state) => {
   const { farms, searchQuery, filter, sortBy, sortOrder } = state.admin.farms;
-  
-  let filteredFarms = farms;
-  
+
+  // On travaille sur une copie pour ne pas muter le state
+  let filteredFarms = [...farms];
+
   // Filtrage par recherche
   if (searchQuery) {
     const query = searchQuery.toLowerCase();
-    filteredFarms = filteredFarms.filter(farm =>
-      farm.name.toLowerCase().includes(query) ||
-      farm.location.toLowerCase().includes(query) ||
-      farm.region.toLowerCase().includes(query) ||
-      farm.specialty.toLowerCase().includes(query)
-    );
+    filteredFarms = filteredFarms.filter((farm) => {
+      const name = (farm.name || '').toLowerCase();
+      const location = (farm.location || '').toLowerCase();
+      const region = (farm.region || '').toLowerCase();
+      const specialty = (farm.specialty || '').toLowerCase();
+
+      return (
+        name.includes(query) ||
+        location.includes(query) ||
+        region.includes(query) ||
+        specialty.includes(query)
+      );
+    });
   }
-  
+
   // Filtrage par statut de vérification
   if (filter !== 'all') {
     if (filter === 'verified') {
-      filteredFarms = filteredFarms.filter(farm => farm.verified);
+      filteredFarms = filteredFarms.filter((farm) => !!farm.verified);
     } else if (filter === 'pending') {
-      filteredFarms = filteredFarms.filter(farm => !farm.verified);
+      filteredFarms = filteredFarms.filter((farm) => !farm.verified);
     }
   }
-  
+
   // Tri
   filteredFarms.sort((a, b) => {
-    let aValue, bValue;
-    
+    let aValue;
+    let bValue;
+
     switch (sortBy) {
       case 'name':
-        aValue = a.name.toLowerCase();
-        bValue = b.name.toLowerCase();
+        aValue = (a.name || '').toLowerCase();
+        bValue = (b.name || '').toLowerCase();
         break;
       case 'rating':
         aValue = a.rating || 0;
         bValue = b.rating || 0;
         break;
       case 'createdAt':
-        aValue = new Date(a.createdAt || a.established);
-        bValue = new Date(b.createdAt || b.established);
+        // adapte selon tes vrais champs : created_at, createdAt, established...
+        aValue = new Date(a.created_at || a.createdAt || a.established || 0);
+        bValue = new Date(b.created_at || b.createdAt || b.established || 0);
         break;
       default:
-        aValue = a.name.toLowerCase();
-        bValue = b.name.toLowerCase();
+        aValue = (a.name || '').toLowerCase();
+        bValue = (b.name || '').toLowerCase();
     }
-    
+
     if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
     if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
     return 0;
   });
-  
+
   return filteredFarms;
 };
 
 // Selector pour une ferme spécifique
-export const selectFarmById = (state, farmId) => 
-  state.admin.farms.farms.find(farm => farm.id === farmId);
+export const selectFarmById = (state, farmId) =>
+  state.admin.farms.farms.find((farm) => farm.id === farmId);
 
 // Selector pour les statistiques
 export const selectFarmStats = (state) => {
   const farms = state.admin.farms.farms;
   return {
     total: farms.length,
-    verified: farms.filter(farm => farm.verified).length,
-    pending: farms.filter(farm => !farm.verified).length,
-    totalProducts: farms.reduce((sum, farm) => sum + (farm.products?.length || 0), 0),
-    averageRating: farms.length > 0 ? 
-      farms.reduce((sum, farm) => sum + (farm.rating || 0), 0) / farms.length : 0
+    verified: farms.filter((farm) => farm.verified).length,
+    pending: farms.filter((farm) => !farm.verified).length,
+    totalProducts: farms.reduce(
+      (sum, farm) => sum + (farm.products?.length || 0),
+      0
+    ),
+    averageRating:
+      farms.length > 0
+        ? farms.reduce((sum, farm) => sum + (farm.rating || 0), 0) / farms.length
+        : 0
   };
 };
 

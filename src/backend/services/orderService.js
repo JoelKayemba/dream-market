@@ -19,6 +19,13 @@ export const orderService = {
         userId = null
       } = options;
 
+      // Validation des paramètres
+      const validLimit = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
+      const validOffset = Math.max(0, parseInt(offset, 10) || 0);
+      const validStatus = status && typeof status === 'string' && status.trim().length > 0 ? status.trim() : null;
+      const validSearch = search && typeof search === 'string' && search.trim().length > 0 ? search.trim() : null;
+      const validUserId = userId && typeof userId === 'string' && userId.trim().length > 0 ? userId.trim() : null;
+
       let query = supabase
         .from('orders')
         .select(`
@@ -32,32 +39,35 @@ export const orderService = {
           )
         `, { count: 'exact' })
         .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        .range(validOffset, validOffset + validLimit - 1);
 
       // Filtres optionnels
-      if (status) {
-        query = query.eq('status', status);
+      // NOTE: Tous les filtres (status, search) sont désactivés côté serveur
+      // et gérés côté client dans le slice Redux pour éviter les erreurs Supabase
+      // avec or() et ilike. Pour de meilleures performances à long terme,
+      // on pourrait implémenter une fonction RPC Supabase.
+      
+      // Filtrer uniquement par userId si nécessaire (pour les commandes d'un utilisateur spécifique)
+      if (validUserId) {
+        query = query.eq('user_id', validUserId);
       }
-      if (userId) {
-        query = query.eq('user_id', userId);
-      }
-      if (search) {
-        query = query.or(`order_number.ilike.%${search}%,delivery_address.ilike.%${search}%`);
-      }
+      
+      // Les filtres status et search sont gérés côté client dans selectFilteredOrders
 
       const { data, error, count } = await query;
 
       if (error) {
         console.error('❌ [OrderService] getAllOrders Supabase error:', error);
+        console.error('❌ [OrderService] Query params:', { validLimit, validOffset, validStatus, validSearch, validUserId });
         throw error;
       }
 
       return {
         data: data || [],
         total: count || 0,
-        hasMore: (offset + limit) < (count || 0),
-        limit,
-        offset
+        hasMore: (validOffset + validLimit) < (count || 0),
+        limit: validLimit,
+        offset: validOffset
       };
     } catch (error) {
       console.error('❌ [OrderService] getAllOrders error:', error);
