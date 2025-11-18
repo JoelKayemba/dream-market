@@ -17,7 +17,7 @@
         "EXPO_PUBLIC_STORAGE_BUCKET_SERVICES": "service-images",
         "EXPO_PUBLIC_STORAGE_BUCKET_AVATARS": "user-avatars",
         "EXPO_PUBLIC_RESEND_API_KEY": "re_SLDrMJuU_ChtKD1yAS13NLgWExq7asDZD",
-        "EXPO_PUBLIC_BREVO_API_KEY": "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",
+        "EXPO_PUBLIC_BREVO_API_KEY": "${BREVO_API_KEY}",
         "EXPO_PUBLIC_BREVO_SENDER_EMAIL": "noreply@kayembajoel.info"
       },
       "ios": {
@@ -37,7 +37,7 @@
         "EXPO_PUBLIC_STORAGE_BUCKET_SERVICES": "service-images",
         "EXPO_PUBLIC_STORAGE_BUCKET_AVATARS": "user-avatars",
         "EXPO_PUBLIC_RESEND_API_KEY": "re_SLDrMJuU_ChtKD1yAS13NLgWExq7asDZD",
-        "EXPO_PUBLIC_BREVO_API_KEY": "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",
+        "EXPO_PUBLIC_BREVO_API_KEY": "${BREVO_API_KEY}",
         "EXPO_PUBLIC_BREVO_SENDER_EMAIL": "noreply@kayembajoel.info"
       },
       "android": {
@@ -59,7 +59,7 @@
         "EXPO_PUBLIC_STORAGE_BUCKET_SERVICES": "service-images",
         "EXPO_PUBLIC_STORAGE_BUCKET_AVATARS": "user-avatars",
         "EXPO_PUBLIC_RESEND_API_KEY": "re_SLDrMJuU_ChtKD1yAS13NLgWExq7asDZD",
-        "EXPO_PUBLIC_BREVO_API_KEY": "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",
+        "EXPO_PUBLIC_BREVO_API_KEY": "${BREVO_API_KEY}",
         
         "EXPO_PUBLIC_BREVO_SENDER_EMAIL": "noreply@kayembajoel.info"
       },

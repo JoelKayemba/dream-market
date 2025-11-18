@@ -31,7 +31,7 @@ Quand vous testez la réinitialisation de mot de passe, regardez les logs dans l
 - Si vous testez en **preview** ou **production** : Remplacez `"À_REMPLACER"` par votre clé Brevo dans `eas.json` (lignes 39 et 60)
 
 ```json
-"EXPO_PUBLIC_BREVO_API_KEY": "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"
+"EXPO_PUBLIC_BREVO_API_KEY": "VOTRE_CLE_API_BREVO_ICI"
 ```
 
 **Important** : Après modification de `eas.json`, vous devez **reconstruire l'application** :
@@ -108,7 +108,7 @@ Pour tester rapidement si Brevo fonctionne, vous pouvez utiliser cette commande 
 
 ```bash
 curl -X POST 'https://api.brevo.com/v3/smtp/email' \
-  -H 'api-key: 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' \
+  -H 'api-key: VOTRE_CLE_API_BREVO_ICI' \
   -H 'Content-Type: application/json' \
   -d '{
     "sender": {
