@@ -186,7 +186,13 @@ export default function RegisterScreen({ navigation }) {
       // Si l'inscription réussit, réinitialiser les tentatives et naviguer
       if (result.type.endsWith('/fulfilled')) {
         await resetAttempts('register');
-        navigation.replace('MainApp');
+        // Si on est dans un modal, fermer le modal au lieu de naviguer
+        if (navigation.goBack && typeof navigation.goBack === 'function') {
+          navigation.goBack();
+        } else {
+          // Sinon, navigation normale
+          navigation.replace('MainApp');
+        }
       } else {
         // Vérifier le nombre actuel de tentatives
         const currentAttempts = await getCurrentAttempts('register');
@@ -265,7 +271,7 @@ export default function RegisterScreen({ navigation }) {
   ];
 
   return (
-    <ScreenWrapper style={styles.container}>
+    <View style={styles.container}>
       <LinearGradient
         colors={['#F3F7F4', '#E8F5E9', '#FFFFFF']}
         start={{ x: 0, y: 0 }}
@@ -275,9 +281,10 @@ export default function RegisterScreen({ navigation }) {
         <KeyboardAvoidingView
           style={styles.keyboardView}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           <ScrollView
-            contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
+            contentContainerStyle={[styles.scrollContent, { paddingTop: 20 }]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
@@ -573,7 +580,7 @@ export default function RegisterScreen({ navigation }) {
           </ScrollView>
         </KeyboardAvoidingView>
       </LinearGradient>
-    </ScreenWrapper>
+    </View>
   );
 }
 
@@ -581,15 +588,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F3F7F4',
+    minHeight: '100%',
   },
   gradient: {
     flex: 1,
+    minHeight: '100%',
   },
   keyboardView: {
     flex: 1,
+    minHeight: '100%',
   },
   scrollContent: {
-    flexGrow: 1,
     paddingBottom: 40,
     paddingHorizontal: 24,
   },

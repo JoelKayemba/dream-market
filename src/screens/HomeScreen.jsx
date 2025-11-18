@@ -42,6 +42,7 @@ import {
   fetchProducts
 } from '../store/client';
 import { useNotifications } from '../hooks/useNotifications';
+import { useRequireAuth } from '../hooks/useRequireAuth';
 
 const { width, height } = Dimensions.get('window');
 
@@ -54,6 +55,7 @@ export default function HomeScreen({ navigation }) {
 
   // Notifications - seulement pour afficher le badge
   const { unreadCount } = useNotifications();
+  const { requireAuth } = useRequireAuth();
 
   // Données du backend via Redux
   const categories = useSelector(selectClientCategories);
@@ -182,7 +184,7 @@ export default function HomeScreen({ navigation }) {
               <View style={styles.headerActions}>
                 <TouchableOpacity 
                   style={styles.notificationButton}
-                  onPress={() => navigation.navigate('Notifications')}
+                  onPress={() => requireAuth(() => navigation.navigate('Notifications'))}
                 >
                   <Ionicons name="notifications-outline" size={20} color="#283106" />
                   {unreadCount > 0 && (
@@ -192,7 +194,7 @@ export default function HomeScreen({ navigation }) {
     
                 <TouchableOpacity 
                   style={styles.cartButton}
-                  onPress={() => navigation.navigate('Cart')}
+                  onPress={() => requireAuth(() => navigation.navigate('Cart'))}
                 >
                   <Ionicons name="cart-outline" size={20} color="#283106" />
                   {cartItemsCount > 0 && (

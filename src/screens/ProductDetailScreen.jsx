@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { toggleCartItem, selectIsInCart, selectCartItemQuantity } from '../store/cartSlice';
 import { useFavorites } from '../hooks/useFavorites';
+import { useRequireAuth } from '../hooks/useRequireAuth';
 import { formatPrice } from '../utils/currency';
 import { farmService } from '../backend';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,11 +49,33 @@ export default function ProductDetailScreen({ route, navigation }) {
   const scrollViewRef = useRef(null);
 
   const { toggleProductFavorite, isProductFavorite } = useFavorites();
+  const { requireAuth } = useRequireAuth();
   const isFavorite = isProductFavorite(product.id);
 
   const isInCart = useSelector((s) => selectIsInCart(s, product.id));
   const cartQuantity = useSelector((s) => selectCartItemQuantity(s, product.id));
-  const [quantity, setQuantity] = useState(cartQuantity || 1);
+  
+  // Calculer le stock disponible
+  const availableStock = typeof product.stock === 'number' ? product.stock : null;
+  const hasStockLimit = availableStock !== null;
+  
+  // Initialiser la quantité en respectant le stock disponible
+  const initialQuantity = React.useMemo(() => {
+    const baseQuantity = cartQuantity || 1;
+    if (hasStockLimit && baseQuantity > availableStock) {
+      return Math.max(1, availableStock);
+    }
+    return baseQuantity;
+  }, [cartQuantity, hasStockLimit, availableStock]);
+  
+  const [quantity, setQuantity] = useState(initialQuantity);
+
+  // Mettre à jour la quantité si le stock disponible change
+  React.useEffect(() => {
+    if (hasStockLimit && quantity > availableStock) {
+      setQuantity(Math.max(1, availableStock));
+    }
+  }, [availableStock, hasStockLimit, quantity]);
 
   const images = (product.images && product.images.length ? product.images : [product.image]).filter(Boolean);
   const farmName = product.farms?.name || 'Dream Market';
@@ -76,6 +99,9 @@ export default function ProductDetailScreen({ route, navigation }) {
         : 'Rupture de stock'
       : product.availability || 'Disponible';
 
+  // maxQuantity pour référence (déjà calculé plus haut)
+  const maxQuantity = hasStockLimit ? availableStock : Infinity;
+
   const quantityLabel = product.quantity_per_unit || product.weight || product.unit || null;
 
   const infoRows = [
@@ -90,29 +116,63 @@ export default function ProductDetailScreen({ route, navigation }) {
   ];
 
   const handleFavoriteToggle = () => {
-    const wasFavorite = isFavorite;
-    toggleProductFavorite(product);
-    Alert.alert(
-      wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris',
-      `${product.name} ${wasFavorite ? 'a été retiré de' : 'a été ajouté à'} vos favoris.`
-    );
+    requireAuth(() => {
+      const wasFavorite = isFavorite;
+      toggleProductFavorite(product);
+      Alert.alert(
+        wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris',
+        `${product.name} ${wasFavorite ? 'a été retiré de' : 'a été ajouté à'} vos favoris.`
+      );
+    });
   };
 
   const handleAddToCart = () => {
-    const wasInCart = isInCart;
-    dispatch(toggleCartItem({ product, quantity }));
-    if (wasInCart) {
-      Alert.alert('Produit retiré du panier', `${product.name} a été retiré de votre panier.`);
-    } else {
-      Alert.alert('Produit ajouté', `${product.name} a été ajouté à votre panier.`, [
-        { text: 'Continuer', style: 'cancel' },
-        { text: 'Voir le panier', onPress: () => navigation.navigate('Cart') },
-      ]);
-    }
+    requireAuth(() => {
+      // Vérifier le stock disponible
+      if (hasStockLimit && quantity > availableStock) {
+        Alert.alert(
+          'Stock insuffisant',
+          `Il ne reste que ${availableStock} unité${availableStock > 1 ? 's' : ''} en stock. Veuillez réduire la quantité.`
+        );
+        setQuantity(availableStock);
+        return;
+      }
+
+      if (hasStockLimit && availableStock === 0) {
+        Alert.alert('Rupture de stock', 'Ce produit n\'est plus disponible en stock.');
+        return;
+      }
+
+      const wasInCart = isInCart;
+      dispatch(toggleCartItem({ product, quantity }));
+      if (wasInCart) {
+        Alert.alert('Produit retiré du panier', `${product.name} a été retiré de votre panier.`);
+      } else {
+        Alert.alert('Produit ajouté', `${product.name} a été ajouté à votre panier.`, [
+          { text: 'Continuer', style: 'cancel' },
+          { text: 'Voir le panier', onPress: () => navigation.navigate('Cart') },
+        ]);
+      }
+    });
   };
 
   const handleQuantityChange = (q) => {
-    if (q >= 1) setQuantity(q);
+    if (q < 1) {
+      setQuantity(1);
+      return;
+    }
+
+    // Limiter la quantité au stock disponible
+    if (hasStockLimit && q > availableStock) {
+      Alert.alert(
+        'Stock limité',
+        `Il ne reste que ${availableStock} unité${availableStock > 1 ? 's' : ''} en stock.`
+      );
+      setQuantity(availableStock);
+      return;
+    }
+
+    setQuantity(q);
   };
 
   const scrollToImage = (index) => {
@@ -407,17 +467,39 @@ export default function ProductDetailScreen({ route, navigation }) {
         {/* Quantité */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionHeading}>Quantité</Text>
+          {hasStockLimit && (
+            <Text style={styles.stockInfo}>
+              {availableStock > 0 
+                ? `${availableStock} unité${availableStock > 1 ? 's' : ''} disponible${availableStock > 1 ? 's' : ''}`
+                : 'Rupture de stock'}
+            </Text>
+          )}
           <View style={styles.quantityControls}>
-            <TouchableOpacity style={styles.quantityButton} onPress={() => handleQuantityChange(quantity - 1)}>
-              <Ionicons name="remove" size={18} color={COLORS.primary} />
+            <TouchableOpacity 
+              style={[styles.quantityButton, quantity <= 1 && styles.quantityButtonDisabled]} 
+              onPress={() => handleQuantityChange(quantity - 1)}
+              disabled={quantity <= 1}
+            >
+              <Ionicons name="remove" size={18} color={quantity <= 1 ? COLORS.subtext : COLORS.primary} />
             </TouchableOpacity>
 
             <View style={styles.quantityValue}>
               <Text style={styles.quantityValueText}>{quantity}</Text>
             </View>
 
-            <TouchableOpacity style={styles.quantityButton} onPress={() => handleQuantityChange(quantity + 1)}>
-              <Ionicons name="add" size={18} color={COLORS.primary} />
+            <TouchableOpacity 
+              style={[
+                styles.quantityButton, 
+                (hasStockLimit && quantity >= availableStock) && styles.quantityButtonDisabled
+              ]} 
+              onPress={() => handleQuantityChange(quantity + 1)}
+              disabled={hasStockLimit && quantity >= availableStock}
+            >
+              <Ionicons 
+                name="add" 
+                size={18} 
+                color={(hasStockLimit && quantity >= availableStock) ? COLORS.subtext : COLORS.primary} 
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -436,12 +518,33 @@ export default function ProductDetailScreen({ route, navigation }) {
         </View>
 
         <TouchableOpacity
-          style={[styles.ctaBtn, { backgroundColor: isInCart ? '#C62828' : COLORS.primary }]}
+          style={[
+            styles.ctaBtn, 
+            { 
+              backgroundColor: (hasStockLimit && availableStock === 0) 
+                ? COLORS.subtext 
+                : isInCart 
+                  ? '#C62828' 
+                  : COLORS.primary 
+            },
+            (hasStockLimit && availableStock === 0) && styles.ctaBtnDisabled
+          ]}
           onPress={handleAddToCart}
           activeOpacity={0.9}
+          disabled={hasStockLimit && availableStock === 0}
         >
-          <Ionicons name={isInCart ? 'cart-outline' : 'cart'} size={18} color="#FFFFFF" />
-          <Text style={styles.ctaText}>{isInCart ? 'Retirer du panier' : 'Ajouter au panier'}</Text>
+          <Ionicons 
+            name={isInCart ? 'cart-outline' : 'cart'} 
+            size={18} 
+            color="#FFFFFF" 
+          />
+          <Text style={styles.ctaText}>
+            {hasStockLimit && availableStock === 0 
+              ? 'Rupture de stock' 
+              : isInCart 
+                ? 'Retirer du panier' 
+                : 'Ajouter au panier'}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaWrapper>
@@ -615,6 +718,14 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', paddingVertical: 8,
   },
   quantityValueText: { fontSize: 18, fontWeight: '800', color: COLORS.text },
+  quantityButtonDisabled: { opacity: 0.4 },
+  stockInfo: { 
+    fontSize: 12, 
+    color: COLORS.subtext, 
+    fontWeight: '600', 
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
 
   // Sticky bar
   stickyBar: {
@@ -642,6 +753,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
   },
+  ctaBtnDisabled: { opacity: 0.6 },
   ctaText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', marginLeft: 8 },
 
   // Modals
@@ -651,5 +763,5 @@ const styles = StyleSheet.create({
 
   previewOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center' },
   previewImage: { width: width * 0.94, height: width * 1.2 },
-  previewClose: { position: 'absolute', top: 18, right: 18, zIndex: 10, padding: 10, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 24 },
+  previewClose: { position: 'absolute', top: 40, right: 18, zIndex: 10, padding: 10, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 24 },
 });

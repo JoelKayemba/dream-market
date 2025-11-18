@@ -126,10 +126,16 @@ export default function LoginScreen({ navigation }) {
     try {
       const result = await login(email.trim(), password);
 
-      // Si la connexion réussit, réinitialiser les tentatives et naviguer
+      // Si la connexion réussit, réinitialiser les tentatives et fermer le modal
       if (result.type.endsWith('/fulfilled')) {
         await resetAttempts('login');
-        navigation.replace('MainApp');
+        // Si on est dans un modal, fermer le modal au lieu de naviguer
+        if (navigation.goBack && typeof navigation.goBack === 'function') {
+          navigation.goBack();
+        } else {
+          // Sinon, navigation normale
+          navigation.replace('MainApp');
+        }
       } else {
         // Vérifier le nombre actuel de tentatives
         const currentAttempts = await getCurrentAttempts('login');
@@ -203,7 +209,7 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <ScreenWrapper style={styles.container}>
+    <View style={styles.container}>
       <LinearGradient
         colors={['#F3F7F4', '#E8F5E9', '#FFFFFF']}
         start={{ x: 0, y: 0 }}
@@ -213,11 +219,14 @@ export default function LoginScreen({ navigation }) {
         <KeyboardAvoidingView
           style={styles.keyboardView}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           <ScrollView
-            contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
+            contentContainerStyle={[styles.scrollContent, { paddingTop: 20 }]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
+            scrollEnabled={true}
           >
             {/* Header avec logo */}
             <View style={styles.header}>
@@ -402,7 +411,7 @@ export default function LoginScreen({ navigation }) {
           </ScrollView>
         </KeyboardAvoidingView>
       </LinearGradient>
-    </ScreenWrapper>
+    </View>
   );
 }
 
@@ -410,15 +419,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F3F7F4',
+    minHeight: '100%',
   },
   gradient: {
     flex: 1,
+    minHeight: '100%',
   },
   keyboardView: {
     flex: 1,
+    minHeight: '100%',
   },
   scrollContent: {
-    flexGrow: 1,
     paddingBottom: 40,
     paddingHorizontal: 24,
   },

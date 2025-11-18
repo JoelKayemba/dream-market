@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { toggleCartItem, selectIsInCart } from '../../store/cartSlice';
 import { useFavorites } from '../../hooks/useFavorites';
+import { useRequireAuth } from '../../hooks/useRequireAuth';
 import { formatPrice } from '../../utils/currency';
 import { farmService } from '../../backend';
 
@@ -18,6 +19,7 @@ export default function ProductCard({
   const dispatch = useDispatch();
   const isInCart = useSelector(state => selectIsInCart(state, product.id));
   const { toggleProductFavorite, isProductFavorite } = useFavorites();
+  const { requireAuth } = useRequireAuth();
   const isFavorite = isProductFavorite(product.id);
 
   const handlePress = () => {
@@ -27,35 +29,39 @@ export default function ProductCard({
 
   const handleAddToCart = (e) => {
     e.stopPropagation();
-    const wasInCart = isInCart;
-    dispatch(toggleCartItem({ product, quantity: 1 }));
+    requireAuth(() => {
+      const wasInCart = isInCart;
+      dispatch(toggleCartItem({ product, quantity: 1 }));
 
-    if (wasInCart) {
-      Alert.alert('Produit retiré du panier', `${product.name} a été retiré de votre panier.`);
-    } else {
-      Alert.alert(
-        'Produit ajouté au panier !',
-        `${product.name} a été ajouté à votre panier.`,
-        [
-          { text: 'Continuer', style: 'cancel' },
-          navigation
-            ? { text: 'Voir le panier', onPress: () => navigation.navigate('Cart') }
-            : { text: 'Fermer', style: 'default' },
-        ]
-      );
-    }
+      if (wasInCart) {
+        Alert.alert('Produit retiré du panier', `${product.name} a été retiré de votre panier.`);
+      } else {
+        Alert.alert(
+          'Produit ajouté au panier !',
+          `${product.name} a été ajouté à votre panier.`,
+          [
+            { text: 'Continuer', style: 'cancel' },
+            navigation
+              ? { text: 'Voir le panier', onPress: () => navigation.navigate('Cart') }
+              : { text: 'Fermer', style: 'default' },
+          ]
+        );
+      }
+    });
   };
 
   const handleToggleFavorite = (e) => {
     e.stopPropagation();
-    const wasFavorite = isFavorite;
-    toggleProductFavorite(product);
-    Alert.alert(
-      wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris !',
-      wasFavorite
-        ? `${product.name} a été retiré de vos favoris.`
-        : `${product.name} a été ajouté à vos favoris.`
-    );
+    requireAuth(() => {
+      const wasFavorite = isFavorite;
+      toggleProductFavorite(product);
+      Alert.alert(
+        wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris !',
+        wasFavorite
+          ? `${product.name} a été retiré de vos favoris.`
+          : `${product.name} a été ajouté à vos favoris.`
+      );
+    });
   };
 
   const imageSource = product.images?.[0] || product.image;

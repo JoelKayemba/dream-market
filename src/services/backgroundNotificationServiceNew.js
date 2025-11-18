@@ -15,10 +15,14 @@
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { notificationService } from '../backend/services/notificationService';
 
 // Nom de la tâche de notification en arrière-plan
 const BACKGROUND_NOTIFICATION_TASK = 'BACKGROUND_NOTIFICATION_TASK';
+
+// Variable pour vérifier si la tâche est déjà définie
+let isTaskDefined = false;
 
 // Configuration des notifications
 Notifications.setNotificationHandler({
@@ -30,64 +34,80 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// Définir la tâche en arrière-plan
-TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }) => {
-  if (error) {
-    console.error('❌ [BackgroundNotificationService] Erreur de tâche:', error);
+// Fonction pour définir la tâche en arrière-plan (appelée seulement une fois)
+function defineBackgroundTask() {
+  // Vérifier si la tâche est déjà définie pour éviter les erreurs
+  if (isTaskDefined) {
+    console.warn('⚠️ [BackgroundNotificationService] Tâche déjà définie');
     return;
   }
 
   try {
-    console.log('🔔 [BackgroundNotificationService] Tâche en arrière-plan exécutée');
-    
-    // Récupérer l'ID de l'utilisateur depuis AsyncStorage
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-    const userId = await AsyncStorage.getItem('user_id');
-    
-    if (!userId) {
-      console.log('🔔 [BackgroundNotificationService] Pas d\'utilisateur connecté');
-      return;
-    }
+    // Définir la tâche en arrière-plan
+    TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }) => {
+      if (error) {
+        console.error('❌ [BackgroundNotificationService] Erreur de tâche:', error);
+        return;
+      }
 
-    // Vérifier si l'utilisateur est admin
-    const userRole = await AsyncStorage.getItem('user_role');
-    if (userRole !== 'admin') {
-      console.log('🔔 [BackgroundNotificationService] Utilisateur non admin');
-      return;
-    }
+      try {
+        console.log('🔔 [BackgroundNotificationService] Tâche en arrière-plan exécutée');
+        
+        // Récupérer l'ID de l'utilisateur depuis AsyncStorage
+        const userId = await AsyncStorage.getItem('user_id');
+        
+        if (!userId) {
+          console.log('🔔 [BackgroundNotificationService] Pas d\'utilisateur connecté');
+          return;
+        }
 
-    // Récupérer les notifications non envoyées pour les admins
-    const unsentNotifications = await notificationService.getUnsentNotifications(userId, null, 'admin');
+        // Vérifier si l'utilisateur est admin
+        const userRole = await AsyncStorage.getItem('user_role');
+        if (userRole !== 'admin') {
+          console.log('🔔 [BackgroundNotificationService] Utilisateur non admin');
+          return;
+        }
+
+        // Récupérer les notifications non envoyées pour les admins
+        const unsentNotifications = await notificationService.getUnsentNotifications(userId, null, 'admin');
+        
+        console.log(`🔔 [BackgroundNotificationService] ${unsentNotifications.length} notifications non envoyées trouvées`);
+        
+        // Envoyer les notifications push
+        for (const notification of unsentNotifications) {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: notification.title,
+              body: notification.message,
+              data: {
+                notificationId: notification.id,
+                orderId: notification.order_id,
+                adminAction: true,
+                urgent: notification.type === 'admin_pending_order',
+                ...notification.data
+              }
+            },
+            trigger: null // Envoyer immédiatement
+          });
+          
+          // Marquer comme envoyée
+          await notificationService.markNotificationAsSent(notification.id);
+          
+          console.log(`✅ [BackgroundNotificationService] Notification envoyée: ${notification.id}`);
+        }
+        
+      } catch (error) {
+        console.error('❌ [BackgroundNotificationService] Erreur lors de l\'exécution:', error);
+      }
+    });
     
-    console.log(`🔔 [BackgroundNotificationService] ${unsentNotifications.length} notifications non envoyées trouvées`);
-    
-    // Envoyer les notifications push
-    for (const notification of unsentNotifications) {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: notification.title,
-          body: notification.message,
-          data: {
-            notificationId: notification.id,
-            orderId: notification.order_id,
-            adminAction: true,
-            urgent: notification.type === 'admin_pending_order',
-            ...notification.data
-          }
-        },
-        trigger: null // Envoyer immédiatement
-      });
-      
-      // Marquer comme envoyée
-      await notificationService.markNotificationAsSent(notification.id);
-      
-      console.log(`✅ [BackgroundNotificationService] Notification envoyée: ${notification.id}`);
-    }
-    
-  } catch (error) {
-    console.error('❌ [BackgroundNotificationService] Erreur lors de l\'exécution:', error);
+    isTaskDefined = true;
+    console.log('✅ [BackgroundNotificationService] Tâche définie avec succès');
+  } catch (taskError) {
+    console.error('❌ [BackgroundNotificationService] Erreur lors de la définition de la tâche:', taskError);
+    // Ne pas bloquer si la définition échoue
   }
-});
+}
 
 class BackgroundNotificationService {
   constructor() {
@@ -97,6 +117,13 @@ class BackgroundNotificationService {
   async initialize() {
     try {
       console.log('🔔 [BackgroundNotificationService] Initialisation...');
+      
+      // Vérifier si TaskManager est disponible
+      if (!TaskManager || typeof TaskManager.defineTask !== 'function') {
+        console.warn('⚠️ [BackgroundNotificationService] TaskManager non disponible');
+        this.isInitialized = false;
+        return false;
+      }
       
       // Vérifier si on est dans Expo Go (SDK 53+ ne supporte pas les push Android)
       const isExpoGo = Constants?.executionEnvironment === 'storeClient' || 
@@ -113,6 +140,9 @@ class BackgroundNotificationService {
         this.isInitialized = false;
         return false;
       }
+      
+      // Définir la tâche en arrière-plan (seulement une fois)
+      defineBackgroundTask();
       
       // Configurer le canal de notification Android
       try {

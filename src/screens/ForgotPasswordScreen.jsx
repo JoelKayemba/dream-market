@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Container, Button  , ScreenWrapper } from '../components/ui';
 import { passwordResetService } from '../backend/services/passwordResetService';
@@ -472,8 +472,9 @@ export default function ForgotPasswordScreen({ navigation }) {
     <KeyboardAvoidingView 
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <Container style={styles.content}>
+      <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity 
@@ -486,11 +487,17 @@ export default function ForgotPasswordScreen({ navigation }) {
           <View style={styles.placeholder} />
         </View>
 
-        {/* Contenu */}
-        {step === 'email' ? renderEmailStep() : renderCodeStep()}
-
-       
-      </Container>
+        {/* Contenu avec ScrollView pour gérer le clavier */}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
+          {step === 'email' ? renderEmailStep() : renderCodeStep()}
+        </ScrollView>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -499,12 +506,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-
-   
+    paddingHorizontal: 20,
+    minHeight: '100%',
   },
   content: {
     flex: 1,
     paddingTop: 50,
+    minHeight: '100%',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   header: {
     flexDirection: 'row',
@@ -539,8 +554,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   formContainer: {
-    flex: 1,
     paddingTop: 20,
+    paddingBottom: 20,
   },
   iconContainer: {
     alignItems: 'center',

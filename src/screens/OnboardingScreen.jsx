@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CommonActions } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -141,13 +142,12 @@ export default function OnboardingScreen({ navigation }) {
 
   const handleSkip = async () => {
     await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
-    navigation.navigate('Welcome');
+    navigation.navigate('MainApp');
   };
 
   const handleFinish = async () => {
     await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
-    navigation.navigate('Welcome');
-    
+    navigation.navigate('MainApp');
   };
 
   const currentSlide = ONBOARDING_DATA[currentIndex];

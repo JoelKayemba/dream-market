@@ -6,8 +6,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
+// Vérifier que les variables d'environnement sont définies
+if (!supabaseUrl || !supabaseAnonKey) {
+  const errorMessage = '❌ Variables d\'environnement Supabase manquantes!\n' +
+    'Veuillez définir EXPO_PUBLIC_SUPABASE_URL et EXPO_PUBLIC_SUPABASE_ANON_KEY dans votre fichier .env';
+  console.error(errorMessage);
+  // En production, on peut continuer mais l'app ne fonctionnera pas correctement
+  // En développement, on peut throw pour forcer la correction
+  if (__DEV__) {
+    throw new Error(errorMessage);
+  }
+}
+
 // Créer le client Supabase
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,

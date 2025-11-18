@@ -10,6 +10,7 @@ import {
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFavorites } from '../../hooks/useFavorites';
+import { useRequireAuth } from '../../hooks/useRequireAuth';
 
 export default function ServiceCard({ 
   service, 
@@ -20,6 +21,7 @@ export default function ServiceCard({
   style 
 }) {
   const { toggleServiceFavorite, isServiceFavorite } = useFavorites();
+  const { requireAuth } = useRequireAuth();
   const isFavorite = isServiceFavorite(service.id);
 
   const highlightChips = [
@@ -45,15 +47,17 @@ export default function ServiceCard({
 
   const handleToggleFavorite = (e) => {
     e.stopPropagation();
-    const wasFavorite = isFavorite;
-    toggleServiceFavorite(service);
+    requireAuth(() => {
+      const wasFavorite = isFavorite;
+      toggleServiceFavorite(service);
 
-    Alert.alert(
-      wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris !',
-      wasFavorite
-        ? `${service.name} a été retiré de vos favoris.`
-        : `${service.name} a été ajouté à vos favoris.`
-    );
+      Alert.alert(
+        wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris !',
+        wasFavorite
+          ? `${service.name} a été retiré de vos favoris.`
+          : `${service.name} a été ajouté à vos favoris.`
+      );
+    });
   };
 
   return (

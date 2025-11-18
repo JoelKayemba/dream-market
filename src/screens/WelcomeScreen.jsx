@@ -5,11 +5,13 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Container, Button, ScreenWrapper } from '../components/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuthModal } from '../contexts/AuthModalContext';
 
 const ONBOARDING_STORAGE_KEY = '@dream_market_onboarding_completed';
 
 export default function WelcomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { openLogin, openRegister, openForgotPassword } = useAuthModal();
 
   // Bloquer le retour en arrière sur WelcomeScreen
   useEffect(() => {
@@ -87,7 +89,7 @@ export default function WelcomeScreen({ navigation }) {
             <View style={styles.actionButtons}>
               <TouchableOpacity
                 style={styles.primaryButton}
-                onPress={() => navigation.navigate('Login')}
+                onPress={openLogin}
                 activeOpacity={0.85}
               >
                 <LinearGradient
@@ -103,7 +105,7 @@ export default function WelcomeScreen({ navigation }) {
 
               <TouchableOpacity
                 style={styles.secondaryButton}
-                onPress={() => navigation.navigate('Register')}
+                onPress={openRegister}
                 activeOpacity={0.85}
               >
                 <Ionicons name="person-add-outline" size={20} color="#2F8F46" />
@@ -114,7 +116,7 @@ export default function WelcomeScreen({ navigation }) {
             {/* Lien mot de passe oublié */}
             <TouchableOpacity
               style={styles.forgotPasswordLink}
-              onPress={() => navigation.navigate('ForgotPassword')}
+              onPress={openForgotPassword}
               activeOpacity={0.7}
             >
               <Text style={styles.forgotPasswordText}>Mot de passe oublié ?</Text>

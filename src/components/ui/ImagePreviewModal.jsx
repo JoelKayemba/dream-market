@@ -8,10 +8,10 @@ import {
   Dimensions,
   FlatList,
   Image,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import SafeAreaWrapper from '../../components/SafeAreaWrapper';
 
 const { width, height } = Dimensions.get('window');
 
@@ -56,7 +56,7 @@ export default function ImagePreviewModal({
       onRequestClose={onClose}
     >
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaWrapper style={styles.safeArea}>
         <View style={styles.container}>
           <View style={styles.topBar}>
             <TouchableOpacity style={styles.closeButton} onPress={onClose} activeOpacity={0.8}>
@@ -95,7 +95,7 @@ export default function ImagePreviewModal({
             })}
           />
         </View>
-      </SafeAreaView>
+      </SafeAreaWrapper>
     </Modal>
   );
 }

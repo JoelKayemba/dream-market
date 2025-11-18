@@ -8,6 +8,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { selectClientProducts } from '../store/client';
 import ProductCard from '../components/ui/ProductCard';
 import { useFavorites } from '../hooks/useFavorites';
+import { useRequireAuth } from '../hooks/useRequireAuth';
 
 const { width } = Dimensions.get('window');
 
@@ -17,6 +18,7 @@ export default function FarmDetailScreen({ route, navigation }) {
   const products = useSelector(selectClientProducts);
   const [selectedTab, setSelectedTab] = useState('products');
   const { toggleFarmFavorite, isFarmFavorite } = useFavorites();
+  const { requireAuth } = useRequireAuth();
   const isFavorite = isFarmFavorite(farm.id);
   const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
 
@@ -134,23 +136,25 @@ export default function FarmDetailScreen({ route, navigation }) {
   const heroSubtitle = farm.tagline || 'Producteur partenaire Dream Market';
 
   const handleFavoriteToggle = () => {
-    const wasFavorite = isFavorite;
-    toggleFarmFavorite(farm);
-    
-    // Afficher une notification différente selon l'action
-    if (wasFavorite) {
-      Alert.alert(
-        'Retiré des favoris',
-        `${farm.name} a été retiré de vos favoris.`,
-        [{ text: 'OK', style: 'default' }]
-      );
-    } else {
-      Alert.alert(
-        'Ajouté aux favoris !',
-        `${farm.name} a été ajouté à vos favoris.`,
-        [{ text: 'OK', style: 'default' }]
-      );
-    }
+    requireAuth(() => {
+      const wasFavorite = isFavorite;
+      toggleFarmFavorite(farm);
+      
+      // Afficher une notification différente selon l'action
+      if (wasFavorite) {
+        Alert.alert(
+          'Retiré des favoris',
+          `${farm.name} a été retiré de vos favoris.`,
+          [{ text: 'OK', style: 'default' }]
+        );
+      } else {
+        Alert.alert(
+          'Ajouté aux favoris !',
+          `${farm.name} a été ajouté à vos favoris.`,
+          [{ text: 'OK', style: 'default' }]
+        );
+      }
+    });
   };
 
   return (

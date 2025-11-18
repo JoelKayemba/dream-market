@@ -233,8 +233,63 @@ export const loadStoredAuth = createAsyncThunk(
       // Récupérer la session depuis Supabase (qui la charge automatiquement depuis AsyncStorage)
       const { data: { session }, error } = await supabase.auth.getSession();
       
-      if (error || !session) {
+      if (error) {
+        // Si erreur de refresh token invalide, nettoyer la session
+        if (error.message?.includes('refresh_token') || error.message?.includes('invalid')) {
+          console.warn('⚠️ Token invalide détecté, nettoyage de la session');
+          await supabase.auth.signOut();
+          return null;
+        }
         return null;
+      }
+      
+      if (!session) {
+        return null;
+      }
+
+      // Vérifier si le token est expiré
+      if (session.expires_at && session.expires_at * 1000 < Date.now()) {
+        // Essayer de rafraîchir le token
+        try {
+          const { data: refreshedSession, error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError || !refreshedSession?.session) {
+            console.warn('⚠️ Impossible de rafraîchir le token, nettoyage de la session');
+            await supabase.auth.signOut();
+            return null;
+          }
+          // Utiliser la session rafraîchie
+          const sessionToUse = refreshedSession.session;
+          
+          // Récupérer le profil utilisateur
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', sessionToUse.user.id)
+            .single();
+
+          if (profileError && profileError.code !== 'PGRST116') {
+            throw profileError;
+          }
+
+          return {
+            user: {
+              id: sessionToUse.user.id,
+              email: sessionToUse.user.email,
+              role: profile?.role || 'customer',
+              firstName: profile?.first_name || '',
+              lastName: profile?.last_name || '',
+              phone: profile?.phone || '',
+              address: profile?.address || '',
+              avatarUrl: profile?.avatar_url || '',
+            },
+            token: sessionToUse.access_token,
+            refreshToken: sessionToUse.refresh_token
+          };
+        } catch (refreshErr) {
+          console.warn('⚠️ Erreur lors du refresh du token:', refreshErr);
+          await supabase.auth.signOut();
+          return null;
+        }
       }
 
       // Récupérer le profil utilisateur
@@ -263,6 +318,13 @@ export const loadStoredAuth = createAsyncThunk(
         refreshToken: session.refresh_token
       };
     } catch (error) {
+      // En cas d'erreur, nettoyer la session invalide
+      console.warn('⚠️ Erreur lors du chargement de la session:', error);
+      try {
+        await supabase.auth.signOut();
+      } catch (signOutError) {
+        console.error('Erreur lors du nettoyage de la session:', signOutError);
+      }
       return null;
     }
   }

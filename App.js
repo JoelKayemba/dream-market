@@ -12,6 +12,8 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import GlobalErrorHandler from './src/components/GlobalErrorHandler';
 import { supabase } from './src/backend/config/supabase';
 import { authListenerService } from './src/backend/services/authListenerService';
+import { AuthModalProvider } from './src/contexts/AuthModalContext';
+import { loadStoredAuth } from './src/store/authSlice';
 
 // Écrans d'authentification
 import OnboardingScreen, { checkOnboardingCompleted } from './src/screens/OnboardingScreen';
@@ -96,48 +98,30 @@ export default function App() {
       const onboardingCompleted = await checkOnboardingCompleted();
       
       // Vérifier s'il y a une session valide
-      const { data: { session } } = await supabase.auth.getSession();
+      // Utiliser loadStoredAuth qui gère les tokens invalides
+      const result = await store.dispatch(loadStoredAuth());
       
-      if (session?.user) {
-        // Récupérer le profil utilisateur
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        // Charger la session dans Redux
-        store.dispatch({
-          type: 'auth/loadStoredAuth/fulfilled',
-          payload: {
-            user: {
-              id: session.user.id,
-              email: session.user.email,
-              role: profile?.role || 'customer',
-              firstName: profile?.first_name || '',
-              lastName: profile?.last_name || '',
-              phone: profile?.phone || '',
-              address: profile?.address || '',
-              avatarUrl: profile?.avatar_url || '',
-            },
-            token: session.access_token,
-            refreshToken: session.refresh_token
-          }
-        });
-
+      if (result.payload && result.type.endsWith('/fulfilled')) {
         // Utilisateur déjà connecté, aller directement à MainApp
         setInitialRoute('MainApp');
       } else {
         // Pas de session, vérifier l'onboarding
         if (onboardingCompleted) {
-          setInitialRoute('Welcome');
+          // Aller directement à MainApp après onboarding (pas besoin de Welcome)
+          setInitialRoute('MainApp');
         } else {
           setInitialRoute('Onboarding');
         }
       }
 
       // Initialiser le service de notifications en arrière-plan
-      BackgroundNotificationService.initialize();
+      // Ne pas bloquer l'app si les notifications échouent
+      try {
+        await BackgroundNotificationService.initialize();
+      } catch (notificationError) {
+        console.error('⚠️ Erreur lors de l\'initialisation des notifications:', notificationError);
+        // Continuer même si les notifications échouent
+      }
     } catch (error) {
       console.error('Erreur lors de l\'initialisation:', error);
       setInitialRoute('Onboarding');
@@ -170,8 +154,9 @@ export default function App() {
         <SafeAreaProvider>
           <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
           <Provider store={store}>
-            <NotificationManager />
-            <NavigationContainer>
+            <AuthModalProvider>
+              <NotificationManager />
+              <NavigationContainer>
               <Stack.Navigator
                 initialRouteName={initialRoute}
                 screenOptions={{
@@ -337,6 +322,7 @@ export default function App() {
                 />
               </Stack.Navigator>
             </NavigationContainer>
+            </AuthModalProvider>
           </Provider>
         </SafeAreaProvider>
       </GlobalErrorHandler>

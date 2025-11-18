@@ -18,6 +18,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useDispatch } from 'react-redux';
 import { logout as logoutAction } from '../store/authSlice';
 import { resetAttempts } from '../utils/attemptLimiter';
+import { useAuthModal } from '../contexts/AuthModalContext';
 
 /**
  * Composants locaux simples pour éviter les dépendances externes
@@ -36,11 +37,12 @@ const OutlineButton = ({ title, onPress, style }) => (
 );
 
 export default function ProfileScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const dispatch = useDispatch();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [localUser, setLocalUser] = useState(user ?? null);
   const insets = useSafeAreaInsets();
+  const { openLogin } = useAuthModal();
 
   // Mémoriser les actions (évite des re-créations + bugs d'égalité)
   
@@ -107,22 +109,8 @@ export default function ProfileScreen({ navigation }) {
               // Fermer le modal immédiatement
               setIsLoggingOut(false);
               
-              // Réinitialiser la pile de navigation vers Welcome
-              // Remonter jusqu'au navigateur racine pour naviguer vers Welcome
-              let rootNavigation = navigation;
-              while (rootNavigation.getParent()) {
-                rootNavigation = rootNavigation.getParent();
-              }
-              
-              // Utiliser un petit délai pour s'assurer que le modal est fermé
-              setTimeout(() => {
-                rootNavigation.dispatch(
-                  CommonActions.reset({
-                    index: 0,
-                    routes: [{ name: 'Welcome' }],
-                  })
-                );
-              }, 100);
+              // Ne pas rediriger vers Welcome - l'utilisateur peut continuer à utiliser l'app
+              // La déconnexion met juste isAuthenticated à false
             } catch (error) {
               console.error('Erreur lors de la déconnexion:', error);
               Alert.alert('Erreur', 'La déconnexion a échoué. Réessayez.');
@@ -155,26 +143,30 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  // Écran de récupération si pas d'utilisateur
-  if (!user && !isLoggingOut && !localUser) {
+  // Écran si pas connecté
+  if (!isAuthenticated && !user && !isLoggingOut && !localUser) {
     return (
       <View style={[styles.flex1, { backgroundColor: COLORS.bg, paddingTop: insets.top }]}>
-        <View style={styles.loadingContainer}>
-          <Ionicons name="person-circle-outline" size={80} color={COLORS.accentText} />
-          <Text style={styles.loadingTitle}>Profil en cours de chargement...</Text>
-          <Text style={styles.loadingSubtitle}>Si le problème persiste, veuillez vous reconnecter.</Text>
-          <OutlineButton
-            title="Se reconnecter"
-            onPress={() => {
-              // on sécurise : on tente quand même une navigation
-              try {
-                logout?.();
-              } catch {}
-              navigation.navigate('Welcome');
-            }}
-            style={{ width: 220, marginTop: 8 }}
-          />
-        </View>
+        <ScrollView 
+          contentContainerStyle={styles.notConnectedContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.notConnectedContent}>
+            <View style={styles.notConnectedIconContainer}>
+              <Ionicons name="person-circle-outline" size={100} color={COLORS.accentText} />
+            </View>
+            <Text style={styles.notConnectedTitle}>Connectez-vous</Text>
+            <Text style={styles.notConnectedSubtitle}>
+              Connectez-vous pour voir votre profil, gérer vos commandes et accéder à toutes les fonctionnalités de Dream Market.
+            </Text>
+            <PrimaryButton
+              title="Se connecter"
+              icon="log-in-outline"
+              onPress={openLogin}
+              style={{ width: '100%', maxWidth: 300, marginTop: 24 }}
+            />
+          </View>
+        </ScrollView>
       </View>
     );
   }
@@ -662,6 +654,37 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
     lineHeight: 20,
+  },
+
+  // Not connected state
+  notConnectedContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 40,
+  },
+  notConnectedContent: {
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 400,
+  },
+  notConnectedIconContainer: {
+    marginBottom: 24,
+  },
+  notConnectedTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  notConnectedSubtitle: {
+    fontSize: 15,
+    color: COLORS.subtext,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 8,
   },
 
   // LEGAL LINKS

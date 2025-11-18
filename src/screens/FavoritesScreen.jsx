@@ -328,6 +328,14 @@ export default function FavoritesScreen({ navigation }) {
       {/* Header avec titre et actions */}
       <Container style={styles.header}>
         <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            accessibilityLabel="Retour"
+            accessibilityRole="button"
+          >
+            <Ionicons name="arrow-back" size={24} color="#283106" />
+          </TouchableOpacity>
           <View style={styles.titleContainer}>
             <Text style={styles.title}>Mes Favoris</Text>
             <Text style={styles.subtitle}>
@@ -421,6 +429,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 8,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
   },
   titleContainer: {
     flex: 1,

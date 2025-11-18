@@ -4,12 +4,14 @@ import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, ScreenWrapper, ImagePreviewModal } from '../components/ui';
 import { useFavorites } from '../hooks/useFavorites';
+import { useRequireAuth } from '../hooks/useRequireAuth';
 
 const { width } = Dimensions.get('window');
 
 export default function ServiceDetailScreen({ route, navigation }) {
   const { service } = route.params;
   const { toggleServiceFavorite, isServiceFavorite } = useFavorites();
+  const { requireAuth } = useRequireAuth();
   const isFavorite = isServiceFavorite(service.id);
   const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
 
@@ -35,23 +37,25 @@ export default function ServiceDetailScreen({ route, navigation }) {
   };
 
   const handleFavoriteToggle = () => {
-    const wasFavorite = isFavorite;
-    toggleServiceFavorite(service);
-    
-    // Afficher une notification différente selon l'action
-    if (wasFavorite) {
-      Alert.alert(
-        'Retiré des favoris',
-        `${service.name} a été retiré de vos favoris.`,
-        [{ text: 'OK', style: 'default' }]
-      );
-    } else {
-      Alert.alert(
-        'Ajouté aux favoris !',
-        `${service.name} a été ajouté à vos favoris.`,
-        [{ text: 'OK', style: 'default' }]
-      );
-    }
+    requireAuth(() => {
+      const wasFavorite = isFavorite;
+      toggleServiceFavorite(service);
+      
+      // Afficher une notification différente selon l'action
+      if (wasFavorite) {
+        Alert.alert(
+          'Retiré des favoris',
+          `${service.name} a été retiré de vos favoris.`,
+          [{ text: 'OK', style: 'default' }]
+        );
+      } else {
+        Alert.alert(
+          'Ajouté aux favoris !',
+          `${service.name} a été ajouté à vos favoris.`,
+          [{ text: 'OK', style: 'default' }]
+        );
+      }
+    });
   };
 
   const formatDate = (dateString) => {
