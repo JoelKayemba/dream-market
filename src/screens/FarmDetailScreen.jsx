@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Dimensions, Alert, Linking } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Dimensions, Alert, Linking, FlatList } from 'react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -52,8 +52,8 @@ export default function FarmDetailScreen({ route, navigation }) {
   const yearsActive = farm.established ? `${actualYear - establishedYear} ans` : null;
 
   const highlightChips = [
-    farm.location ? { label: farm.location, icon: 'navigate-outline', color: '#2F8F46' } : null,
-    farm.specialty ? { label: farm.specialty, icon: 'leaf-outline', color: '#1E88E5' } : null,
+    farm.location ? { label: farm.location, icon: 'navigate-outline' } : null,
+    farm.specialty ? { label: farm.specialty, icon: 'leaf-outline' } : null,
   ].filter(Boolean);
 
   const metricsData = [
@@ -130,7 +130,6 @@ export default function FarmDetailScreen({ route, navigation }) {
   const certificationChips = (farm.certifications || []).map((cert) => ({
     label: cert,
     icon: 'shield-checkmark-outline',
-    color: '#2F8F46',
   }));
 
   const heroSubtitle = farm.tagline || 'Producteur partenaire Dream Market';
@@ -159,17 +158,12 @@ export default function FarmDetailScreen({ route, navigation }) {
 
   return (
     <ScreenWrapper style={styles.container}>
-      <ExpoLinearGradient
-        colors={['#1B3A28', '#2F8F46']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.headerGradient}
-      >
+      <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
 
         <View style={styles.headerContent}>
@@ -185,11 +179,11 @@ export default function FarmDetailScreen({ route, navigation }) {
         >
           <Ionicons 
             name={isFavorite ? 'heart' : 'heart-outline'} 
-            size={22} 
-            color="#FFFFFF"
+            size={24} 
+            color={isFavorite ? "#EF4444" : "#6B7280"}
           />
         </TouchableOpacity>
-      </ExpoLinearGradient>
+      </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.imageSection}>
@@ -224,34 +218,29 @@ export default function FarmDetailScreen({ route, navigation }) {
         </View>
 
         <View style={styles.heroWrapper}>
-          <ExpoLinearGradient
-            colors={['#2F8F46', '#3FB15A', '#59C06C']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroCard}
-          >
+          <View style={styles.heroCard}>
             <Text style={styles.heroTitle}>{farm.name}</Text>
             <Text style={styles.heroSubtitle}>{heroSubtitle}</Text>
             <View style={styles.heroMetaRow}>
               <View style={styles.heroMetaChip}>
-                <Ionicons name="storefront-outline" size={14} color="#E8F9EC" />
+                <Ionicons name="storefront-outline" size={14} color="#6B7280" />
                 <Text style={styles.heroMetaText}>{farmProducts.length} produit{farmProducts.length > 1 ? 's' : ''}</Text>
               </View>
               {yearsActive ? (
                 <View style={styles.heroMetaChip}>
-                  <Ionicons name="time-outline" size={14} color="#E8F9EC" />
+                  <Ionicons name="time-outline" size={14} color="#6B7280" />
                   <Text style={styles.heroMetaText}>{yearsActive}</Text>
                 </View>
               ) : null}
             </View>
-          </ExpoLinearGradient>
+          </View>
         </View>
 
         <View style={styles.metricsRow}>
           {metricsData.map((metric, index) => (
             <View key={`${metric.label}-${index}`} style={styles.metricCard}>
               <View style={styles.metricIcon}>
-                <Ionicons name={metric.icon} size={18} color="#2F8F46" />
+                <Ionicons name={metric.icon} size={18} color="#6B7280" />
               </View>
               <Text style={styles.metricValue}>{metric.value}</Text>
               <Text style={styles.metricLabel}>{metric.label}</Text>
@@ -304,17 +293,17 @@ export default function FarmDetailScreen({ route, navigation }) {
                 <View style={styles.chipsGrid}>
                   {farm.specialty ? (
                     <View style={styles.infoChip}>
-                      <Ionicons name="leaf-outline" size={14} color="#2F8F46" />
+                      <Ionicons name="leaf-outline" size={14} color="#6B7280" />
                       <Text style={styles.infoChipText}>{farm.specialty}</Text>
                     </View>
                   ) : null}
                   {certificationChips.map((chip, index) => (
                     <View
                       key={`${chip.label}-${index}`}
-                      style={[styles.infoChip, { borderColor: chip.color }]}
+                      style={styles.infoChip}
                     >
-                      <Ionicons name={chip.icon} size={14} color={chip.color} />
-                      <Text style={[styles.infoChipText, { color: chip.color }]}>{chip.label}</Text>
+                      <Ionicons name={chip.icon} size={14} color="#6B7280" />
+                      <Text style={styles.infoChipText}>{chip.label}</Text>
                     </View>
                   ))}
                 </View>
@@ -330,7 +319,7 @@ export default function FarmDetailScreen({ route, navigation }) {
                       key={`practice-${index}`}
                       style={styles.infoChip}
                     >
-                      <Ionicons name="leaf-outline" size={14} color="#2F8F46" />
+                      <Ionicons name="leaf-outline" size={14} color="#6B7280" />
                       <Text style={styles.infoChipText}>{practice}</Text>
                     </View>
                   ))}
@@ -344,19 +333,19 @@ export default function FarmDetailScreen({ route, navigation }) {
                 <View style={styles.servicesList}>
                   {farm.delivery ? (
                     <View style={styles.serviceItem}>
-                      <Ionicons name="checkmark-circle" size={18} color="#2F8F46" />
+                      <Ionicons name="checkmark-circle" size={18} color="#6B7280" />
                       <Text style={styles.serviceItemText}>Livraison</Text>
                     </View>
                   ) : null}
                   {farm.pickup ? (
                     <View style={styles.serviceItem}>
-                      <Ionicons name="checkmark-circle" size={18} color="#2F8F46" />
+                      <Ionicons name="checkmark-circle" size={18} color="#6B7280" />
                       <Text style={styles.serviceItemText}>Retrait sur place</Text>
                     </View>
                   ) : null}
                   {(farm.farm_shop || farm.farmShop) ? (
                     <View style={styles.serviceItem}>
-                      <Ionicons name="checkmark-circle" size={18} color="#2F8F46" />
+                      <Ionicons name="checkmark-circle" size={18} color="#6B7280" />
                       <Text style={styles.serviceItemText}>Magasin à la ferme</Text>
                     </View>
                   ) : null}
@@ -393,7 +382,7 @@ export default function FarmDetailScreen({ route, navigation }) {
             <View style={styles.productsHeaderRow}>
               <Text style={styles.sectionHeading}>Produits disponibles</Text>
               <View style={styles.productsBadge}>
-                <Ionicons name="leaf-outline" size={14} color="#2F8F46" />
+                <Ionicons name="leaf-outline" size={14} color="#6B7280" />
                 <Text style={styles.productsBadgeText}>{farmProducts.length}</Text>
               </View>
             </View>
@@ -407,19 +396,32 @@ export default function FarmDetailScreen({ route, navigation }) {
                 </Text>
               </View>
             ) : (
-              <View style={styles.productsList}>
-                {farmProducts.map((product) => (
+              <FlatList
+                data={farmProducts}
+                renderItem={({ item }) => (
                   <ProductCard
-                    key={product.id}
-                    product={product}
+                    product={item}
                     navigation={navigation}
                     variant="default"
-                    size="fullWidth"
-                    fullWidth={true}
+                    size="medium"
+                    fullWidth={false}
                     style={styles.productCard}
                   />
-                ))}
-              </View>
+                )}
+                keyExtractor={(item) => item.id}
+                numColumns={2}
+                columnWrapperStyle={styles.productsRow}
+                scrollEnabled={false}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Ionicons name="leaf-outline" size={48} color="#6B8E6F" />
+                    <Text style={styles.emptyTitle}>Pas encore de produits</Text>
+                    <Text style={styles.emptySubtitle}>
+                      Revenez bientôt pour découvrir les nouveautés de cette ferme.
+                    </Text>
+                  </View>
+                }
+              />
             )}
           </View>
         )}
@@ -440,44 +442,48 @@ export default function FarmDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F7F4',
+    backgroundColor: '#F9FAFB',
   },
-  headerGradient: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 22,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerButtonActive: {
-    backgroundColor: 'rgba(255, 107, 107, 0.35)',
+    backgroundColor: '#FEF2F2',
   },
   headerContent: {
     flex: 1,
     alignItems: 'center',
     gap: 4,
+    paddingHorizontal: 12,
   },
   headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 0.4,
+    color: '#111827',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    textAlign: 'center',
   },
   headerSubtitle: {
-    color: 'rgba(255, 255, 255, 0.75)',
+    color: '#6B7280',
     fontSize: 13,
     fontWeight: '500',
+    textAlign: 'center',
   },
   scrollView: {
     flex: 1,
@@ -510,58 +516,62 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
     borderWidth: 1,
-    backgroundColor: 'rgba(47, 143, 70, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   imageChipText: {
     fontSize: 12,
     fontWeight: '600',
+    color: '#111827',
   },
   heroWrapper: {
     paddingHorizontal: 16,
-    marginTop: -38,
+    marginTop: 16,
   },
   heroCard: {
-    borderRadius: 28,
-    padding: 24,
+    borderRadius: 16,
+    padding: 20,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: '#E5E7EB',
   },
   heroTitle: {
-    color: '#FFFFFF',
+    color: '#111827',
     fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: 0.4,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   heroSubtitle: {
-    color: 'rgba(247, 255, 249, 0.85)',
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 8,
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 6,
+    lineHeight: 20,
   },
   heroMetaRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 18,
+    gap: 8,
+    marginTop: 16,
   },
   heroMetaChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    backgroundColor: 'rgba(15, 52, 25, 0.35)',
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: '#E5E7EB',
   },
   heroMetaText: {
-    color: '#E8F9EC',
-    fontSize: 12,
+    color: '#374151',
+    fontSize: 13,
     fontWeight: '600',
   },
   metricsRow: {
@@ -575,21 +585,16 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 110,
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(47, 143, 70, 0.1)',
-    shadowColor: '#214D31',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: '#E5E7EB',
   },
   metricIcon: {
     width: 34,
     height: 34,
-    borderRadius: 12,
-    backgroundColor: 'rgba(47, 143, 70, 0.12)',
+    borderRadius: 10,
+    backgroundColor: '#F9FAFB',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
@@ -613,51 +618,41 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(47, 143, 70, 0.2)',
+    borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 12,
   },
   tabButtonActive: {
-    backgroundColor: '#2F8F46',
-    borderColor: '#2F8F46',
-    shadowColor: '#214D31',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 4,
+    backgroundColor: '#111827',
+    borderColor: '#111827',
   },
   tabButtonText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#2F8F46',
+    fontWeight: '600',
+    color: '#6B7280',
     letterSpacing: 0.2,
   },
   tabButtonTextActive: {
     color: '#FFFFFF',
   },
   sectionCard: {
-    marginTop: 18,
+    marginTop: 16,
     marginHorizontal: 16,
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
+    borderRadius: 12,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(47, 143, 70, 0.08)',
-    shadowColor: '#214D31',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderColor: '#E5E7EB',
   },
   sectionHeading: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A3B1F',
+    color: '#111827',
     marginBottom: 12,
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   sectionBodyText: {
     fontSize: 14,
@@ -682,15 +677,15 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: 'rgba(47, 143, 70, 0.08)',
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: 'rgba(47, 143, 70, 0.18)',
+    borderColor: '#E5E7EB',
   },
   infoChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#2F8F46',
+    color: '#374151',
   },
   servicesList: {
     gap: 12,
@@ -704,8 +699,8 @@ const styles = StyleSheet.create({
   },
   serviceItemText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#405243',
+    fontWeight: '500',
+    color: '#374151',
   },
   sectionRow: {
     flexDirection: 'row',
@@ -753,12 +748,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: 'rgba(47, 143, 70, 0.08)',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   productsBadgeText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#2F8F46',
+    fontWeight: '600',
+    color: '#374151',
   },
   emptyState: {
     alignItems: 'center',
@@ -777,12 +774,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  productsList: {
-    gap: 16,
-    marginTop: 18,
+  productsRow: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 0,
+    marginBottom: 12,
+    gap: 12,
   },
   productCard: {
-    marginBottom: 4,
+    flex: 1,
+    marginBottom: 0,
   },
   bottomSpacer: {
     height: 32,

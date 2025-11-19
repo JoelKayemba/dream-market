@@ -22,6 +22,7 @@ import {
   selectCartError,
   clearCart
 } from '../store/cartSlice';
+import { selectClientProducts } from '../store/client/productsSlice';
 import {
   createOrder,
   fetchUserOrders,
@@ -101,6 +102,31 @@ export default function CheckoutScreen({ navigation }) {
     return 'Gratuite';
   }, [deliveryFee, deliveryFeeLoading]);
 
+  // Vérifier les problèmes de stock
+  // Utilise le stock actuel du produit depuis Redux, pas celui stocké dans le panier
+  const checkStockIssues = useMemo(() => {
+    const issues = [];
+    cartItems.forEach(item => {
+      // Récupérer le produit actuel depuis Redux pour avoir le stock à jour
+      const currentProduct = currentProducts.find(p => p.id === item.product.id);
+      // Utiliser le stock actuel si disponible, sinon celui du panier (fallback)
+      const currentStock = currentProduct 
+        ? (typeof currentProduct.stock === 'number' ? currentProduct.stock : null)
+        : (typeof item.product.stock === 'number' ? item.product.stock : null);
+      
+      if (currentStock !== null && item.quantity > currentStock) {
+        issues.push({
+          product: currentProduct || item.product, // Utiliser le produit actuel si disponible
+          quantity: item.quantity,
+          stock: currentStock
+        });
+      }
+    });
+    return issues;
+  }, [cartItems, currentProducts]);
+
+  const hasStockIssues = checkStockIssues.length > 0;
+
   const handlePlaceOrder = async () => {
     if (!user?.id) {
       Alert.alert('Erreur', 'Vous devez être connecté pour passer une commande.');
@@ -116,6 +142,22 @@ export default function CheckoutScreen({ navigation }) {
     }
     if (cartItems.length === 0) {
       Alert.alert('Panier vide', 'Votre panier est vide.');
+      return;
+    }
+
+    // Vérifier les problèmes de stock avant de passer la commande
+    if (hasStockIssues) {
+      const productNames = checkStockIssues.map(issue => 
+        `• ${issue.product.name} (${issue.quantity} demandé${issue.quantity > 1 ? 's' : ''}, ${issue.stock} disponible${issue.stock > 1 ? 's' : ''})`
+      ).join('\n');
+      
+      Alert.alert(
+        'Stock insuffisant',
+        `Certains produits dans votre panier ne sont plus disponibles en quantité suffisante :\n\n${productNames}\n\nVeuillez retourner au panier et ajuster les quantités.`,
+        [
+          { text: 'Retour au panier', onPress: () => navigation.goBack() }
+        ]
+      );
       return;
     }
 
@@ -430,14 +472,21 @@ export default function CheckoutScreen({ navigation }) {
         {/* CTA fixe */}
         <View style={[styles.fixedButtonContainer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
           <TouchableOpacity
-            style={[styles.confirmButton, (isProcessing || ordersLoading) && { opacity: 0.7 }]}
+            style={[styles.confirmButton, (isProcessing || ordersLoading || hasStockIssues) && { opacity: 0.7 }]}
             onPress={handlePlaceOrder}
-            disabled={isProcessing || ordersLoading}
-            activeOpacity={0.92}
+            disabled={isProcessing || ordersLoading || hasStockIssues}
+            activeOpacity={hasStockIssues ? 1 : 0.92}
           >
-            <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+            <Ionicons 
+              name={hasStockIssues ? "warning" : "checkmark-circle"} 
+              size={18} 
+              color="#FFFFFF" 
+            />
             <Text style={styles.confirmButtonText}>
-              {isProcessing || ordersLoading ? 'Traitement...' : 'Confirmer la commande'}
+              {hasStockIssues 
+                ? 'Stock insuffisant' 
+                : (isProcessing || ordersLoading ? 'Traitement...' : 'Confirmer la commande')
+              }
             </Text>
           </TouchableOpacity>
         </View>

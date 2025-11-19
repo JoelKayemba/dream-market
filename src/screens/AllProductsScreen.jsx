@@ -307,8 +307,8 @@ export default function AllProductsScreen({ navigation, route }) {
       product={item} 
       navigation={navigation} 
       variant="default"
-      size="fullWidth"
-      fullWidth={true}
+      size="medium"
+      fullWidth={false}
       style={styles.productCardList}
     />
   );
@@ -476,7 +476,8 @@ export default function AllProductsScreen({ navigation, route }) {
         data={filteredProducts}
         renderItem={renderProduct}
         keyExtractor={(item) => item.id.toString()}
-        numColumns={1}
+        numColumns={2}
+        columnWrapperStyle={styles.row}
         contentContainerStyle={styles.productsContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -664,6 +665,10 @@ const styles = StyleSheet.create({
   productsContainer: {
     padding: 16,
   },
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   productRow: {
     justifyContent: 'space-between',
     marginBottom: 16,
@@ -672,8 +677,7 @@ const styles = StyleSheet.create({
     width: '48%',
   },
   productCardList: {
-    width: '100%',
-    marginBottom: 16,
+    marginBottom: 0,
   },
   fullWidthCard: {
     width: '100%',

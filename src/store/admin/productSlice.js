@@ -12,7 +12,7 @@ const initialState = {
   filters: {
     category: null,
     farm: null,
-    status: 'all', // all, active, inactive
+    status: 'all', // all, active, inactive, out_of_stock
     search: '',
     sortBy: 'name', // name, price, date, popularity
     sortOrder: 'asc' // asc, desc
@@ -431,6 +431,12 @@ export const selectFilteredProducts = (state) => {
     filtered = filtered.filter(product => product.is_active);
   } else if (filters.status === 'inactive') {
     filtered = filtered.filter(product => !product.is_active);
+  } else if (filters.status === 'out_of_stock') {
+    // Produits en rupture de stock (stock = 0 ou stock est null mais devrait être défini)
+    filtered = filtered.filter(product => {
+      const stock = product.stock;
+      return stock !== null && stock !== undefined && stock === 0;
+    });
   }
   
   // Tri

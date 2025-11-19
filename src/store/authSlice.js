@@ -370,6 +370,7 @@ const authSlice = createSlice({
         state.refreshToken = action.payload.refreshToken;
         state.isAuthenticated = true;
         state.error = null;
+        // Le panier sera chargé automatiquement via App.js listener
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false;
@@ -442,6 +443,7 @@ const authSlice = createSlice({
         state.refreshToken = null;
         state.isAuthenticated = false;
         state.error = null;
+        // Le panier sera vidé automatiquement via App.js listener
       })
       .addCase(logout.rejected, (state, action) => {
         state.isLoading = false;
@@ -497,6 +499,7 @@ const authSlice = createSlice({
               state.token = action.payload.token;
               state.refreshToken = action.payload.refreshToken;
               state.isAuthenticated = true;
+              // Le panier sera chargé automatiquement via App.js
             } else {
               state.user = null;
               state.token = null;

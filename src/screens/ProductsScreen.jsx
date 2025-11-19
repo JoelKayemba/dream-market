@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, FlatList, Dimensions, TouchableOpacity, RefreshControl, Text, ActivityIndicator } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { 
   Container, 
-  CategoryCard,
   ProductCard,
   SearchBar,
-  SectionHeader,
   Divider,
   ScreenWrapper,
   Badge
@@ -26,9 +25,31 @@ import {
   fetchNewProducts,
   fetchPromotionProducts
 } from '../store/client';
-import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { CategorySkeleton, ProductCardSkeleton } from '../components/Skeleton';
 
 const { width } = Dimensions.get('window');
+const CARD_PADDING = 0;
+const CARD_GAP = 12;
+const CARD_WIDTH = (width - CARD_PADDING * 2 - CARD_GAP) / 2;
+
+// Fonction utilitaire pour les icônes de catégories
+const getCategoryIcon = (categoryName) => {
+  const icons = {
+    'légumes': 'leaf-outline',
+    'fruits': 'nutrition-outline',
+    'produits laitiers': 'ice-cream-outline',
+    'viandes': 'restaurant-outline',
+    'céréales': 'layers-outline',
+    'boissons': 'wine-outline',
+    'épices': 'flame-outline',
+    'bio': 'earth-outline',
+    'poissons': 'fish-outline',
+    'graines': 'podium-outline',
+    default: 'grid-outline'
+  };
+  return icons[categoryName?.toLowerCase()] || icons.default;
+};
 
 export default function ProductsScreen({ navigation, route }) {
   const { categoryName } = route.params || {};
@@ -45,7 +66,7 @@ export default function ProductsScreen({ navigation, route }) {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Charger les données au montage du composant
+  // Charger les données au montage
   useEffect(() => {
     loadData();
   }, [dispatch]);
@@ -108,48 +129,22 @@ export default function ProductsScreen({ navigation, route }) {
     );
   };
 
-  // Gestionnaire de recherche
-  const handleSearch = (query) => {
-    navigation.navigate('Search', { searchQuery: query });
-  };
-
   // Gestionnaire de sélection de catégorie
   const handleCategorySelect = (category) => {
-    setSelectedCategory(category);
-    // Recharger les produits avec la nouvelle catégorie
-    dispatch(fetchProducts({ page: 0, refresh: true, categoryId: category.id }));
+    const newCategory = selectedCategory?.id === category.id ? null : category;
+    setSelectedCategory(newCategory);
+    dispatch(fetchProducts({ page: 0, refresh: true, categoryId: newCategory?.id || null }));
   };
 
-  // Obtenir les produits de la catégorie sélectionnée
-  const getCategoryProducts = () => {
-    if (!selectedCategory || !products) return [];
-    return products.filter(product => product.categories?.name === selectedCategory.name);
+  // Obtenir les produits filtrés
+  const getFilteredProducts = () => {
+    if (selectedCategory) {
+      return products.filter(product => product.categories?.name === selectedCategory.name);
+    }
+    return products;
   };
 
-  // Obtenir l'icône pour une catégorie
-  const getCategoryIcon = (categoryName) => {
-    const icons = {
-      'légumes': 'carrot',
-      'fruits': 'apple-alt',
-      'produits laitiers': 'cheese',
-      'viandes': 'drumstick-bite',
-      'céréales': 'leaf',
-      'boissons': 'wine-bottle',
-      'épices': 'mortar-pestle',
-      'bio': 'leaf',
-      'default': 'shopping-basket'
-    };
-    return icons[categoryName?.toLowerCase()] || icons.default;
-  };
-
-  if (loading && !refreshing) {
-    return (
-      <View style={styles.loadingContainer}>
-        <MaterialIcons name="shopping-basket" size={64} color="#4CAF50" />
-        <Text style={styles.loadingText}>Chargement des produits...</Text>
-      </View>
-    );
-  }
+  const filteredProducts = getFilteredProducts();
 
   return (
     <ScreenWrapper edges={['top', 'left', 'right']}>
@@ -165,260 +160,341 @@ export default function ProductsScreen({ navigation, route }) {
           />
         }
       >
-        {/* Header avec titre et barre de recherche */}
-        <Container style={styles.header}>
-          <Text style={styles.title}>
-             Nos Produits
-          </Text>
-          <Text style={styles.subtitle}>
-            Découvrez nos produits agricoles frais et de saison
-          </Text>
-          
-          <SearchBar
-            onPress={() => handleSearch('')}
-            placeholder="Rechercher des produits, fermes..."
-            style={styles.searchBar}
-          />
-        </Container>
-
-       
+        {/* Header simple et élégant */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <View>
+              <Text style={styles.title}>Produits</Text>
+              <Text style={styles.subtitle}>Découvrez notre sélection</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={() => navigation.navigate('Search')}
+            >
+              <Ionicons name="search-outline" size={22} color="#283106" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
         <Divider />
 
-        {/* Section Catégories */}
-        <Container style={styles.section}>
-          <SectionHeader
-            title="Catégories"
-            subtitle="Parcourez nos différentes catégories de produits"
-          />
+        {/* Catégories compactes horizontales */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Catégories</Text>
+            {selectedCategory && (
+              <TouchableOpacity
+                onPress={() => handleCategorySelect(selectedCategory)}
+                style={styles.clearFilterButton}
+              >
+                <Ionicons name="close-circle" size={18} color="#6B7280" />
+                <Text style={styles.clearFilterText}>Effacer</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoriesContainer}
           >
-            {(categories || []).map((category) => (
-              <TouchableOpacity
-                key={category.id}
-                style={[
-                  styles.categoryCard,
-                  selectedCategory?.id === category.id && styles.selectedCategoryCard
-                ]}
-                onPress={() => handleCategorySelect(category)}
-              >
-                <View style={[
-                  styles.categoryIconContainer, 
-                  { backgroundColor: selectedCategory?.id === category.id ? '#4CAF50' : '#F0F8F0' }
-                ]}>
-                  <FontAwesome5 
-                    name={getCategoryIcon(category.name)} 
-                    size={16} 
-                    color={selectedCategory?.id === category.id ? '#FFFFFF' : '#4CAF50'} 
-                  />
-                </View>
-                <Text style={[
-                  styles.categoryLabel,
-                  selectedCategory?.id === category.id && styles.selectedCategoryLabel
-                ]} numberOfLines={2}>
-                  {category.name}
-                </Text>
-                {category.productCount && (
-                  <Badge 
-                    text={category.productCount.toString()} 
-                    variant="outline" 
-                    size="small" 
-                    style={styles.categoryBadge}
-                  />
-                )}
-              </TouchableOpacity>
-            ))}
+            {(categories && categories.length > 0) ? categories.map((category) => {
+              const isSelected = selectedCategory?.id === category.id;
+              const accentColor = category.color || '#4CAF50';
+              const iconColor = isSelected ? '#FFFFFF' : accentColor;
+              const gradientColors = isSelected 
+                ? [accentColor, accentColor] 
+                : [`${accentColor}33`, `${accentColor}14`];
+              
+              return (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.categoryCard,
+                    isSelected && styles.categoryCardSelected
+                  ]}
+                  onPress={() => handleCategorySelect(category)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={gradientColors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.categoryGradient}
+                  >
+                    <View style={[
+                      styles.categoryIconContainer,
+                      isSelected && styles.categoryIconContainerSelected
+                    ]}>
+                      <Ionicons 
+                        name={getCategoryIcon(category.name)} 
+                        size={18} 
+                        color={iconColor} 
+                      />
+                    </View>
+                    <Text style={[
+                      styles.categoryLabel,
+                      isSelected && styles.categoryLabelSelected
+                    ]} numberOfLines={1}>
+                      {category.name}
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              );
+            }) : (
+              Array.from({ length: 8 }).map((_, index) => (
+                <CategorySkeleton key={`category-skeleton-${index}`} />
+              ))
+            )}
           </ScrollView>
-        </Container>
+        </View>
 
         <Divider />
 
-        {/* Affichage conditionnel : soit les sections normales, soit les produits de la catégorie */}
-        {!selectedCategory ? (
-          // Affichage normal avec toutes les sections
-          <>
-            {/* Section Nouveautés */}
-            <Container style={styles.section}>
-              <SectionHeader
-                title="Nouveautés"
-                subtitle="Découvrez nos nouveaux produits"
-                onViewAll={() => navigation.navigate('AllProducts', { filter: 'new' })}
-              />
-              
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.productsContainer}
-              >
-                {(newProducts || []).map((product, index) => (
-                  <View key={product.id} style={styles.productCardWrapper}>
-                    {index === 0 && (
-                      <View style={styles.newBadge}>
-                        <MaterialIcons name="new-releases" size={12} color="#FFFFFF" />
-                        <Text style={styles.newBadgeText}>Nouveau</Text>
-                      </View>
-                    )}
-                    <ProductCard
-                      product={product}
-                      navigation={navigation}
-                      variant="primary"
-                      size="large"
-                      style={styles.productCard}
-                    />
-                  </View>
-                ))}
-              </ScrollView>
-            </Container>
-
-            <Divider />
-
-            {/* Section Promotions */}
-            <Container style={styles.section}>
-              <SectionHeader
-                title="Promotions"
-                subtitle="Profitez de nos offres spéciales"
-                onViewAll={() => navigation.navigate('AllProducts', { filter: 'promotions' })}
-              />
-              
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.productsContainer}
-              >
-                {(promotionProducts || []).map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    navigation={navigation}
-                    variant="primary"
-                    size="large"
-                    style={styles.productCard}
-                  />
-                ))}
-              </ScrollView>
-            </Container>
-
-            <Divider />
-
-            {/* Section Produits Populaires */}
-            <Container style={styles.section}>
-              <SectionHeader
-                title="Produits Populaires"
-                subtitle="Les produits les plus appréciés par nos clients"
-                onViewAll={() => navigation.navigate('AllProducts', { filter: 'featured' })}
-              />
-              
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.productsContainer}
-              >
-                {(popularProducts || []).map((product, index) => (
-                  <View key={product.id} style={styles.productCardWrapper}>
-                    {index < 3 && (
-                      <View style={styles.popularBadge}>
-                        <Ionicons name="trophy" size={12} color="#FFFFFF" />
-                        <Text style={styles.popularBadgeText}>Top {index + 1}</Text>
-                      </View>
-                    )}
-                    <ProductCard
-                      product={product}
-                      navigation={navigation}
-                      variant="featured"
-                      size="large"
-                      style={styles.productCard}
-                    />
-                  </View>
-                ))}
-              </ScrollView>
-            </Container>
-
-            <Divider />
-
-            {/* Section Tous les produits (grille) */}
-            <Container style={styles.section}>
-              <SectionHeader
-                title="Tous nos produits"
-                subtitle="Explorez notre catalogue complet"
-                onViewAll={() => navigation.navigate('AllProducts', { filter: 'all' })}
-              />
-              
-              <View style={styles.productsGrid}>
-                {(popularProducts || []).slice(0, 6).map((product, index) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    navigation={navigation}
-                    variant="default"
-                    size="fullWidth"
-                    fullWidth={true}
-                    style={styles.gridProductCard}
-                  />
-                ))}
-              </View>
-            </Container>
-          </>
-        ) : (
+        {/* Produits filtrés ou toutes les sections */}
+        {selectedCategory ? (
           // Affichage des produits de la catégorie sélectionnée
-          <Container style={styles.section}>
+          <View style={styles.section}>
             <View style={styles.categoryHeader}>
               <View style={styles.categoryTitleContainer}>
-                <View style={[styles.categoryIconContainer, { backgroundColor: '#4CAF50' }]}>
-                  <FontAwesome5 
+                <View style={styles.categoryIconBadge}>
+                  <Ionicons 
                     name={getCategoryIcon(selectedCategory.name)} 
-                    size={16} 
+                    size={18} 
                     color="#FFFFFF" 
                   />
                 </View>
                 <View>
                   <Text style={styles.categoryTitle}>{selectedCategory.name}</Text>
                   <Text style={styles.categorySubtitle}>
-                    {getCategoryProducts().length} produit{getCategoryProducts().length > 1 ? 's' : ''} disponible{getCategoryProducts().length > 1 ? 's' : ''}
+                    {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''}
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity
-                style={styles.clearCategoryButton}
-                onPress={() => setSelectedCategory(null)}
-              >
-                <MaterialIcons name="clear" size={20} color="#777E5C" />
-              </TouchableOpacity>
             </View>
             
-            <FlatList
-              data={getCategoryProducts()}
-              renderItem={({ item }) => (
-                <ProductCard
-                  product={item}
-                  navigation={navigation}
-                  variant="default"
-                  size="fullWidth"
-                  fullWidth={true}
-                  style={styles.categoryProductCard}
+            {loading && filteredProducts.length === 0 ? (
+              <View style={styles.productsRow}>
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <ProductCardSkeleton key={`product-skeleton-${index}`} width={CARD_WIDTH} />
+                ))}
+              </View>
+            ) : (
+              <FlatList
+                data={filteredProducts}
+                renderItem={({ item }) => (
+                  <ProductCard
+                    product={item}
+                    navigation={navigation}
+                    variant="default"
+                    size="medium"
+                    fullWidth={false}
+                    style={styles.productCard}
+                  />
+                )}
+                keyExtractor={(item) => item.id}
+                numColumns={2}
+                columnWrapperStyle={styles.productsRow}
+                scrollEnabled={false}
+                onEndReached={loadMore}
+                onEndReachedThreshold={0.5}
+                ListFooterComponent={renderFooter}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Ionicons name="leaf-outline" size={48} color="#E0E0E0" />
+                    <Text style={styles.emptyStateTitle}>Aucun produit</Text>
+                    <Text style={styles.emptyStateText}>
+                      Aucun produit disponible dans cette catégorie.
+                    </Text>
+                  </View>
+                }
+              />
+            )}
+          </View>
+        ) : (
+          // Affichage normal avec toutes les sections
+          <>
+            {/* Nouveautés */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>Nouveautés</Text>
+                  <Text style={styles.sectionSubtitle}>Derniers arrivages</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('AllProducts', { filter: 'new' })}
+                  style={styles.viewAllButton}
+                >
+                  <Text style={styles.viewAllText}>Tout voir</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#4CAF50" />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.productsContainer}
+              >
+                {(newProducts && newProducts.length > 0) ? newProducts.slice(0, 4).map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    navigation={navigation}
+                    variant="default"
+                    size="medium"
+                    fullWidth={false}
+                    style={styles.horizontalProductCard}
+                  />
+                )) : (
+                  Array.from({ length: 4 }).map((_, index) => (
+                    <ProductCardSkeleton key={`new-skeleton-${index}`} width={160} />
+                  ))
+                )}
+              </ScrollView>
+            </View>
+
+            <Divider />
+
+            {/* Populaires */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>Populaires</Text>
+                  <Text style={styles.sectionSubtitle}>Les plus appréciés</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('AllProducts', { filter: 'featured' })}
+                  style={styles.viewAllButton}
+                >
+                  <Text style={styles.viewAllText}>Tout voir</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#4CAF50" />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.productsContainer}
+              >
+                {(popularProducts && popularProducts.length > 0) ? popularProducts.slice(0, 4).map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    navigation={navigation}
+                    variant="default"
+                    size="medium"
+                    fullWidth={false}
+                    style={styles.horizontalProductCard}
+                  />
+                )) : (
+                  Array.from({ length: 4 }).map((_, index) => (
+                    <ProductCardSkeleton key={`popular-skeleton-${index}`} width={160} />
+                  ))
+                )}
+              </ScrollView>
+            </View>
+
+            <Divider />
+
+            {/* Promotions */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>Promotions</Text>
+                  <Text style={styles.sectionSubtitle}>Offres spéciales</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('AllProducts', { filter: 'promotions' })}
+                  style={styles.viewAllButton}
+                >
+                  <Text style={styles.viewAllText}>Tout voir</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#4CAF50" />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.productsContainer}
+              >
+                {(promotionProducts && promotionProducts.length > 0) ? promotionProducts.slice(0, 4).map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    navigation={navigation}
+                    variant="default"
+                    size="medium"
+                    fullWidth={false}
+                    style={styles.horizontalProductCard}
+                  />
+                )) : (
+                  Array.from({ length: 4 }).map((_, index) => (
+                    <ProductCardSkeleton key={`promo-skeleton-${index}`} width={160} />
+                  ))
+                )}
+              </ScrollView>
+            </View>
+
+            <Divider />
+
+            {/* Tous les produits */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>Tous les produits</Text>
+                  <Text style={styles.sectionSubtitle}>Catalogue complet</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('AllProducts', { filter: 'all' })}
+                  style={styles.viewAllButton}
+                >
+                  <Text style={styles.viewAllText}>Tout voir</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#4CAF50" />
+                </TouchableOpacity>
+              </View>
+              
+              {loading && products.length === 0 ? (
+                <View style={styles.productsRow}>
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <ProductCardSkeleton key={`all-skeleton-${index}`} width={CARD_WIDTH} />
+                  ))}
+                </View>
+              ) : (
+                <FlatList
+                  data={products || []}
+                  renderItem={({ item }) => (
+                    <ProductCard
+                      product={item}
+                      navigation={navigation}
+                      variant="default"
+                      size="medium"
+                      fullWidth={false}
+                      style={styles.productCard}
+                    />
+                  )}
+                  keyExtractor={(item) => item.id}
+                  numColumns={2}
+                  columnWrapperStyle={styles.productsRow}
+                  scrollEnabled={false}
+                  onEndReached={loadMore}
+                  onEndReachedThreshold={0.5}
+                  ListFooterComponent={renderFooter}
+                  ListEmptyComponent={
+                    <View style={styles.emptyState}>
+                      <Ionicons name="basket-outline" size={48} color="#E0E0E0" />
+                      <Text style={styles.emptyStateTitle}>Aucun produit</Text>
+                      <Text style={styles.emptyStateText}>
+                        Aucun produit disponible pour le moment.
+                      </Text>
+                    </View>
+                  }
                 />
               )}
-              keyExtractor={(item) => item.id}
-              numColumns={1}
-              scrollEnabled={false}
-              onEndReached={loadMore}
-              onEndReachedThreshold={0.5}
-              ListFooterComponent={renderFooter}
-              ListEmptyComponent={
-                <View style={styles.emptyState}>
-                  <MaterialIcons name="inventory" size={64} color="#CCCCCC" />
-                  <Text style={styles.emptyStateTitle}>Aucun produit dans cette catégorie</Text>
-                  <Text style={styles.emptyStateText}>
-                    Aucun produit n'est disponible dans la catégorie {selectedCategory.name} pour le moment.
-                  </Text>
-                </View>
-              }
-            />
-          </Container>
+            </View>
+          </>
         )}
+
+        <View style={styles.spacer} />
       </ScrollView>
     </ScreenWrapper>
   );
@@ -427,240 +503,189 @@ export default function ProductsScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F8FAF9',
   },
   header: {
-    paddingVertical: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
-    color: '#283106',
-    textAlign: 'center',
-    marginBottom: 8,
-    letterSpacing: 0.5,
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: 0.3,
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#777E5C',
-    textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 22,
-    fontWeight: '400',
-  },
-  searchBar: {
-    width: '100%',
-    maxWidth: 400,
-  },
-  statsSection: {
-    paddingVertical: 24,
-    paddingHorizontal: 20,
-    borderRadius: 24,
-  },
-  statsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  statsTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#283106',
-    marginLeft: 8,
-    letterSpacing: 0.3,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-    paddingHorizontal: 8,
-  },
-  statIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#283106',
-    marginBottom: 4,
-    letterSpacing: 0.5,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#777E5C',
-    textAlign: 'center',
+    fontSize: 14,
+    color: '#6B7280',
     fontWeight: '500',
-    lineHeight: 16,
-    letterSpacing: 0.2,
+  },
+  searchButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   section: {
-    paddingVertical: 8,
+    paddingVertical: 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 4,
+    letterSpacing: 0.3,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#F0F8F0',
+  },
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4CAF50',
+  },
+  clearFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+  },
+  clearFilterText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
   },
   categoriesContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 12,
-    
+    paddingVertical: 6,
+    gap: 3,
   },
   categoryCard: {
-    alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 0,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(47, 143, 70, 0.12)',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    shadowColor: '#000',
+    shadowColor: 'rgba(33, 112, 55, 0.18)',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
     shadowRadius: 4,
-    elevation: 3,
-    minWidth: 100,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    position: 'relative',
+    elevation: 2,
   },
-  selectedCategoryCard: {
-    backgroundColor: '#F0F8F0',
+  categoryCardSelected: {
     borderColor: '#4CAF50',
-    shadowColor: '#4CAF50',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    borderWidth: 2,
+  },
+  categoryGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 120,
+    gap: 8,
   },
   categoryIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    backgroundColor: 'rgba(76, 175, 80, 0.12)',
+    flexShrink: 0,
+  },
+  categoryIconContainerSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   categoryLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#283106',
-    textAlign: 'center',
-    lineHeight: 16,
-    letterSpacing: 0.2,
+    color: '#1F2937',
+    textAlign: 'left',
+    letterSpacing: 0.1,
+    flex: 1,
   },
-  selectedCategoryLabel: {
-    color: '#4CAF50',
-    fontWeight: '700',
-  },
-  categoryBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-  },
-  productsContainer: {
-    paddingLeft: 16,
-    paddingRight: 16,
-    paddingVertical: 6,
-  },
-  productCardWrapper: {
-    marginRight: 16,
-    position: 'relative',
-  },
-  productCard: {
-    width: 160,
-  },
-  newBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#FF6B6B',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 1,
-  },
-  newBadgeText: {
+  categoryLabelSelected: {
     color: '#FFFFFF',
-    fontSize: 10,
     fontWeight: '700',
-    marginLeft: 4,
-    letterSpacing: 0.2,
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#FFA500',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 1,
-  },
-  popularBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
-    marginLeft: 4,
-    letterSpacing: 0.2,
-  },
-  productsGrid: {
-    flexDirection: 'column',
-    gap: 16,
-    paddingHorizontal: 4,
-  },
-  gridProductCard: {
-    marginBottom: 16,
   },
   categoryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-    paddingHorizontal: 4,
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 16,
   },
   categoryTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
     flex: 1,
   },
+  categoryIconBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#4CAF50',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   categoryTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#283106',
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#111827',
     marginBottom: 4,
     letterSpacing: 0.3,
   },
   categorySubtitle: {
     fontSize: 14,
-    color: '#777E5C',
-    fontWeight: '400',
+    color: '#6B7280',
+    fontWeight: '500',
   },
-  clearCategoryButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F5F5F5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 12,
+  productsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    gap: 2,
   },
-  categoryProductsGrid: {
-    flexDirection: 'column',
-    gap: 16,
-    paddingHorizontal: 4,
+  productsRow: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 12,
   },
-  categoryProductCard: {
-    marginBottom: 16,
+  productCard: {
+    marginBottom: 0,
+  },
+  horizontalProductCard: {
+    marginRight: 12,
   },
   footerLoader: {
     paddingVertical: 20,
@@ -670,40 +695,27 @@ const styles = StyleSheet.create({
   footerLoaderText: {
     marginTop: 8,
     fontSize: 12,
-    color: '#777E5C',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 20,
-    backgroundColor: '#f5f5f5',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#777E5C',
-    fontStyle: 'italic',
-    marginTop: 16,
-    fontWeight: '500',
+    color: '#6B7280',
   },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 60,
-    paddingHorizontal: 40,
+    paddingHorizontal: 32,
   },
   emptyStateTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#666666',
+    fontWeight: '700',
+    color: '#6B7280',
     marginTop: 16,
     marginBottom: 8,
-    letterSpacing: 0.3,
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#999999',
+    color: '#9CA3AF',
     textAlign: 'center',
     lineHeight: 20,
-    fontWeight: '400',
+  },
+  spacer: {
+    height: 24,
   },
 });

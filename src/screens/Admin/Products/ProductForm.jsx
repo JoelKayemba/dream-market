@@ -59,8 +59,8 @@ export default function ProductForm({ route, navigation }) {
     old_price: product?.old_price?.toString() || '',
     currency: product?.currency || 'CDF',
     unit: product?.unit || 'kg',
-    category_id: product?.category_id || '',
-    farm_id: farmId || product?.farm_id || '',
+    category_id: product?.category_id || null,
+    farm_id: farmId || product?.farm_id || null,
     stock: product?.stock?.toString() || '0',
     is_organic: product?.is_organic || false,
     is_new: product?.is_new || false,
@@ -113,8 +113,14 @@ export default function ProductForm({ route, navigation }) {
 
   const handleSave = async () => {
     // Validations basiques
-    if (!formData.name || !formData.price || !formData.category_id) {
-      Alert.alert('Erreur', 'Veuillez remplir le nom, le prix et la catégorie');
+    if (!formData.name || !formData.price) {
+      Alert.alert('Erreur', 'Veuillez remplir le nom et le prix');
+      return;
+    }
+    
+    // Vérifier que category_id est valide (pas null, undefined ou chaîne vide)
+    if (!formData.category_id || formData.category_id === '') {
+      Alert.alert('Erreur', 'Veuillez sélectionner une catégorie');
       return;
     }
     
@@ -144,6 +150,9 @@ export default function ProductForm({ route, navigation }) {
         old_price: formData.old_price ? parseFloat(formData.old_price) : null,
         stock: parseInt(formData.stock, 10) || 0,
         discount: parseInt(formData.discount, 10) || 0,
+        // Convertir les chaînes vides en null pour les UUID (Supabase n'accepte pas les chaînes vides)
+        category_id: (formData.category_id && formData.category_id !== '') ? formData.category_id : null,
+        farm_id: (formData.farm_id && formData.farm_id !== '') ? formData.farm_id : null,
         tags: formData.tags
           ? formData.tags.split(',').map((t) => t.trim()).filter(Boolean)
           : [],
@@ -221,7 +230,7 @@ export default function ProductForm({ route, navigation }) {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 0 : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView

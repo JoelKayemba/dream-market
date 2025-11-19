@@ -14,6 +14,8 @@ import {
   selectCartLoading,
   selectCartError
 } from '../store/cartSlice';
+import { selectClientProducts } from '../store/client/productsSlice';
+import { productService } from '../backend';
 import { formatPrice, getCurrencySymbol } from '../utils/currency';
 import { useDeliveryFee } from '../hooks/useDeliveryFee';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,6 +36,7 @@ export default function CartScreen({ navigation }) {
   const cartItemsCount = useSelector(selectCartItemsCount);
   const loading = useSelector(selectCartLoading);
   const error = useSelector(selectCartError);
+  const currentProducts = useSelector(selectClientProducts); // Produits actuels depuis Redux
   const [isProcessing, setIsProcessing] = useState(false);
   const { fee: deliveryFee, loading: deliveryFeeLoading } = useDeliveryFee();
 
@@ -59,6 +62,38 @@ export default function CartScreen({ navigation }) {
   }, [dispatch]);
 
   const handleQuantityChange = (productId, newQuantity) => {
+    // Trouver l'article dans le panier
+    const cartItem = cartItems.find(item => item.product.id === productId);
+    if (!cartItem) return;
+
+    // Récupérer le produit actuel depuis Redux pour avoir le stock à jour
+    const currentProduct = currentProducts.find(p => p.id === productId);
+    const product = currentProduct || cartItem.product; // Utiliser le produit actuel si disponible
+    const stock = typeof product.stock === 'number' ? product.stock : null;
+    const isOutOfStock = stock !== null && stock === 0;
+
+    // Si le produit est en rupture de stock, empêcher toute modification
+    if (isOutOfStock) {
+      Alert.alert(
+        'Produit indisponible',
+        'Ce produit est actuellement en rupture de stock.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Si on essaie d'augmenter la quantité au-delà du stock disponible
+    if (stock !== null && newQuantity > stock) {
+      Alert.alert(
+        'Stock insuffisant',
+        `Stock disponible : ${stock} unité${stock > 1 ? 's' : ''}. Vous ne pouvez pas ajouter plus que le stock disponible.`,
+        [{ text: 'OK' }]
+      );
+      // Limiter à la quantité maximale disponible
+      dispatch(updateCartItemQuantity({ productId, quantity: stock }));
+      return;
+    }
+
     if (newQuantity <= 0) {
       dispatch(removeFromCart(productId));
     } else {
@@ -88,11 +123,51 @@ export default function CartScreen({ navigation }) {
     );
   };
 
+  // Vérifier si un produit est en rupture de stock (stock < quantité dans panier)
+  // Utilise le stock actuel du produit depuis Redux, pas celui stocké dans le panier
+  const checkStockIssues = useMemo(() => {
+    const issues = [];
+    cartItems.forEach(item => {
+      // Récupérer le produit actuel depuis Redux pour avoir le stock à jour
+      const currentProduct = currentProducts.find(p => p.id === item.product.id);
+      // Utiliser le stock actuel si disponible, sinon celui du panier (fallback)
+      const currentStock = currentProduct 
+        ? (typeof currentProduct.stock === 'number' ? currentProduct.stock : null)
+        : (typeof item.product.stock === 'number' ? item.product.stock : null);
+      
+      if (currentStock !== null && item.quantity > currentStock) {
+        issues.push({
+          product: currentProduct || item.product, // Utiliser le produit actuel si disponible
+          quantity: item.quantity,
+          stock: currentStock
+        });
+      }
+    });
+    return issues;
+  }, [cartItems, currentProducts]);
+
+  const hasStockIssues = checkStockIssues.length > 0;
+
   const handleCheckout = () => {
     if (cartItems.length === 0) {
       Alert.alert('Panier vide', 'Votre panier est vide. Ajoutez des produits pour continuer.');
       return;
     }
+
+    // Vérifier les problèmes de stock
+    if (hasStockIssues) {
+      const productNames = checkStockIssues.map(issue => 
+        `• ${issue.product.name} (${issue.quantity} demandé${issue.quantity > 1 ? 's' : ''}, ${issue.stock} disponible${issue.stock > 1 ? 's' : ''})`
+      ).join('\n');
+      
+      Alert.alert(
+        'Stock insuffisant',
+        `Certains produits dans votre panier ne sont plus disponibles en quantité suffisante :\n\n${productNames}\n\nVeuillez ajuster les quantités avant de passer la commande.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     setIsProcessing(true);
     navigation.navigate('Checkout');
     setIsProcessing(false);
@@ -153,11 +228,28 @@ export default function CartScreen({ navigation }) {
           renderEmptyCart()
         ) : (
           <View style={styles.cartContainer}>
-            {cartItems.map((item) => (
+            {cartItems.map((item) => {
+              // Récupérer le produit actuel depuis Redux pour avoir les données à jour
+              const currentProduct = currentProducts.find(p => p.id === item.product.id);
+              const productToDisplay = currentProduct || item.product; // Utiliser le produit actuel si disponible
+              
+              return (
               <TouchableOpacity
                 key={item.product.id}
                 style={styles.cartItem}
-                onPress={() => navigation.navigate('ProductDetail', { product: item.product })}
+                onPress={async () => {
+                  // Si le produit n'est pas dans Redux, le récupérer depuis la DB
+                  let productForDetail = currentProduct;
+                  if (!productForDetail) {
+                    try {
+                      productForDetail = await productService.getProductById(item.product.id);
+                    } catch (error) {
+                      console.warn('⚠️ Erreur lors de la récupération du produit:', error);
+                      productForDetail = item.product; // Fallback sur le produit du panier
+                    }
+                  }
+                  navigation.navigate('ProductDetail', { product: productForDetail });
+                }}
                 activeOpacity={0.85}
               >
                 <Image 
@@ -167,9 +259,39 @@ export default function CartScreen({ navigation }) {
                 />
 
                 <View style={styles.itemDetails}>
-                  <Text style={styles.itemName} numberOfLines={2}>
-                    {item.product.name}
-                  </Text>
+                  <View style={styles.itemNameRow}>
+                    <Text style={styles.itemName} numberOfLines={2}>
+                      {productToDisplay.name}
+                    </Text>
+                    {(() => {
+                      // Utiliser le stock actuel du produit
+                      const currentStock = currentProduct 
+                        ? (typeof currentProduct.stock === 'number' ? currentProduct.stock : null)
+                        : (typeof item.product.stock === 'number' ? item.product.stock : null);
+                      const isOutOfStock = currentStock !== null && currentStock === 0;
+                      const isInsufficientStock = currentStock !== null && item.quantity > currentStock;
+                      
+                      if (isOutOfStock) {
+                        return (
+                          <View style={styles.outOfStockBadge}>
+                            <Ionicons name="close-circle" size={12} color="#FFFFFF" />
+                            <Text style={styles.outOfStockText}>Rupture</Text>
+                          </View>
+                        );
+                      }
+                      
+                      if (isInsufficientStock) {
+                        return (
+                          <View style={styles.insufficientStockBadge}>
+                            <Ionicons name="warning" size={12} color="#FFFFFF" />
+                            <Text style={styles.insufficientStockText}>Stock insuffisant</Text>
+                          </View>
+                        );
+                      }
+                      
+                      return null;
+                    })()}
+                  </View>
 
                   <View style={styles.metaRow}>
                     <Ionicons name="leaf-outline" size={12} color={ACCENT} />
@@ -179,13 +301,13 @@ export default function CartScreen({ navigation }) {
                   </View>
 
                   <View style={styles.itemPriceRow}>
-                    {item.product.old_price && (
+                    {productToDisplay.old_price && (
                       <Text style={styles.itemOldPrice}>
-                        {formatPrice(item.product.old_price, item.product.currency)}
+                        {formatPrice(productToDisplay.old_price, productToDisplay.currency)}
                       </Text>
                     )}
                     <Text style={styles.itemPrice}>
-                      {formatPrice(item.product.price, item.product.currency)}
+                      {formatPrice(productToDisplay.price, productToDisplay.currency)}
                     </Text>
                   </View>
 
@@ -204,16 +326,35 @@ export default function CartScreen({ navigation }) {
 
                       <Text style={styles.quantityText}>{item.quantity}</Text>
 
-                      <TouchableOpacity
-                        style={styles.quantityButton}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          handleQuantityChange(item.product.id, item.quantity + 1);
-                        }}
-                        activeOpacity={0.9}
-                      >
-                        <Ionicons name="add" size={16} color={TEXT} />
-                      </TouchableOpacity>
+                      {(() => {
+                        // Utiliser le stock actuel du produit
+                        const currentStock = currentProduct 
+                          ? (typeof currentProduct.stock === 'number' ? currentProduct.stock : null)
+                          : (typeof item.product.stock === 'number' ? item.product.stock : null);
+                        const isOutOfStock = currentStock !== null && currentStock === 0;
+                        const isMaxStock = currentStock !== null && item.quantity >= currentStock;
+                        const isDisabled = isOutOfStock || isMaxStock;
+
+                        return (
+                          <TouchableOpacity
+                            style={[styles.quantityButton, isDisabled && styles.quantityButtonDisabled]}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              if (!isDisabled) {
+                                handleQuantityChange(item.product.id, item.quantity + 1);
+                              }
+                            }}
+                            activeOpacity={isDisabled ? 1 : 0.9}
+                            disabled={isDisabled}
+                          >
+                            <Ionicons 
+                              name="add" 
+                              size={16} 
+                              color={isDisabled ? SUBTLE : TEXT} 
+                            />
+                          </TouchableOpacity>
+                        );
+                      })()}
                     </View>
 
                     <TouchableOpacity
@@ -229,7 +370,8 @@ export default function CartScreen({ navigation }) {
                   </View>
                 </View>
               </TouchableOpacity>
-            ))}
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -265,14 +407,21 @@ export default function CartScreen({ navigation }) {
           </View>
 
           <TouchableOpacity
-            style={styles.checkoutButton}
+            style={[styles.checkoutButton, hasStockIssues && styles.checkoutButtonDisabled]}
             onPress={handleCheckout}
-            disabled={isProcessing || loading}
-            activeOpacity={0.92}
+            disabled={isProcessing || loading || hasStockIssues}
+            activeOpacity={hasStockIssues ? 1 : 0.92}
           >
-            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+            <Ionicons 
+              name={hasStockIssues ? "warning" : "arrow-forward"} 
+              size={18} 
+              color="#FFFFFF" 
+            />
             <Text style={styles.checkoutButtonText}>
-              {isProcessing || loading ? 'Traitement...' : 'Passer la commande'}
+              {hasStockIssues 
+                ? 'Stock insuffisant' 
+                : (isProcessing || loading ? 'Traitement...' : 'Passer la commande')
+              }
             </Text>
           </TouchableOpacity>
         </View>
@@ -357,12 +506,49 @@ const styles = StyleSheet.create({
   itemDetails: {
     flex: 1,
   },
+  itemNameRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+    gap: 8,
+  },
   itemName: {
+    flex: 1,
     fontSize: 15,
     fontWeight: '700',
     color: TEXT,
-    marginBottom: 6,
     lineHeight: 20,
+  },
+  outOfStockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: DANGER,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  outOfStockText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  insufficientStockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  insufficientStockText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
   metaRow: {
     flexDirection: 'row',
@@ -419,6 +605,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
+  },
+  quantityButtonDisabled: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+    opacity: 0.5,
   },
   quantityText: {
     minWidth: 26,
@@ -548,6 +739,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 14,
     marginBottom: 8,
+  },
+  checkoutButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.6,
   },
   checkoutButtonText: {
     color: '#FFFFFF',

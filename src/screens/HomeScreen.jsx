@@ -43,8 +43,12 @@ import {
 } from '../store/client';
 import { useNotifications } from '../hooks/useNotifications';
 import { useRequireAuth } from '../hooks/useRequireAuth';
+import { CategorySkeleton, ProductCardSkeleton } from '../components/Skeleton';
 
 const { width, height } = Dimensions.get('window');
+const CARD_PADDING = 16;
+const CARD_GAP = 12;
+const CARD_WIDTH = (width - CARD_PADDING * 2 - CARD_GAP) / 2; // 2 cards par ligne
 
 export default function HomeScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -170,7 +174,7 @@ export default function HomeScreen({ navigation }) {
               { opacity: headerOpacity }
             ]}
           >
-            <Container style={styles.headerContent}>
+            <Container style={styles.headerContent} padding="none">
               <View style={styles.logoContainer}>
                 <Image 
                   source={require('../../assets/Dream_logo.png')}
@@ -206,7 +210,7 @@ export default function HomeScreen({ navigation }) {
           </Animated.View>
     
           {/* Barre de recherche (elle scrolle aussi) */}
-          <Container style={styles.searchSection}>
+          <Container style={styles.searchSection} >
             <SearchBar
               onPress={(query) => navigation.navigate('Search', { initialQuery: query })}
               placeholder="Rechercher produits, fermes..."
@@ -301,7 +305,7 @@ export default function HomeScreen({ navigation }) {
                           style={styles.categoryGradient}
                         >
                           <View style={styles.categoryIconContainer}>
-                            <Ionicons name={getCategoryIcon(category.name)} size={22} color={iconColor} />
+                            <Ionicons name={getCategoryIcon(category.name)} size={18} color={iconColor} />
                           </View>
                           <Text style={styles.categoryLabel} numberOfLines={1}>
                             {category.name}
@@ -315,9 +319,10 @@ export default function HomeScreen({ navigation }) {
                   </TouchableOpacity>
                 </Animated.View>
               )) : (
-                <View style={styles.loadingContainer}>
-                  <Text style={styles.loadingText}>Chargement...</Text>
-                </View>
+                // Skeleton pour les catégories
+                Array.from({ length: 8 }).map((_, index) => (
+                  <CategorySkeleton key={`category-skeleton-${index}`} />
+                ))
               )}
             </ScrollView>
           </Container>
@@ -350,7 +355,7 @@ export default function HomeScreen({ navigation }) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.productsContainer}
             >
-              {(newProducts || []).slice(0, 4).map((product) => (
+              {(newProducts && newProducts.length > 0) ? newProducts.slice(0, 4).map((product) => (
                 <View key={product.id} style={styles.productCardWrapper}>
                   <ProductCard
                     product={product}
@@ -360,14 +365,19 @@ export default function HomeScreen({ navigation }) {
                     style={styles.productCard}
                   />
                 </View>
-              ))}
+              )) : (
+                // Skeleton pour les nouveaux produits
+                Array.from({ length: 4 }).map((_, index) => (
+                  <ProductCardSkeleton key={`new-product-skeleton-${index}`} width={160} />
+                ))
+              )}
             </ScrollView>
           </Container>
     
           <Divider style={styles.divider} />
     
           {/* Populaires */}
-          <Container style={styles.section}>
+          <Container style={styles.section} >
             <View style={styles.sectionHeaderCustom}>
               <View style={styles.sectionTitleGroup}>
                 <View style={[styles.sectionIconBadge, { backgroundColor: '#FFF5E6' }]}>
@@ -392,7 +402,7 @@ export default function HomeScreen({ navigation }) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.productsContainer}
             >
-              {(popularProducts || []).slice(0, 4).map((product) => (
+              {(popularProducts && popularProducts.length > 0) ? popularProducts.slice(0, 4).map((product) => (
                 <View key={product.id} style={styles.productCardWrapper}>
                   <ProductCard
                     product={product}
@@ -402,14 +412,19 @@ export default function HomeScreen({ navigation }) {
                     style={styles.productCard}
                   />
                 </View>
-              ))}
+              )) : (
+                // Skeleton pour les produits populaires
+                Array.from({ length: 4 }).map((_, index) => (
+                  <ProductCardSkeleton key={`popular-product-skeleton-${index}`} width={160} />
+                ))
+              )}
             </ScrollView>
           </Container>
     
           <Divider style={styles.divider} />
     
           {/* Promotions */}
-          <Container style={styles.section}>
+          <Container style={styles.section} >
             <View style={styles.sectionHeaderCustom}>
               <View style={styles.sectionTitleGroup}>
                 <View style={[styles.sectionIconBadge, { backgroundColor: '#FFE8E8' }]}>
@@ -434,7 +449,7 @@ export default function HomeScreen({ navigation }) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.productsContainer}
             >
-              {(promotionProducts || []).slice(0, 4).map((product) => (
+              {(promotionProducts && promotionProducts.length > 0) ? promotionProducts.slice(0, 4).map((product) => (
                 <View key={product.id} style={styles.productCardWrapper}>
                   <ProductCard
                     product={product}
@@ -444,14 +459,19 @@ export default function HomeScreen({ navigation }) {
                     style={styles.productCard}
                   />
                 </View>
-              ))}
+              )) : (
+                // Skeleton pour les produits en promotion
+                Array.from({ length: 4 }).map((_, index) => (
+                  <ProductCardSkeleton key={`promo-product-skeleton-${index}`} width={160} />
+                ))
+              )}
             </ScrollView>
           </Container>
     
           <Divider style={styles.divider} />
     
           {/* Tous les produits */}
-          <Container style={styles.section}>
+          <Container style={styles.section} >
             <View style={styles.sectionHeaderCustom}>
               <View style={styles.sectionTitleGroup}>
                 <View style={[styles.sectionIconBadge, { backgroundColor: '#E8F5E9' }]}>
@@ -471,33 +491,43 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
     
-            <FlatList
-              data={allProducts || []}
-              renderItem={({ item }) => (
-                <ProductCard
-                  product={item}
-                  navigation={navigation}
-                  variant="default"
-                  size="fullWidth"
-                  fullWidth={true}
-                  style={styles.allProductCard}
-                />
-              )}
-              keyExtractor={(item) => item.id}
-              numColumns={1}
-              scrollEnabled={false}
-              onEndReached={loadMoreProducts}
-              onEndReachedThreshold={0.5}
-              ListFooterComponent={renderFooter}
-              ListEmptyComponent={
-                <View style={styles.allProductsEmpty}>
-                  <Ionicons name="leaf-outline" size={24} color="#2F8F46" />
-                  <Text style={styles.allProductsEmptyText}>
-                    Aucun produit disponible pour le moment.
-                  </Text>
-                </View>
-              }
-            />
+            {loading && allProducts.length === 0 ? (
+              // Skeleton pour tous les produits lors du chargement initial (2 par ligne)
+              <View style={styles.productsRow}>
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <ProductCardSkeleton key={`all-product-skeleton-${index}`} width={CARD_WIDTH} />
+                ))}
+              </View>
+            ) : (
+              <FlatList
+                data={allProducts || []}
+                renderItem={({ item }) => (
+                  <ProductCard
+                    product={item}
+                    navigation={navigation}
+                    variant="default"
+                    size="medium"
+                    fullWidth={false}
+                    style={styles.allProductCard}
+                  />
+                )}
+                keyExtractor={(item) => item.id}
+                numColumns={2}
+                columnWrapperStyle={styles.productsRow}
+                scrollEnabled={false}
+                onEndReached={loadMoreProducts}
+                onEndReachedThreshold={0.5}
+                ListFooterComponent={renderFooter}
+                ListEmptyComponent={
+                  <View style={styles.allProductsEmpty}>
+                    <Ionicons name="leaf-outline" size={24} color="#2F8F46" />
+                    <Text style={styles.allProductsEmptyText}>
+                      Aucun produit disponible pour le moment.
+                    </Text>
+                  </View>
+                }
+              />
+            )}
           </Container>
     
           <View style={styles.spacer} />
@@ -546,6 +576,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 16,
   },
   logoContainer: {
     flexDirection: 'row',
@@ -614,7 +645,6 @@ const styles = StyleSheet.create({
   searchSection: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-  
   },
   searchBar: {
     width: '100%',
@@ -628,7 +658,7 @@ const styles = StyleSheet.create({
   // Hero Section Premium avec gradient
   heroSection: {
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 10,
   },
   heroGradient: {
     borderRadius: 24,
@@ -719,7 +749,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
   },
   sectionTitleGroup: {
     flexDirection: 'row',
@@ -761,44 +791,48 @@ const styles = StyleSheet.create({
   },
   // Catégories modernes avec gradient
   categoriesContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     paddingVertical: 6,
+    paddingLeft: 0,
     gap: 3,
   },
   categoryCard: {
-    borderRadius: 18,
+    borderRadius: 12,
     overflow: 'hidden',
-    marginRight: 10,
+    marginRight: 8,
     borderWidth: 1,
     borderColor: 'rgba(47, 143, 70, 0.12)',
     backgroundColor: '#FFFFFF',
     shadowColor: 'rgba(33, 112, 55, 0.18)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   categoryGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    minWidth: 92,
-    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 120,
+    gap: 8,
   },
   categoryIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(76, 175, 80, 0.12)',
+    flexShrink: 0,
   },
   categoryLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
     color: '#1F2937',
-    textAlign: 'center',
-    letterSpacing: 0.2,
+    textAlign: 'left',
+    letterSpacing: 0.1,
+    flex: 1,
   },
   categoryBadge: {
     position: 'absolute',
@@ -812,8 +846,9 @@ const styles = StyleSheet.create({
   },
   // Produits
   productsContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     paddingVertical: 6,
+    paddingLeft: 0,
     gap: 14,
   },
   productCardWrapper: {
@@ -899,8 +934,13 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 16,
   },
-  allProductCard: {
+  productsRow: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 0,
     marginBottom: 12,
+  },
+  allProductCard: {
+    marginBottom: 0,
   },
   allProductsEmpty: {
     alignItems: 'center',

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
+import SafeAreaWrapper from '../../../components/SafeAreaWrapper';
 
 import {
   fetchProducts,
@@ -363,6 +364,12 @@ function ScrollingHeader({
                   icon: 'pause-circle-outline',
                   color: '#F44336',
                 },
+                {
+                  id: 'out_of_stock',
+                  label: 'Rupture de stock',
+                  icon: 'alert-circle-outline',
+                  color: '#FF9800',
+                },
               ]}
               keyExtractor={(item) => String(item.id)}
               horizontal
@@ -400,6 +407,15 @@ function ScrollingHeader({
           color="#F44336"
           value={displayProducts.filter((p) => !p.is_active).length}
           label="Inactifs"
+        />
+        <StatCard
+          icon="alert-circle-outline"
+          color="#FF9800"
+          value={displayProducts.filter((p) => {
+            const stock = p.stock;
+            return stock !== null && stock !== undefined && stock === 0;
+          }).length}
+          label="Rupture"
         />
       </View>
 
@@ -551,7 +567,7 @@ export default function ProductsManagement({ navigation, route }) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaWrapper style={styles.container}>
       {/* Header + Search FIXES */}
       <FixedHeader
         navigation={navigation}
@@ -618,7 +634,7 @@ export default function ProductsManagement({ navigation, route }) {
           windowSize={10}
         />
       )}
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 

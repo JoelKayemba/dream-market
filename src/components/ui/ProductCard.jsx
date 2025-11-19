@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Image, Alert, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { toggleCartItem, selectIsInCart } from '../../store/cartSlice';
@@ -8,13 +8,19 @@ import { useRequireAuth } from '../../hooks/useRequireAuth';
 import { formatPrice } from '../../utils/currency';
 import { farmService } from '../../backend';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_PADDING = 16;
+const CARD_GAP = 12;
+const CARD_WIDTH = (SCREEN_WIDTH - CARD_PADDING * 2 - CARD_GAP) / 2; // 2 cards par ligne
+
 export default function ProductCard({
   product,
   variant = 'default',
   size = 'medium',
   fullWidth = false,
   onPress,
-  navigation
+  navigation,
+  style
 }) {
   const dispatch = useDispatch();
   const isInCart = useSelector(state => selectIsInCart(state, product.id));
@@ -30,22 +36,26 @@ export default function ProductCard({
   const handleAddToCart = (e) => {
     e.stopPropagation();
     requireAuth(() => {
+      // Vérifier le stock disponible
+      const stock = typeof product.stock === 'number' ? product.stock : null;
+      const isOutOfStock = stock !== null && stock === 0;
+
+      if (isOutOfStock) {
+        Alert.alert(
+          'Produit indisponible',
+          'Ce produit est actuellement en rupture de stock.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
       const wasInCart = isInCart;
       dispatch(toggleCartItem({ product, quantity: 1 }));
 
       if (wasInCart) {
-        Alert.alert('Produit retiré du panier', `${product.name} a été retiré de votre panier.`);
+        // Pas d'alerte pour le retrait, juste un feedback visuel
       } else {
-        Alert.alert(
-          'Produit ajouté au panier !',
-          `${product.name} a été ajouté à votre panier.`,
-          [
-            { text: 'Continuer', style: 'cancel' },
-            navigation
-              ? { text: 'Voir le panier', onPress: () => navigation.navigate('Cart') }
-              : { text: 'Fermer', style: 'default' },
-          ]
-        );
+        // Feedback visuel seulement, pas d'alerte
       }
     });
   };
@@ -53,28 +63,20 @@ export default function ProductCard({
   const handleToggleFavorite = (e) => {
     e.stopPropagation();
     requireAuth(() => {
-      const wasFavorite = isFavorite;
       toggleProductFavorite(product);
-      Alert.alert(
-        wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris !',
-        wasFavorite
-          ? `${product.name} a été retiré de vos favoris.`
-          : `${product.name} a été ajouté à vos favoris.`
-      );
     });
   };
 
   const imageSource = product.images?.[0] || product.image;
-  const imageHeight = size === 'small' ? 120 : size === 'large' ? 200 : 150;
-  const ratingValue = product.rating ? Number(product.rating).toFixed(1) : '—';
-  const reviewCount = product.review_count || 0;
+  const imageHeight = fullWidth ? 140 : 120;
   const rawFarmName = product.farms?.name;
   const farmName = rawFarmName || 'Dream Market';
   const isDreamMarket =
     (rawFarmName || '').trim().toLowerCase() === 'dream market' ||
     (!product.farms && !product.farm_id);
 
-  const openFarmDetail = async () => {
+  const openFarmDetail = async (e) => {
+    e?.stopPropagation();
     if (!navigation || isDreamMarket) return;
     try {
       let farm = product.farms;
@@ -115,17 +117,28 @@ export default function ProductCard({
     product.discount && `-${product.discount}%`,
   ].filter(Boolean);
 
+  // Description courte (max 60 caractères)
+  const shortDescription = product.short_description || product.description || '';
+  const displayDescription = shortDescription.length > 60 
+    ? shortDescription.substring(0, 60) + '...' 
+    : shortDescription;
+
+  // Stock info
+  const stock = typeof product.stock === 'number' ? product.stock : null;
+  const isOutOfStock = stock !== null && stock === 0;
+
   return (
     <TouchableOpacity
       style={[
         styles.cardShell,
         fullWidth && styles.cardShellFullWidth,
+        style
       ]}
       onPress={handlePress}
-      activeOpacity={0.92}
+      activeOpacity={0.9}
     >
-      <View style={styles.card}>
-        {/* Media */}
+      <View style={[styles.card, isOutOfStock && styles.cardOutOfStock]}>
+        {/* Image */}
         <View style={styles.media}>
           <Image
             source={{ uri: imageSource }}
@@ -133,20 +146,29 @@ export default function ProductCard({
             resizeMode="cover"
           />
 
-          {/* Bouton favori discret */}
+          {/* Overlay pour rupture de stock */}
+          {isOutOfStock && (
+            <View style={styles.outOfStockOverlay}>
+              <View style={styles.outOfStockBadge}>
+                <Text style={styles.outOfStockText}>Rupture</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Bouton favori */}
           <TouchableOpacity
             style={styles.favoriteBtn}
             onPress={handleToggleFavorite}
-            activeOpacity={0.85}
+            activeOpacity={0.8}
           >
             <Ionicons
               name={isFavorite ? 'heart' : 'heart-outline'}
-              size={18}
-              color={isFavorite ? '#DC2626' : '#111827'}
+              size={16}
+              color={isFavorite ? '#DC2626' : '#FFFFFF'}
             />
           </TouchableOpacity>
 
-          {/* Chips neutres */}
+          {/* Chips badges */}
           {highlightChips.length > 0 && (
             <View style={styles.chipsRow}>
               {highlightChips.map((label, idx) => (
@@ -158,66 +180,67 @@ export default function ProductCard({
           )}
         </View>
 
-        {/* Corps */}
+        {/* Contenu */}
         <View style={styles.body}>
-          {/* Titre + Prix */}
-          <View style={styles.headerRow}>
-            <Text style={styles.name} numberOfLines={2}>
-              {product.name}
+          {/* Nom */}
+          <Text style={styles.name} numberOfLines={2}>
+            {product.name}
+          </Text>
+
+          {/* Description */}
+          {displayDescription && (
+            <Text style={styles.description} numberOfLines={2}>
+              {displayDescription}
             </Text>
-            <View style={styles.priceBox}>
-              <Text style={styles.priceText}>{formatPrice(product.price, product.currency)}</Text>
+          )}
+
+          {/* Prix et ferme */}
+          <View style={styles.priceRow}>
+            <View style={styles.priceContainer}>
+              <Text style={styles.price}>{formatPrice(product.price, product.currency)}</Text>
+              {product.old_price && (
+                <Text style={styles.oldPrice}>{formatPrice(product.old_price, product.currency)}</Text>
+              )}
             </View>
+            {!isDreamMarket && (
+              <TouchableOpacity
+                onPress={openFarmDetail}
+                style={styles.farmBtn}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="leaf-outline" size={12} color="#6B7280" />
+              </TouchableOpacity>
+            )}
           </View>
 
-          {product.old_price ? (
-            <Text style={styles.oldPrice}>{formatPrice(product.old_price, product.currency)}</Text>
-          ) : null}
-
-          {/* Ferme */}
-          <TouchableOpacity
-            onPress={openFarmDetail}
-            activeOpacity={isDreamMarket ? 1 : 0.85}
-            style={[styles.farmRow, isDreamMarket && styles.farmRowDisabled]}
-            disabled={isDreamMarket}
-          >
-            <Ionicons name="leaf-outline" size={14} color={isDreamMarket ? '#9CA3AF' : '#374151'} />
-            <Text style={[styles.farmText, isDreamMarket && styles.farmTextDisabled]} numberOfLines={1}>
-              {farmName}
-            </Text>
-            {!isDreamMarket && <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />}
-          </TouchableOpacity>
-
-          {/* Meta : note + qty */}
-          <View style={styles.metaRow}>
+          {/* Footer : Stock et bouton ajouter */}
+          <View style={styles.footer}>
+            {stock !== null && (
+              <View style={styles.stockInfo}>
+                <Ionicons 
+                  name={isOutOfStock ? 'close-circle' : 'cube-outline'} 
+                  size={12} 
+                  color={isOutOfStock ? '#DC2626' : '#6B7280'} 
+                />
+                <Text style={[styles.stockText, isOutOfStock && styles.stockTextOut]}>
+                  {isOutOfStock ? 'Rupture' : `${stock} en stock`}
+                </Text>
+              </View>
+            )}
             
-
-            {product.stock ? (
-              <View style={styles.qtyPill}>
-                <Ionicons name="cube-outline" size={12} color="#374151" />
-                <Text style={styles.qtyText}>{product.stock}</Text>
-              </View>
-            ) : null}
-             {/* Action */}
-              <View style={styles.actionRow}>
-                <TouchableOpacity
-                  style={[styles.cartBtn, isInCart ? styles.cartBtnFilled : styles.cartBtnOutline]}
-                  onPress={handleAddToCart}
-                  activeOpacity={0.9}
-                >
-                  <Ionicons
-                    name={isInCart ? 'checkmark-circle-outline' : 'cart-outline'}
-                    size={16}
-                    color={isInCart ? '#FFFFFF' : '#111827'}
-                  />
-                  <Text style={[styles.cartBtnText, isInCart && styles.cartBtnTextFilled]}>
-                    {isInCart ? 'Dans le panier' : 'Ajouter'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+            <TouchableOpacity
+              style={[styles.addBtn, isInCart && styles.addBtnActive]}
+              onPress={handleAddToCart}
+              activeOpacity={0.8}
+              disabled={isOutOfStock}
+            >
+              <Ionicons
+                name={isInCart ? 'checkmark' : 'add'}
+                size={18}
+                color={isInCart ? '#FFFFFF' : (isOutOfStock ? '#9CA3AF' : '#111827')}
+              />
+            </TouchableOpacity>
           </View>
-
-         
         </View>
       </View>
     </TouchableOpacity>
@@ -225,199 +248,180 @@ export default function ProductCard({
 }
 
 const styles = StyleSheet.create({
-  // shell
+  // Container
   cardShell: {
-    width: 220,
-    marginRight: 12,
-    marginBottom: 16,
+    width: CARD_WIDTH,
+    marginBottom: CARD_GAP,
   },
   cardShellFullWidth: {
-    width: '100%',
-    marginRight: 0,
+    width: CARD_WIDTH,
   },
 
-  // card container
+  // Card
   card: {
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(17,24,39,0.06)', // gris très léger
+    borderColor: '#F3F4F6',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardOutOfStock: {
+    opacity: 0.7,
   },
 
-  // media
+  // Image
   media: {
     position: 'relative',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F9FAFB',
+    width: '100%',
   },
   image: {
     width: '100%',
   },
+  outOfStockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  outOfStockBadge: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  outOfStockText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
   favoriteBtn: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    height: 32,
-    width: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(17,24,39,0.08)',
+    backdropFilter: 'blur(10px)',
   },
   chipsRow: {
     position: 'absolute',
-    left: 10,
-    bottom: 10,
+    left: 8,
+    bottom: 8,
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,
     flexWrap: 'wrap',
   },
   chip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(17,24,39,0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   chipText: {
-    fontSize: 11,
+    fontSize: 9,
     color: '#374151',
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 
-  // body
+  // Body
   body: {
     padding: 12,
     gap: 8,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
   name: {
-    flex: 1,
-    fontSize: 14.5,
-    lineHeight: 20,
+    fontSize: 14,
     fontWeight: '700',
     color: '#111827',
+    lineHeight: 18,
+    letterSpacing: 0.2,
   },
-  priceBox: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: 'rgba(17,24,39,0.06)',
-  },
-  priceText: {
-    color: '#111827',
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
-  oldPrice: {
+  description: {
     fontSize: 12,
     color: '#6B7280',
-    textDecorationLine: 'line-through',
+    lineHeight: 16,
+    marginTop: -4,
   },
-
-  farmRow: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: 'rgba(17,24,39,0.06)',
-  },
-  farmText: {
-    color: '#374151',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  farmRowDisabled: {
-    opacity: 0.6,
-  },
-  farmTextDisabled: {
-    color: '#9CA3AF',
-  },
-
-  metaRow: {
-    marginTop: 2,
+  priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 4,
   },
-  ratingRow: {
+  priceContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     gap: 6,
+    flex: 1,
   },
-  ratingValue: {
+  price: {
+    fontSize: 16,
+    fontWeight: '800',
     color: '#111827',
-    fontSize: 12.5,
-    fontWeight: '700',
+    letterSpacing: 0.3,
   },
-  ratingCount: {
-    color: '#6B7280',
+  oldPrice: {
     fontSize: 12,
+    color: '#9CA3AF',
+    textDecorationLine: 'line-through',
+    fontWeight: '500',
   },
-  qtyPill: {
-    flexDirection: 'row',
+  farmBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: 'rgba(17,24,39,0.06)',
-  },
-  qtyText: {
-    fontSize: 11.5,
-    color: '#374151',
-    fontWeight: '600',
+    justifyContent: 'center',
   },
 
-  // actions
-  actionRow: {
-    marginTop: 6,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  cartBtn: {
+  // Footer
+  footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
+    justifyContent: 'space-between',
+    marginTop: 4,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
   },
-  cartBtnOutline: {
-    backgroundColor: '#FFFFFF',
+  stockInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  stockText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  stockTextOut: {
+    color: '#DC2626',
+  },
+  addBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(17,24,39,0.12)',
+    borderColor: '#E5E7EB',
   },
-  cartBtnFilled: {
+  addBtnActive: {
     backgroundColor: '#111827',
-  },
-  cartBtnText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  cartBtnTextFilled: {
-    color: '#FFFFFF',
+    borderColor: '#111827',
   },
 });

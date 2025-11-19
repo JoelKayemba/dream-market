@@ -83,6 +83,18 @@ export default function App() {
         store.dispatch({
           type: 'auth/logout/fulfilled'
         });
+        // Vider le panier lors de la déconnexion
+        store.dispatch({
+          type: 'cart/switchUser',
+          payload: null
+        });
+        store.dispatch({
+          type: 'cart/clearCartSync'
+        });
+      } else if (event === 'SIGNED_IN' && session?.user) {
+        // Charger le panier lors de la connexion
+        const { loadCart } = require('./src/store/cartSlice');
+        store.dispatch(loadCart());
       }
     });
 
@@ -104,6 +116,9 @@ export default function App() {
       if (result.payload && result.type.endsWith('/fulfilled')) {
         // Utilisateur déjà connecté, aller directement à MainApp
         setInitialRoute('MainApp');
+        // Charger le panier de l'utilisateur connecté
+        const { loadCart } = require('./src/store/cartSlice');
+        store.dispatch(loadCart());
       } else {
         // Pas de session, vérifier l'onboarding
         if (onboardingCompleted) {

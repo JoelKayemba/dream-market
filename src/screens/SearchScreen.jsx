@@ -527,19 +527,23 @@ export default function SearchScreen({ navigation, route }) {
             {searchResults.products.length > 0 && (
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>Produits ({searchResults.products.length})</Text>
-                <View style={styles.cardsGrid}>
-                  {searchResults.products.slice(0, 6).map((product) => (
+                <FlatList
+                  data={searchResults.products.slice(0, 6)}
+                  renderItem={({ item }) => (
                     <ProductCard
-                      key={product.id}
-                      product={product}
+                      product={item}
                       navigation={navigation}
                       variant="default"
-                      size="large"
-                      fullWidth={true}
+                      size="medium"
+                      fullWidth={false}
                       style={styles.productCard}
                     />
-                  ))}
-                </View>
+                  )}
+                  keyExtractor={(item) => item.id}
+                  numColumns={2}
+                  columnWrapperStyle={styles.productsRow}
+                  scrollEnabled={false}
+                />
                 {searchResults.products.length > 6 && (
                   <TouchableOpacity 
                     style={styles.seeMoreButton}
@@ -610,19 +614,32 @@ export default function SearchScreen({ navigation, route }) {
         )}
 
         {activeTab === 'products' && (
-          <View style={styles.cardsGrid}>
-            {searchResults.products.map((product) => (
+          <FlatList
+            data={searchResults.products}
+            renderItem={({ item }) => (
               <ProductCard
-                key={product.id}
-                product={product}
+                product={item}
                 navigation={navigation}
                 variant="default"
-                size="large"
-                fullWidth={true}
+                size="medium"
+                fullWidth={false}
                 style={styles.productCard}
               />
-            ))}
-          </View>
+            )}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            columnWrapperStyle={styles.productsRow}
+            scrollEnabled={false}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Ionicons name="search-outline" size={48} color="#E0E0E0" />
+                <Text style={styles.emptyStateTitle}>Aucun produit trouvé</Text>
+                <Text style={styles.emptyStateText}>
+                  Essayez avec d'autres mots-clés.
+                </Text>
+              </View>
+            }
+          />
         )}
 
         {activeTab === 'farms' && (
@@ -776,7 +793,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   resultsContainer: {
-    padding: 16,
+    padding: 5,
   },
   resultsSummary: {
     flexDirection: 'row',
@@ -830,12 +847,15 @@ const styles = StyleSheet.create({
   },
   sectionContainer: {
     marginBottom: 24,
+    paddingHorizontal: 0,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#283106',
-    marginBottom: 16,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    letterSpacing: 0.3,
   },
   resultItem: {
     flexDirection: 'row',
@@ -898,14 +918,22 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   resultsGrid: {
-    padding: 16,
+    padding: 0,
   },
   cardsGrid: {
-    gap: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  productsRow: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 12,
   },
   productCard: {
-    width: '100%',
-    marginBottom: 16,
+    marginBottom: 0,
   },
   farmCard: {
     width: '100%',

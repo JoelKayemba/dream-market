@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, FlatList, Dimensions, TouchableOpacity, Text, RefreshControl, ActivityIndicator } from 'react-native';
 import { 
-  Container, 
-  SearchBar,
-  SectionHeader,
-  Divider,
   FarmCard,
+  Divider,
   ScreenWrapper 
 } from '../components/ui';
 import { useDispatch, useSelector } from 'react-redux';
@@ -16,9 +13,12 @@ import {
   selectClientFarmsPagination,
   fetchFarms
 } from '../store/client';
-import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
+const CARD_PADDING = 16;
+const CARD_GAP = 12;
+const CARD_WIDTH = (width - CARD_PADDING * 2 - CARD_GAP) / 2;
 
 export default function FarmsScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -27,7 +27,6 @@ export default function FarmsScreen({ navigation }) {
   const loadingMore = useSelector(selectClientFarmsLoadingMore);
   const pagination = useSelector(selectClientFarmsPagination);
   
-  const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -36,15 +35,13 @@ export default function FarmsScreen({ navigation }) {
 
   const loadData = async (page = 0, refresh = false) => {
     try {
-      console.log(`📥 [FarmsScreen] Loading farms - page: ${page}, refresh: ${refresh}, search: ${searchQuery || 'none'}`);
-      const result = await dispatch(fetchFarms({
+      await dispatch(fetchFarms({
         page,
         refresh,
-        search: searchQuery || null
+        search: null
       }));
-      console.log(`✅ [FarmsScreen] Farms loaded:`, result.payload);
     } catch (error) {
-      console.error('❌ [FarmsScreen] Erreur lors du chargement des données:', error);
+      console.error('Erreur lors du chargement des données:', error);
     }
   };
 
@@ -59,14 +56,12 @@ export default function FarmsScreen({ navigation }) {
     }
   };
 
-  // Charger plus d'éléments
   const loadMore = useCallback(() => {
     if (!loadingMore && pagination.hasMore && !refreshing) {
       loadData(pagination.page + 1, false);
     }
-  }, [loadingMore, pagination.hasMore, pagination.page, refreshing, searchQuery]);
+  }, [loadingMore, pagination.hasMore, pagination.page, refreshing]);
 
-  // Footer pour le chargement
   const renderFooter = () => {
     if (!loadingMore) return null;
     return (
@@ -78,116 +73,8 @@ export default function FarmsScreen({ navigation }) {
   };
 
   const handleFarmPress = (farm) => {
-    navigation.navigate('FarmDetail', { farm: farm });
+    navigation.navigate('FarmDetail', { farm });
   };
-
-  const handleViewProducts = (farm) => {
-    navigation.navigate('AllProducts', { farmId: farm.id });
-  };
-
-  const handleContact = (farm) => {
-    const { openWhatsApp, openPhoneCall, openEmail } = require('../utils/contactInfo');
-    const { Linking } = require('react-native');
-    const { Alert } = require('react-native');
-    
-    // Construire les options de contact avec les informations spécifiques de la ferme
-    const options = [];
-    
-    if (farm.contact?.phone) {
-      options.push({
-        text: 'Appeler',
-        onPress: () => openPhoneCall(farm.contact.phone),
-        style: 'default',
-      });
-      options.push({
-        text: 'WhatsApp',
-        onPress: () => openWhatsApp(farm.contact.phone, `Bonjour, je souhaite des informations concernant ${farm.name}`),
-        style: 'default',
-      });
-    }
-    
-    if (farm.contact?.email) {
-      options.push({
-        text: 'Email',
-        onPress: () => openEmail(farm.contact.email, `Demande d'informations - ${farm.name}`),
-        style: 'default',
-      });
-    }
-    
-    if (farm.contact?.website) {
-      options.push({
-        text: 'Site web',
-        onPress: () => {
-          const url = farm.contact.website.startsWith('http') ? farm.contact.website : `https://${farm.contact.website}`;
-          Linking.openURL(url).catch(err => console.error('Erreur ouverture URL:', err));
-        },
-        style: 'default',
-      });
-    }
-    
-    if (options.length === 0) {
-      Alert.alert(
-        'Contact non disponible',
-        'Les informations de contact de cette ferme ne sont pas disponibles.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-    
-    options.push({
-      text: 'Annuler',
-      style: 'cancel',
-    });
-    
-    Alert.alert(
-      `Contacter ${farm.name}`,
-      'Comment souhaitez-vous contacter cette ferme ?',
-      options,
-      { cancelable: true }
-    );
-  };
-
-  const getFilteredFarms = () => {
-    if (!farms || !Array.isArray(farms)) {
-      console.log('⚠️ [FarmsScreen] farms is not an array:', farms);
-      return [];
-    }
-    console.log(`✅ [FarmsScreen] Total farms loaded: ${farms.length}`, farms.map(f => ({ id: f.id, name: f.name })));
-    // Si on a une recherche locale, filtrer côté client
-    // Sinon, les données sont déjà filtrées côté serveur
-    if (searchQuery.trim()) {
-      const lowerQuery = searchQuery.toLowerCase();
-      const filtered = farms.filter(farm =>
-        farm.name?.toLowerCase().includes(lowerQuery) ||
-        (farm.description && farm.description.toLowerCase().includes(lowerQuery)) ||
-        (farm.specialty && farm.specialty.toLowerCase().includes(lowerQuery)) ||
-        (farm.location && farm.location.toLowerCase().includes(lowerQuery)) ||
-        (farm.region && farm.region.toLowerCase().includes(lowerQuery))
-      );
-      console.log(`🔍 [FarmsScreen] Filtered farms: ${filtered.length}`);
-      return filtered;
-    }
-    return farms;
-  };
-
-  // Recharger quand la recherche change
-  useEffect(() => {
-    if (searchQuery) {
-      const timeoutId = setTimeout(() => {
-        loadData(0, true);
-      }, 500);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [searchQuery]);
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <MaterialIcons name="agriculture" size={64} color="#4CAF50" />
-        <Text style={styles.loadingText}>Chargement des fermes...</Text>
-      </View>
-    );
-  }
 
   return (
     <ScreenWrapper edges={['top', 'left', 'right']}>
@@ -203,85 +90,86 @@ export default function FarmsScreen({ navigation }) {
           />
         }
       >
-        {/* Header avec titre et barre de recherche */}
-        <View style={styles.headerContainer}>
-          <Container style={styles.header}>
-            <View style={styles.titleContainer}>
-              <MaterialIcons name="agriculture" size={32} color="#4CAF50" style={styles.titleIcon} />
-              <Text style={styles.title}>
-                Nos Fermes Partenaires
-              </Text>
+        {/* Header simple et élégant */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <View>
+              <Text style={styles.title}>Fermes</Text>
+              <Text style={styles.subtitle}>Nos partenaires agricoles</Text>
             </View>
-            <Text style={styles.subtitle}>
-              Découvrez des fermes familiales passionnées et leurs produits d'exception
-            </Text>
-            
-            {/* Barre de recherche */}
-            <Container style={styles.searchSection}>
-              <SearchBar
-                placeholder="Rechercher des fermes, produits, régions..."
-                onPress={(query) => navigation.navigate('Search', { initialQuery: query })}
-              />
-            </Container>
-          </Container>
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={() => navigation.navigate('Search')}
+            >
+              <Ionicons name="search-outline" size={22} color="#283106" />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        
-
-       
-
-        <Divider style={styles.divider} />
+        <Divider />
 
         {/* Section Toutes les fermes */}
-        <Container style={styles.section}>
-          <SectionHeader
-            title="Toutes nos fermes"
-            subtitle="Explorez notre réseau de fermes partenaires"
-            style={styles.fullWidthHeader}
-            icon="grid"
-          />
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Toutes les fermes</Text>
+              <Text style={styles.sectionSubtitle}>Réseau de fermes partenaires</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AllFarms')}
+              style={styles.viewAllButton}
+            >
+              <Text style={styles.viewAllText}>Tout voir</Text>
+              <Ionicons name="chevron-forward" size={16} color="#4CAF50" />
+            </TouchableOpacity>
+          </View>
           
-          <FlatList
-            data={getFilteredFarms()}
-            renderItem={({ item, index }) => (
-              <FarmCard
-                farm={item}
-                navigation={navigation}
-                onPress={handleFarmPress}
-                onViewProducts={handleViewProducts}
-                onContact={handleContact}
-                variant="featured"
-                style={[
-                  styles.gridFarmCard,
-                  index % 2 === 0 ? styles.cardEven : styles.cardOdd
-                ]}
-              />
-            )}
-            keyExtractor={(item) => String(item.id || item.name || Math.random())}
-            numColumns={2}
-            scrollEnabled={false}
-            onEndReached={loadMore}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={renderFooter}
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <MaterialIcons name="search-off" size={64} color="#CCCCCC" />
-                <Text style={styles.emptyStateTitle}>Aucune ferme trouvée</Text>
-                <Text style={styles.emptyStateText}>
-                  Aucune ferme n'est disponible pour le moment.
-                </Text>
-              </View>
-            }
-          />
-        </Container>
+          {loading && farms.length === 0 ? (
+            <View style={styles.skeletonContainer}>
+              {Array.from({ length: 4 }).map((_, index) => (
+                <View key={`farm-skeleton-${index}`} style={styles.skeletonCard} />
+              ))}
+            </View>
+          ) : (
+            <FlatList
+              data={farms || []}
+              renderItem={({ item }) => (
+                <View style={styles.farmCardWrapper}>
+                  <FarmCard
+                    farm={item}
+                    navigation={navigation}
+                    onPress={handleFarmPress}
+                    variant="default"
+                    style={styles.farmCard}
+                  />
+                </View>
+              )}
+              keyExtractor={(item) => String(item.id || item.name || Math.random())}
+              numColumns={1}
+              scrollEnabled={false}
+              onEndReached={loadMore}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={renderFooter}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <Ionicons name="leaf-outline" size={48} color="#E0E0E0" />
+                  <Text style={styles.emptyStateTitle}>Aucune ferme</Text>
+                  <Text style={styles.emptyStateText}>
+                    Aucune ferme disponible pour le moment.
+                  </Text>
+                </View>
+              }
+            />
+          )}
+        </View>
 
         {/* Call to Action */}
-        <Container style={styles.ctaSection}>
+        <View style={styles.ctaSection}>
           <View style={styles.ctaCard}>
-            <MaterialIcons name="contact-support" size={48} color="#4CAF50" />
+            <Ionicons name="business-outline" size={40} color="#4CAF50" />
             <Text style={styles.ctaTitle}>Vous êtes producteur ?</Text>
             <Text style={styles.ctaText}>
-              Rejoignez notre réseau de fermes partenaires et valorisez vos produits
+              Rejoignez notre réseau de fermes partenaires
             </Text>
             <TouchableOpacity 
               style={styles.ctaButton}
@@ -293,7 +181,9 @@ export default function FarmsScreen({ navigation }) {
               <Text style={styles.ctaButtonText}>Nous contacter</Text>
             </TouchableOpacity>
           </View>
-        </Container>
+        </View>
+
+        <View style={styles.spacer} />
       </ScrollView>
     </ScreenWrapper>
   );
@@ -302,147 +192,89 @@ export default function FarmsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  headerContainer: {
-    backgroundColor: '#F8FDF8',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    marginBottom: 8,
+    backgroundColor: '#F8FAF9',
   },
   header: {
-    paddingVertical: 20,
-    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
   },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  titleIcon: {
-    marginRight: 12,
-  },
-  title: {
-    color: '#283106',
-    fontWeight: '700',
-    fontSize: 28,
-    lineHeight: 32,
-    textAlign: 'center',
-  },
-  subtitle: {
-    color: '#777E5C',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-    paddingHorizontal: 20,
-  },
-  searchSection: {
-    paddingVertical: 0,
-    paddingHorizontal: 0,
-    width: '100%',
-  },
-  divider: {
-    marginVertical: 8,
-  },
-  statsSection: {
-    paddingVertical: 24,
-  },
-  statsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  statsTitle: {
-    color: '#283106',
-    fontWeight: '700',
-    fontSize: 20,
-    textAlign: 'center',
-    marginLeft: 8,
-  },
-  statsGrid: {
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
-  },
-  statItem: {
     alignItems: 'center',
-    flex: 1,
-    paddingHorizontal: 8,
   },
-  statIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  statNumber: {
-    color: '#283106',
-    fontWeight: '700',
-    fontSize: 24,
+  title: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: 0.3,
     marginBottom: 4,
   },
-  statLabel: {
-    color: '#777E5C',
-    fontSize: 12,
-    textAlign: 'center',
+  subtitle: {
+    fontSize: 14,
+    color: '#6B7280',
     fontWeight: '500',
-    lineHeight: 16,
+  },
+  searchButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   section: {
-    paddingVertical: 24,
+    paddingVertical: 12,
   },
-  fullWidthHeader: {
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 4,
+    letterSpacing: 0.3,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#F0F8F0',
+  },
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4CAF50',
+  },
+  skeletonContainer: {
+    paddingHorizontal: 16,
+  },
+  farmCardWrapper: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  farmCard: {
     width: '100%',
   },
-  allFarmsGrid: {
-    flexDirection: 'column',
-    gap: 16,
-    marginTop: 16,
-  },
-  gridFarmCard: {
-    marginBottom: 8,
+  skeletonCard: {
     width: '100%',
-  },
-  cardEven: {
-    backgroundColor: '#FAFFFA',
-  },
-  cardOdd: {
-    backgroundColor: '#FFFFFF',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 20,
-    backgroundColor: '#FFFFFF',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#777E5C',
-    fontStyle: 'italic',
-    marginTop: 16,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#666666',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#999999',
-    textAlign: 'center',
-    lineHeight: 20,
+    height: 200,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 16,
+    marginBottom: 12,
   },
   footerLoader: {
     paddingVertical: 20,
@@ -452,55 +284,65 @@ const styles = StyleSheet.create({
   footerLoaderText: {
     marginTop: 8,
     fontSize: 12,
-    color: '#777E5C',
+    color: '#6B7280',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#6B7280',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   ctaSection: {
     paddingVertical: 24,
-    paddingHorizontal: 0,
+    paddingHorizontal: 16,
   },
   ctaCard: {
     backgroundColor: '#F0F8F0',
     borderRadius: 20,
-    padding: 32,
+    padding: 24,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E0F0E0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    marginHorizontal: 20,
   },
   ctaTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#283106',
+    color: '#111827',
     marginTop: 16,
     marginBottom: 8,
     textAlign: 'center',
   },
   ctaText: {
     fontSize: 14,
-    color: '#777E5C',
+    color: '#6B7280',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
     lineHeight: 20,
   },
   ctaButton: {
     backgroundColor: '#4CAF50',
-    paddingHorizontal: 32,
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 25,
-    shadowColor: '#4CAF50',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: 20,
   },
   ctaButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  spacer: {
+    height: 24,
   },
 });

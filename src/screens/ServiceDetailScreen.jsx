@@ -76,9 +76,9 @@ export default function ServiceDetailScreen({ route, navigation }) {
   const reviewCount = service.review_count || service.reviewCount || 0;
 
   const highlightChips = [
-    service.category ? { label: service.category, icon: 'layers-outline', color: '#1E88E5' } : null,
-    deliveryTime ? { label: deliveryTime, icon: 'time-outline', color: '#2F8F46' } : null,
-    service.coverage ? { label: service.coverage, icon: 'navigate-outline', color: '#9BE7AA' } : null,
+    service.category ? { label: service.category, icon: 'layers-outline' } : null,
+    deliveryTime ? { label: deliveryTime, icon: 'time-outline' } : null,
+    service.coverage ? { label: service.coverage, icon: 'navigate-outline' } : null,
   ].filter(Boolean);
 
   const metricsData = [
@@ -120,7 +120,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
     },
     { 
       icon: 'time-outline', 
-      label: 'Horaires', 
+      label: '', 
       value: CONTACT_INFO.hours,
       action: null
     },
@@ -132,24 +132,19 @@ export default function ServiceDetailScreen({ route, navigation }) {
 
   const FeatureItem = ({ feature }) => (
     <View style={styles.featureChip}>
-      <Ionicons name="checkmark-circle-outline" size={12} color="#2F8F46" />
+      <Ionicons name="checkmark-circle-outline" size={12} color="#6B7280" />
       <Text style={styles.featureChipText}>{feature}</Text>
     </View>
   );
 
   return (
     <ScreenWrapper style={styles.container}>
-      <ExpoLinearGradient
-        colors={['#1B3A28', '#2F8F46']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.headerGradient}
-      >
+      <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         
         <View style={styles.headerContent}>
@@ -166,11 +161,11 @@ export default function ServiceDetailScreen({ route, navigation }) {
         >
           <Ionicons 
             name={isFavorite ? 'heart' : 'heart-outline'} 
-            size={20} 
-            color="#FFFFFF"
+            size={24} 
+            color={isFavorite ? "#EF4444" : "#6B7280"}
           />
         </TouchableOpacity>
-      </ExpoLinearGradient>
+      </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.imageSection}>
@@ -190,10 +185,10 @@ export default function ServiceDetailScreen({ route, navigation }) {
               {highlightChips.map((chip, index) => (
                 <View
                   key={`${chip.label}-${index}`}
-                  style={[styles.imageChip, { borderColor: chip.color, backgroundColor: `${chip.color}1A` }]}
+                  style={styles.imageChip}
                 >
-                  <Ionicons name={chip.icon} size={14} color={chip.color} />
-                  <Text style={[styles.imageChipText, { color: chip.color }]}>{chip.label}</Text>
+                  <Ionicons name={chip.icon} size={14} color="#111827" />
+                  <Text style={styles.imageChipText}>{chip.label}</Text>
                 </View>
               ))}
             </View>
@@ -201,36 +196,31 @@ export default function ServiceDetailScreen({ route, navigation }) {
         </View>
 
         <View style={styles.heroWrapper}>
-          <ExpoLinearGradient
-            colors={['#2F8F46', '#3FB15A', '#59C06C']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroCard}
-          >
+          <View style={styles.heroCard}>
             <Text style={styles.heroTitle}>{service.name}</Text>
             <Text style={styles.heroSubtitle}>{heroSubtitle}</Text>
             <View style={styles.heroMetaRow}>
               {service.price ? (
                 <View style={styles.heroMetaChip}>
-                  <Ionicons name="cash-outline" size={16} color="#E8F9EC" />
+                  <Ionicons name="cash-outline" size={16} color="#6B7280" />
                   <Text style={styles.heroMetaText}>{service.price}</Text>
                 </View>
               ) : null}
               {priceDetails ? (
                 <View style={styles.heroMetaChip}>
-                  <Ionicons name="pricetag-outline" size={16} color="#E8F9EC" />
+                  <Ionicons name="pricetag-outline" size={16} color="#6B7280" />
                   <Text style={styles.heroMetaText}>{priceDetails}</Text>
                 </View>
               ) : null}
             </View>
-          </ExpoLinearGradient>
+          </View>
         </View>
 
         <View style={styles.metricsRow}>
           {metricsData.map((metric, index) => (
             <View key={`${metric.label}-${index}`} style={styles.metricCard}>
               <View style={styles.metricIcon}>
-                <Ionicons name={metric.icon} size={18} color="#2F8F46" />
+                <Ionicons name={metric.icon} size={18} color="#6B7280" />
               </View>
               <Text style={styles.metricValue}>{metric.value}</Text>
               <Text style={styles.metricLabel}>{metric.label}</Text>
@@ -292,7 +282,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
             <Text style={styles.sectionHeading}>Contact</Text>
             {contactRows.map((item, index) => (
               <TouchableOpacity
-                key={`${item.label}-${index}`}
+                key={`${item.label || item.icon}-${index}`}
                 style={[styles.sectionRow, index === contactRows.length - 1 && styles.sectionRowLast, !item.action && styles.sectionRowDisabled]}
                 onPress={item.action || undefined}
                 disabled={!item.action}
@@ -300,7 +290,9 @@ export default function ServiceDetailScreen({ route, navigation }) {
               >
                 <View style={styles.sectionRowLeft}>
                   <Ionicons name={item.icon} size={16} color="#6B8E6F" />
-                  <Text style={styles.sectionRowLabel}>{item.label}</Text>
+                  {item.label ? (
+                    <Text style={styles.sectionRowLabel}>{item.label}</Text>
+                  ) : null}
                 </View>
                 <Text style={styles.sectionRowValue}>{item.value}</Text>
                 {item.action && (
@@ -325,7 +317,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
           <Ionicons
             name="chatbubbles-outline"
             size={18}
-            color="#0F2A17"
+            color="#fff"
           />
           <Text style={styles.footerButtonText}>
             Nous contacter
@@ -346,45 +338,48 @@ export default function ServiceDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F7F4',
+    backgroundColor: '#F9FAFB',
   },
-  headerGradient: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 22,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerButtonActive: {
-    backgroundColor: 'rgba(255, 107, 107, 0.35)',
+    backgroundColor: '#FEF2F2',
   },
   headerContent: {
     flex: 1,
     alignItems: 'center',
     gap: 4,
+    paddingHorizontal: 12,
   },
   headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 0.4,
+    color: '#111827',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    textAlign: 'center',
   },
   headerSubtitle: {
-    color: 'rgba(255, 255, 255, 0.78)',
+    color: '#6B7280',
     fontSize: 13,
     fontWeight: '500',
-    letterSpacing: 0.2,
+    textAlign: 'center',
   },
   scrollView: {
     flex: 1,
@@ -417,58 +412,62 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
     borderWidth: 1,
-    backgroundColor: 'rgba(47, 143, 70, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   imageChipText: {
     fontSize: 12,
     fontWeight: '600',
+    color: '#111827',
   },
   heroWrapper: {
     paddingHorizontal: 16,
-    marginTop: -38,
+    marginTop: 16,
   },
   heroCard: {
-    borderRadius: 28,
-    padding: 24,
+    borderRadius: 16,
+    padding: 20,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: '#E5E7EB',
   },
   heroTitle: {
-    color: '#FFFFFF',
+    color: '#111827',
     fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: 0.4,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   heroSubtitle: {
-    color: 'rgba(247, 255, 249, 0.85)',
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 8,
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 6,
+    lineHeight: 20,
   },
   heroMetaRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 20,
+    gap: 8,
+    marginTop: 16,
   },
   heroMetaChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    backgroundColor: 'rgba(13, 52, 25, 0.35)',
+    borderColor: '#E5E7EB',
   },
   heroMetaText: {
-    color: '#E8F9EC',
-    fontSize: 12,
+    color: '#374151',
+    fontSize: 13,
     fontWeight: '600',
   },
   metricsRow: {
@@ -482,21 +481,16 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: (width - 16 * 2 - 12 * 2) / 3,
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(47, 143, 70, 0.1)',
-    shadowColor: '#214D31',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: '#E5E7EB',
   },
   metricIcon: {
     width: 34,
     height: 34,
-    borderRadius: 12,
-    backgroundColor: 'rgba(47, 143, 70, 0.12)',
+    borderRadius: 10,
+    backgroundColor: '#F9FAFB',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
@@ -513,25 +507,20 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   sectionCard: {
-    marginTop: 18,
+    marginTop: 16,
     marginHorizontal: 16,
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
+    borderRadius: 12,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(47, 143, 70, 0.08)',
-    shadowColor: '#214D31',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderColor: '#E5E7EB',
   },
   sectionHeading: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A3B1F',
+    color: '#111827',
     marginBottom: 12,
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   sectionBodyText: {
     fontSize: 14,
@@ -584,15 +573,15 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: 'rgba(47, 143, 70, 0.08)',
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: 'rgba(47, 143, 70, 0.18)',
+    borderColor: '#E5E7EB',
   },
   featureChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#2F8F46',
+    color: '#374151',
   },
   statsRow: {
     flexDirection: 'row',
@@ -622,7 +611,7 @@ const styles = StyleSheet.create({
   footer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(47, 143, 70, 0.12)',
+    borderTopColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
   },
   footerButton: {
@@ -631,14 +620,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     paddingVertical: 16,
-    borderRadius: 18,
-    backgroundColor: '#9BE7AC',
+    borderRadius: 12,
+    backgroundColor: '#111827',
   },
   footerButtonText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#0F2A17',
-    letterSpacing: 0.3,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
   },
   errorContainer: {
     flex: 1,

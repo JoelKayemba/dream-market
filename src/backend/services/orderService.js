@@ -287,7 +287,21 @@ export const orderService = {
   // Mettre à jour le statut d'une commande
   updateOrderStatus: async (orderId, status) => {
     try {
+      // Récupérer la commande actuelle pour connaître l'ancien statut
+      const { data: currentOrder, error: fetchError } = await supabase
+        .from('orders')
+        .select('status, items')
+        .eq('id', orderId)
+        .single();
+
+      if (fetchError) {
+        console.error('🔔 [orderService] Erreur lors de la récupération de la commande:', fetchError);
+        throw fetchError;
+      }
+
+      const oldStatus = currentOrder?.status;
       
+      // Mettre à jour le statut
       const { data, error } = await supabase
         .from('orders')
         .update({ 
@@ -302,7 +316,34 @@ export const orderService = {
         console.error('🔔 [orderService] Erreur Supabase:', error);
         throw error;
       }
+
+      // Gérer le stock selon le changement de statut
+      // Si on passe à 'confirmed', le trigger SQL diminue automatiquement le stock
+      // Mais on peut aussi appeler la fonction RPC manuellement pour plus de sécurité
+      if (status === 'confirmed' && oldStatus !== 'confirmed') {
+        try {
+          console.log(`📦 [orderService] Commande ${orderId} confirmée - Diminution du stock via trigger SQL`);
+          // Le trigger SQL devrait déjà gérer cela, mais on peut appeler la fonction RPC en backup
+          // await supabase.rpc('decrease_product_stock_on_order_confirmation', { order_id: orderId });
+        } catch (stockError) {
+          console.error('⚠️ [orderService] Erreur lors de la diminution du stock:', stockError);
+          // Ne pas bloquer la mise à jour du statut si le stock échoue
+        }
+      }
+
+      // Si on annule une commande qui était confirmée, restaurer le stock
+      if (status === 'cancelled' && oldStatus === 'confirmed') {
+        try {
+          console.log(`📦 [orderService] Commande ${orderId} annulée après confirmation - Restauration du stock`);
+          // Appeler une fonction RPC pour restaurer le stock (à créer dans Supabase)
+          await supabase.rpc('restore_product_stock_on_order_cancellation', { order_id: orderId });
+        } catch (restoreError) {
+          console.error('⚠️ [orderService] Erreur lors de la restauration du stock:', restoreError);
+          // Ne pas bloquer l'annulation si la restauration échoue
+        }
+      }
       
+      // Notifier le client du changement de statut
       try {
         await supabase.rpc('notify_client_order_status', {
           order_id: data.id,
@@ -337,11 +378,29 @@ export const orderService = {
   // Annuler une commande
   cancelOrder: async (orderId, reason = null) => {
     try {
+      // Récupérer la commande actuelle pour connaître son statut et ses notes
+      const { data: currentOrder, error: fetchError } = await supabase
+        .from('orders')
+        .select('status, notes')
+        .eq('id', orderId)
+        .single();
+
+      if (fetchError) {
+        console.error('🔔 [orderService] Erreur lors de la récupération de la commande:', fetchError);
+        throw fetchError;
+      }
+
+      const wasConfirmed = currentOrder?.status === 'confirmed';
+      const updatedNotes = reason 
+        ? `${currentOrder?.notes || ''}\nAnnulé: ${reason}`.trim()
+        : currentOrder?.notes || '';
+
+      // Mettre à jour le statut
       const { data, error } = await supabase
         .from('orders')
         .update({ 
           status: ORDER_STATUS.CANCELLED,
-          notes: reason ? `${data?.notes || ''}\nAnnulé: ${reason}` : data?.notes || '',
+          notes: updatedNotes,
           last_updated: new Date().toISOString(),
         })
         .eq('id', orderId)
@@ -349,6 +408,18 @@ export const orderService = {
         .single();
 
       if (error) throw error;
+
+      // Si la commande était confirmée, restaurer le stock
+      if (wasConfirmed) {
+        try {
+          console.log(`📦 [orderService] Commande ${orderId} annulée (était confirmée) - Restauration du stock`);
+          await supabase.rpc('restore_product_stock_on_order_cancellation', { order_id: orderId });
+        } catch (restoreError) {
+          console.error('⚠️ [orderService] Erreur lors de la restauration du stock:', restoreError);
+          // Ne pas bloquer l'annulation si la restauration échoue
+        }
+      }
+
       return data;
     } catch (error) {
       throw error;

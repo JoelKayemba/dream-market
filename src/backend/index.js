@@ -12,4 +12,5 @@ export { favoriteService } from './services/favoriteService';
 export { storageService } from './services/storageService';
 export { passwordResetService } from './services/passwordResetService';
 export { deliveryFeeService } from './services/deliveryFeeService';
+export { cartService } from './services/cartService';
 
