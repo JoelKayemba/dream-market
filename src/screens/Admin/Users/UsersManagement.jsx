@@ -48,7 +48,7 @@ export default function UsersManagement({ navigation }) {
   };
 
   const UserCard = ({ user }) => (
-    <View style={styles.userCard}>
+    <ScreenWrapper style={styles.userCard}>
       <View style={styles.userHeader}>
         <View style={styles.userInfo}>
           <Text style={styles.userName}>{user.name}</Text>
@@ -131,7 +131,7 @@ export default function UsersManagement({ navigation }) {
           )}
         </Container>
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }
 

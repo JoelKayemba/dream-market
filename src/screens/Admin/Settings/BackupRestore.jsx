@@ -94,7 +94,7 @@ export default function BackupRestore({ navigation }) {
   };
 
   const BackupCard = ({ backup }) => (
-    <View style={styles.backupCard}>
+    <ScreenWrapper style={styles.backupCard}>
       <View style={styles.backupHeader}>
         <View style={styles.backupInfo}>
           <Text style={styles.backupName}>{backup.name}</Text>
@@ -188,7 +188,7 @@ export default function BackupRestore({ navigation }) {
           </View>
         </Container>
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }
 

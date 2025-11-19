@@ -71,7 +71,7 @@ export default function UserRoles({ navigation }) {
   };
 
   const RoleCard = ({ role }) => (
-    <View style={styles.roleCard}>
+    <ScreenWrapper style={styles.roleCard}>
       <View style={styles.roleHeader}>
         <View style={styles.roleInfo}>
           <Text style={styles.roleName}>{role.label}</Text>
@@ -147,7 +147,7 @@ export default function UserRoles({ navigation }) {
           )}
         </Container>
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }
 

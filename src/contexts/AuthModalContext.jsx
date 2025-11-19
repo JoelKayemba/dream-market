@@ -2,9 +2,33 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Modal, View, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
-import LoginScreen from '../screens/LoginScreen';
-import RegisterScreen from '../screens/RegisterScreen';
-import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+
+// Import dynamique pour éviter les cycles de dépendances
+let LoginScreen = null;
+let RegisterScreen = null;
+let ForgotPasswordScreen = null;
+
+// Fonction pour charger les screens de manière différée
+const loadLoginScreen = () => {
+  if (!LoginScreen) {
+    LoginScreen = require('../screens/LoginScreen').default;
+  }
+  return LoginScreen;
+};
+
+const loadRegisterScreen = () => {
+  if (!RegisterScreen) {
+    RegisterScreen = require('../screens/RegisterScreen').default;
+  }
+  return RegisterScreen;
+};
+
+const loadForgotPasswordScreen = () => {
+  if (!ForgotPasswordScreen) {
+    ForgotPasswordScreen = require('../screens/ForgotPasswordScreen').default;
+  }
+  return ForgotPasswordScreen;
+};
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -112,12 +136,15 @@ export const AuthModalProvider = ({ children }) => {
 
     switch (modalType) {
       case 'register':
-        return <RegisterScreen navigation={mockNavigation} />;
+        const RegisterComponent = loadRegisterScreen();
+        return <RegisterComponent navigation={mockNavigation} />;
       case 'forgotPassword':
-        return <ForgotPasswordScreen navigation={mockNavigation} />;
+        const ForgotPasswordComponent = loadForgotPasswordScreen();
+        return <ForgotPasswordComponent navigation={mockNavigation} />;
       case 'login':
       default:
-        return <LoginScreen navigation={mockNavigation} />;
+        const LoginComponent = loadLoginScreen();
+        return <LoginComponent navigation={mockNavigation} />;
     }
   };
 

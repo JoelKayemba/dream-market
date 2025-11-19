@@ -213,21 +213,32 @@ export const updateCartItemQuantityWithSync = createAsyncThunk(
     const state = getState();
     const userId = state.auth?.user?.id;
     
-    // Mettre à jour localement
-    dispatch(updateCartItemQuantity({ productId, quantity }));
+    // Mettre à jour localement immédiatement (optimistic update)
+    // Utiliser le type d'action directement
+    dispatch({ type: 'cart/updateCartItemQuantitySync', payload: { productId, quantity } });
     
     // Synchroniser avec la DB si connecté
     if (userId) {
       try {
         if (quantity <= 0) {
           await cartService.removeCartItem(userId, productId);
+          console.log('✅ [Cart] Item supprimé de la DB (quantité 0):', productId);
         } else {
           await cartService.addOrUpdateCartItem(userId, productId, quantity);
+          console.log('✅ [Cart] Quantité mise à jour dans la DB:', productId, quantity);
         }
       } catch (error) {
         console.warn('⚠️ Erreur lors de la synchronisation DB:', error);
+        // En cas d'erreur, recharger le panier depuis la DB pour restaurer l'état
+        try {
+          await dispatch(loadCart());
+        } catch (reloadError) {
+          console.error('❌ [Cart] Erreur lors du rechargement du panier:', reloadError);
+        }
       }
     }
+    
+    return { productId, quantity };
   }
 );
 
@@ -238,17 +249,58 @@ export const removeFromCartWithSync = createAsyncThunk(
     const state = getState();
     const userId = state.auth?.user?.id;
     
-    // Mettre à jour localement
-    dispatch(removeFromCart(productId));
+    // Mettre à jour localement immédiatement (optimistic update)
+    // Utiliser le type d'action directement
+    dispatch({ type: 'cart/removeFromCartSync', payload: productId });
     
     // Synchroniser avec la DB si connecté
     if (userId) {
       try {
         await cartService.removeCartItem(userId, productId);
+        console.log('✅ [Cart] Item supprimé de la DB:', productId);
       } catch (error) {
         console.warn('⚠️ Erreur lors de la synchronisation DB:', error);
+        // En cas d'erreur, recharger le panier depuis la DB pour restaurer l'état
+        try {
+          await dispatch(loadCart());
+        } catch (reloadError) {
+          console.error('❌ [Cart] Erreur lors du rechargement du panier:', reloadError);
+        }
       }
     }
+    
+    return productId;
+  }
+);
+
+// Thunk pour vider le panier avec synchronisation DB
+export const clearCartWithSync = createAsyncThunk(
+  'cart/clearCartWithSync',
+  async (_, { getState, dispatch }) => {
+    const state = getState();
+    const userId = state.auth?.user?.id;
+    
+    // Mettre à jour localement immédiatement (optimistic update)
+    // Utiliser le type d'action directement
+    dispatch({ type: 'cart/clearCartSync' });
+    
+    // Synchroniser avec la DB si connecté
+    if (userId) {
+      try {
+        await cartService.clearUserCart(userId);
+        console.log('✅ [Cart] Panier vidé dans la DB');
+      } catch (error) {
+        console.warn('⚠️ Erreur lors de la synchronisation DB:', error);
+        // En cas d'erreur, recharger le panier depuis la DB pour restaurer l'état
+        try {
+          await dispatch(loadCart());
+        } catch (reloadError) {
+          console.error('❌ [Cart] Erreur lors du rechargement du panier:', reloadError);
+        }
+      }
+    }
+    
+    return true;
   }
 );
 

@@ -20,7 +20,7 @@ import {
   selectCartItemsCount,
   selectCartLoading,
   selectCartError,
-  clearCart
+  clearCartWithSync
 } from '../store/cartSlice';
 import { selectClientProducts } from '../store/client/productsSlice';
 import {
@@ -56,6 +56,8 @@ export default function CheckoutScreen({ navigation }) {
   const cartError = useSelector(selectCartError);
   const ordersLoading = useSelector(selectOrdersLoading);
   const ordersError = useSelector(selectOrdersError);
+  // Récupérer les produits actuels depuis Redux avec protection
+  const currentProducts = useSelector(selectClientProducts) || [];
 
   const [isProcessing, setIsProcessing] = useState(false);
   const { fee: deliveryFee, loading: deliveryFeeLoading } = useDeliveryFee();
@@ -106,9 +108,12 @@ export default function CheckoutScreen({ navigation }) {
   // Utilise le stock actuel du produit depuis Redux, pas celui stocké dans le panier
   const checkStockIssues = useMemo(() => {
     const issues = [];
+    // Protection : s'assurer que currentProducts est un tableau
+    const products = Array.isArray(currentProducts) ? currentProducts : [];
+    
     cartItems.forEach(item => {
       // Récupérer le produit actuel depuis Redux pour avoir le stock à jour
-      const currentProduct = currentProducts.find(p => p.id === item.product.id);
+      const currentProduct = products.find(p => p && p.id === item.product.id);
       // Utiliser le stock actuel si disponible, sinon celui du panier (fallback)
       const currentStock = currentProduct 
         ? (typeof currentProduct.stock === 'number' ? currentProduct.stock : null)
@@ -210,7 +215,7 @@ export default function CheckoutScreen({ navigation }) {
       };
 
       await dispatch(createOrder(orderData)).unwrap();
-      dispatch(clearCart());
+      dispatch(clearCartWithSync());
       setShowSuccessModal(true);
     } catch (error) {
       Alert.alert(

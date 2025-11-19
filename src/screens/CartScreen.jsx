@@ -4,9 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { ScreenWrapper } from '../components/ui';
 import { 
-  removeFromCart, 
-  updateCartItemQuantity, 
-  clearCart, 
+  removeFromCartWithSync, 
+  updateCartItemQuantityWithSync, 
+  clearCartWithSync, 
   loadCart,
   selectCartItems, 
   selectCartTotals,
@@ -90,14 +90,14 @@ export default function CartScreen({ navigation }) {
         [{ text: 'OK' }]
       );
       // Limiter à la quantité maximale disponible
-      dispatch(updateCartItemQuantity({ productId, quantity: stock }));
+      dispatch(updateCartItemQuantityWithSync({ productId, quantity: stock }));
       return;
     }
 
     if (newQuantity <= 0) {
-      dispatch(removeFromCart(productId));
+      dispatch(removeFromCartWithSync(productId));
     } else {
-      dispatch(updateCartItemQuantity({ productId, quantity: newQuantity }));
+      dispatch(updateCartItemQuantityWithSync({ productId, quantity: newQuantity }));
     }
   };
 
@@ -107,7 +107,7 @@ export default function CartScreen({ navigation }) {
       'Êtes-vous sûr de vouloir supprimer cet article du panier ?',
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Supprimer', style: 'destructive', onPress: () => dispatch(removeFromCart(productId)) }
+        { text: 'Supprimer', style: 'destructive', onPress: () => dispatch(removeFromCartWithSync(productId)) }
       ]
     );
   };
@@ -118,7 +118,7 @@ export default function CartScreen({ navigation }) {
       'Êtes-vous sûr de vouloir vider tout le panier ?',
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Vider', style: 'destructive', onPress: () => dispatch(clearCart()) }
+        { text: 'Vider', style: 'destructive', onPress: () => dispatch(clearCartWithSync()) }
       ]
     );
   };

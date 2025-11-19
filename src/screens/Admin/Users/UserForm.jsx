@@ -39,7 +39,7 @@ export default function UserForm({ route, navigation }) {
   };
 
   const RoleSelector = () => (
-    <View style={styles.selectorContainer}>
+    <ScreenWrapper style={styles.selectorContainer}>
       <Text style={styles.label}>Rôle *</Text>
       <View style={styles.selectorOptions}>
         {roles.map((role) => (
