@@ -34,6 +34,7 @@ import { useAuth } from '../hooks/useAuth';
 import { formatPrice, getCurrencySymbol } from '../utils/currency';
 import { useDeliveryFee } from '../hooks/useDeliveryFee';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { trackInteractionWithUserId } from '../utils/interactionTracker';
 
 const COLORS = {
   bg: '#F9FAFB',
@@ -215,6 +216,19 @@ export default function CheckoutScreen({ navigation }) {
       };
 
       await dispatch(createOrder(orderData)).unwrap();
+      
+      // Tracker les achats pour la personnalisation
+      if (user?.id) {
+        cartItems.forEach(item => {
+          trackInteractionWithUserId(user.id, {
+            type: 'purchase',
+            productId: item.product.id,
+            categoryId: item.product.category_id || item.product.categories?.id,
+            quantity: item.quantity,
+          });
+        });
+      }
+      
       dispatch(clearCartWithSync());
       setShowSuccessModal(true);
     } catch (error) {

@@ -15,6 +15,7 @@ import {
   toggleFavoriteBackend
 } from '../store/favoritesSlice';
 import { useAuth } from './useAuth';
+import { trackInteractionWithUserId } from '../utils/interactionTracker';
 
 export const useFavorites = () => {
   const dispatch = useDispatch();
@@ -66,6 +67,13 @@ export const useFavorites = () => {
   const addProductToFavorites = (product) => {
     if (user?.id) {
       dispatch(addToFavoritesBackend({ userId: user.id, itemType: 'product', itemId: product.id }));
+      
+      // Tracker l'ajout aux favoris pour la personnalisation
+      trackInteractionWithUserId(user.id, {
+        type: 'favorite',
+        productId: product.id,
+        categoryId: product.category_id || product.categories?.id,
+      });
     } else {
       console.error('❌ No user ID available for adding product to favorites');
     }

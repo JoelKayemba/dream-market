@@ -16,6 +16,7 @@ import {
   selectPopularProducts,
   selectNewProducts,
   selectPromotionProducts,
+  selectPersonalizedProducts,
   selectClientProductsLoading,
   selectClientProductsLoadingMore,
   selectClientProductsPagination,
@@ -23,7 +24,8 @@ import {
   fetchCategories,
   fetchPopularProducts,
   fetchNewProducts,
-  fetchPromotionProducts
+  fetchPromotionProducts,
+  fetchUserInteractions
 } from '../store/client';
 import { Ionicons } from '@expo/vector-icons';
 import { CategorySkeleton, ProductCardSkeleton } from '../components/Skeleton';
@@ -59,9 +61,11 @@ export default function ProductsScreen({ navigation, route }) {
   const popularProducts = useSelector(selectPopularProducts);
   const newProducts = useSelector(selectNewProducts);
   const promotionProducts = useSelector(selectPromotionProducts);
+  const personalizedProducts = useSelector(selectPersonalizedProducts);
   const loading = useSelector(selectClientProductsLoading);
   const loadingMore = useSelector(selectClientProductsLoadingMore);
   const pagination = useSelector(selectClientProductsPagination);
+  const userId = useSelector((state) => state.auth?.user?.id);
   
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -70,6 +74,13 @@ export default function ProductsScreen({ navigation, route }) {
   useEffect(() => {
     loadData();
   }, [dispatch]);
+
+  // Recharger les interactions quand l'utilisateur change
+  useEffect(() => {
+    if (userId) {
+      dispatch(fetchUserInteractions(userId));
+    }
+  }, [userId, dispatch]);
 
   const loadData = async (page = 0, refresh = false) => {
     try {
@@ -84,6 +95,11 @@ export default function ProductsScreen({ navigation, route }) {
         dispatch(fetchNewProducts()),
         dispatch(fetchPromotionProducts())
       ]);
+      
+      // Charger les interactions utilisateur pour la personnalisation
+      if (userId) {
+        dispatch(fetchUserInteractions(userId));
+      }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
     }
@@ -103,7 +119,19 @@ export default function ProductsScreen({ navigation, route }) {
   const onRefresh = async () => {
     try {
       setRefreshing(true);
-      await loadData(0, true);
+      // Recharger toutes les données avec refresh
+      await Promise.all([
+        dispatch(fetchProducts({ page: 0, refresh: true, categoryId: selectedCategory?.id || null })),
+        dispatch(fetchCategories()),
+        dispatch(fetchPopularProducts()),
+        dispatch(fetchNewProducts()),
+        dispatch(fetchPromotionProducts())
+      ]);
+      
+      // Recharger les interactions utilisateur
+      if (userId) {
+        await dispatch(fetchUserInteractions(userId));
+      }
     } catch (error) {
       console.error('Erreur lors du refresh:', error);
     } finally {
@@ -139,9 +167,11 @@ export default function ProductsScreen({ navigation, route }) {
   // Obtenir les produits filtrés
   const getFilteredProducts = () => {
     if (selectedCategory) {
+      // Si une catégorie est sélectionnée, utiliser les produits normaux filtrés
       return products.filter(product => product.categories?.name === selectedCategory.name);
     }
-    return products;
+    // Sinon, utiliser les produits personnalisés si disponibles
+    return personalizedProducts.length > 0 ? personalizedProducts : products;
   };
 
   const filteredProducts = getFilteredProducts();
@@ -198,7 +228,7 @@ export default function ProductsScreen({ navigation, route }) {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoriesContainer}
           >
-            {(categories && categories.length > 0) ? categories.map((category) => {
+            {((categories && categories.length > 0) && !refreshing) ? categories.map((category) => {
               const isSelected = selectedCategory?.id === category.id;
               const accentColor = category.color || '#4CAF50';
               const iconColor = isSelected ? '#FFFFFF' : accentColor;
@@ -273,7 +303,7 @@ export default function ProductsScreen({ navigation, route }) {
               </View>
             </View>
             
-            {loading && filteredProducts.length === 0 ? (
+            {(loading || refreshing) && filteredProducts.length === 0 ? (
               <View style={styles.productsRow}>
                 {Array.from({ length: 4 }).map((_, index) => (
                   <ProductCardSkeleton key={`product-skeleton-${index}`} width={CARD_WIDTH} />
@@ -335,7 +365,7 @@ export default function ProductsScreen({ navigation, route }) {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.productsContainer}
               >
-                {(newProducts && newProducts.length > 0) ? newProducts.slice(0, 4).map((product) => (
+                {(newProducts && newProducts.length > 0 && !refreshing) ? newProducts.slice(0, 4).map((product) => (
                   <ProductCard
                     key={product.id}
                     product={product}
@@ -376,7 +406,7 @@ export default function ProductsScreen({ navigation, route }) {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.productsContainer}
               >
-                {(popularProducts && popularProducts.length > 0) ? popularProducts.slice(0, 4).map((product) => (
+                {(popularProducts && popularProducts.length > 0 && !refreshing) ? popularProducts.slice(0, 4).map((product) => (
                   <ProductCard
                     key={product.id}
                     product={product}
@@ -417,7 +447,7 @@ export default function ProductsScreen({ navigation, route }) {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.productsContainer}
               >
-                {(promotionProducts && promotionProducts.length > 0) ? promotionProducts.slice(0, 4).map((product) => (
+                {(promotionProducts && promotionProducts.length > 0 && !refreshing) ? promotionProducts.slice(0, 4).map((product) => (
                   <ProductCard
                     key={product.id}
                     product={product}
@@ -453,7 +483,7 @@ export default function ProductsScreen({ navigation, route }) {
                 </TouchableOpacity>
               </View>
               
-              {loading && products.length === 0 ? (
+              {(loading || refreshing) && (personalizedProducts.length === 0 && products.length === 0) ? (
                 <View style={styles.productsRow}>
                   {Array.from({ length: 4 }).map((_, index) => (
                     <ProductCardSkeleton key={`all-skeleton-${index}`} width={CARD_WIDTH} />
@@ -461,7 +491,7 @@ export default function ProductsScreen({ navigation, route }) {
                 </View>
               ) : (
                 <FlatList
-                  data={products || []}
+                  data={personalizedProducts.length > 0 ? personalizedProducts : products}
                   renderItem={({ item }) => (
                     <ProductCard
                       product={item}

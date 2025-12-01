@@ -15,6 +15,7 @@ import {
   fetchFarms,
   fetchServices
 } from '../store/client';
+import { trackInteractionWithUserId } from '../utils/interactionTracker';
 
 export default function SearchScreen({ navigation, route }) {
   const dispatch = useDispatch();
@@ -41,6 +42,7 @@ export default function SearchScreen({ navigation, route }) {
   const productsLoading = useSelector(selectClientProductsLoading);
   const farmsLoading = useSelector(selectClientFarmsLoading);
   const servicesLoading = useSelector(selectClientServicesLoading);
+  const userId = useSelector((state) => state.auth?.user?.id);
 
   // Charger les données au montage du composant
   useEffect(() => {
@@ -274,6 +276,25 @@ export default function SearchScreen({ navigation, route }) {
       (service.coverage && service.coverage.toLowerCase().includes(lowerQuery)) ||
       (service.features && service.features.some(feature => feature.toLowerCase().includes(lowerQuery)))
     );
+
+    // Tracker la recherche pour la personnalisation (après le filtrage)
+    // On tracke seulement si on a trouvé au moins un produit correspondant
+    if (userId && filteredProducts.length > 0) {
+      // Utiliser le premier produit trouvé pour le tracking
+      const firstMatch = filteredProducts[0];
+      const productId = firstMatch?.id || null;
+      const categoryId = firstMatch?.category_id || firstMatch?.categories?.id || null;
+      
+      // Tracker avec le productId du premier produit trouvé
+      if (productId) {
+        trackInteractionWithUserId(userId, {
+          type: 'search',
+          productId: productId,
+          searchQuery: query,
+          categoryId: categoryId,
+        });
+      }
+    }
 
     setSearchResults({
       products: filteredProducts,

@@ -49,7 +49,7 @@ export const getCurrentAttempts = async (actionType) => {
 };
 
 /**
- * Enregistre une tentative échouée (seulement si on a déjà 3 tentatives)
+ * Enregistre une tentative échouée
  */
 export const recordFailedAttempt = async (actionType) => {
   try {
@@ -59,17 +59,19 @@ export const recordFailedAttempt = async (actionType) => {
     const now = Date.now();
     let attempts = existingData?.attempts || 0;
     let lastAttemptTime = existingData?.lastAttemptTime || now;
+    let blockCount = existingData?.blockCount || 0; // Nombre de fois qu'on a été bloqué
     
     // Si plus de 24h se sont écoulées, réinitialiser
     if (existingData && now - lastAttemptTime > 24 * 60 * 60 * 1000) {
       attempts = 0;
+      blockCount = 0;
     }
     
-    // Si on n'a pas encore atteint le seuil de tracking, on commence à 3
-    if (attempts < START_TRACKING_AFTER) {
-      attempts = START_TRACKING_AFTER;
-    }
+    // Vérifier si on était bloqué avant (temps écoulé = débloqué maintenant)
+    const wasBlockedBefore = existingData?.blockedUntil && now >= existingData.blockedUntil;
+    const isCurrentlyBlocked = existingData?.blockedUntil && now < existingData.blockedUntil;
     
+    // Incrémenter le nombre de tentatives (toutes les tentatives sont comptées)
     attempts += 1;
     
     // Ne bloquer qu'à partir de la 5ème tentative (après 4 échecs)
@@ -77,8 +79,28 @@ export const recordFailedAttempt = async (actionType) => {
     let waitTimeMinutes = 0;
     
     if (attempts >= MAX_ATTEMPTS) {
-      // Calculer le temps d'attente en fonction du nombre de tentatives au-delà du seuil
-      const waitTimeIndex = Math.min(attempts - MAX_ATTEMPTS, WAIT_TIMES.length - 1);
+      // Si on n'est pas actuellement bloqué, on peut bloquer à nouveau
+      if (!isCurrentlyBlocked) {
+        // Si on était bloqué avant (temps écoulé) et qu'on réessaie, c'est un nouveau blocage
+        if (wasBlockedBefore) {
+          blockCount = (blockCount || 0) + 1;
+        }
+        // Si c'est le premier blocage (exactement 5 tentatives)
+        else if (attempts === MAX_ATTEMPTS) {
+          blockCount = 1;
+        }
+        // Sinon, garder le blockCount existant
+        else {
+          blockCount = blockCount || 1;
+        }
+      } else {
+        // Si on est déjà bloqué, garder le blockCount existant
+        blockCount = blockCount || 1;
+      }
+      
+      // Calculer le temps d'attente en fonction du nombre de blocages
+      // Plus on est bloqué souvent, plus le temps augmente
+      const waitTimeIndex = Math.min(blockCount - 1, WAIT_TIMES.length - 1);
       waitTimeMinutes = WAIT_TIMES[waitTimeIndex];
       blockedUntil = now + (waitTimeMinutes * 60 * 1000);
     }
@@ -88,6 +110,7 @@ export const recordFailedAttempt = async (actionType) => {
       lastAttemptTime: now,
       blockedUntil,
       waitTimeMinutes,
+      blockCount, // Sauvegarder le nombre de blocages
     };
     
     await AsyncStorage.setItem(key, JSON.stringify(attemptData));
@@ -143,11 +166,12 @@ export const isBlocked = async (actionType) => {
       };
     }
     
-    // Si le temps de blocage est passé mais qu'on a encore des tentatives, réinitialiser
+    // Si le temps de blocage est passé, on n'est plus bloqué MAIS on garde les tentatives
+    // L'utilisateur peut réessayer, mais si ça échoue à nouveau, le blocage sera plus long
     if (data.attempts >= MAX_ATTEMPTS && data.blockedUntil && now >= data.blockedUntil) {
-      // Réinitialiser les tentatives après le temps d'attente
-      await resetAttempts(actionType);
-      return { blocked: false };
+      // Ne pas réinitialiser les tentatives, juste indiquer qu'on n'est plus bloqué
+      // Les tentatives restent enregistrées pour augmenter le temps au prochain blocage
+      return { blocked: false, attempts: data.attempts, blockCount: data.blockCount || 0 };
     }
     
     return { blocked: false, attempts: data.attempts };

@@ -13,4 +13,5 @@ export { storageService } from './services/storageService';
 export { passwordResetService } from './services/passwordResetService';
 export { deliveryFeeService } from './services/deliveryFeeService';
 export { cartService } from './services/cartService';
+export { personalizationService } from './services/personalizationService';
 

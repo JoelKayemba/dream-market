@@ -11,6 +11,7 @@ import {
   ScrollView,
   Image,
   BackHandler,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,16 +59,26 @@ export default function LoginScreen({ navigation }) {
   // Mettre à jour le temps restant
   useEffect(() => {
     if (blockedInfo && blockedInfo.blocked) {
+      // Initialiser le temps restant
+      setRemainingTime(blockedInfo.remainingSeconds || 0);
+      
       const interval = setInterval(() => {
-        const newRemaining = Math.max(0, blockedInfo.remainingSeconds - 1);
-        setRemainingTime(newRemaining);
-        
-        if (newRemaining === 0) {
-          checkBlockStatus();
-        }
+        setRemainingTime((prevTime) => {
+          const newTime = Math.max(0, prevTime - 1);
+          
+          if (newTime === 0) {
+            // Vérifier le statut quand le temps est écoulé
+            checkBlockStatus();
+          }
+          
+          return newTime;
+        });
       }, 1000);
       
       return () => clearInterval(interval);
+    } else {
+      // Réinitialiser le temps si on n'est plus bloqué
+      setRemainingTime(0);
     }
   }, [blockedInfo]);
 
@@ -76,6 +87,43 @@ export default function LoginScreen({ navigation }) {
     setBlockedInfo(status);
     if (status.blocked) {
       setRemainingTime(status.remainingSeconds);
+    }
+  };
+
+  // URLs des documents légaux
+  const legalLinks = {
+    privacyPolicy: 'https://dream-market-rdc-ecbd2be6.base44.app/privacy',
+    termsOfService: 'https://dream-market-rdc-ecbd2be6.base44.app/terms',
+  };
+
+  const handleOpenLegalLink = async (type) => {
+    try {
+      const url = type === 'privacy' ? legalLinks.privacyPolicy : legalLinks.termsOfService;
+      const title = type === 'privacy' ? 'Politique de confidentialité' : 'Conditions générales';
+      
+      // Vérifier si l'URL est valide
+      if (!url || !url.startsWith('http')) {
+        Alert.alert('Information', `${title} sera bientôt disponible.`);
+        return;
+      }
+
+      // Vérifier si on peut ouvrir l'URL
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        // Essayer quand même d'ouvrir (certains systèmes ne supportent pas canOpenURL correctement)
+        try {
+          await Linking.openURL(url);
+        } catch (openError) {
+          console.warn(`Impossible d'ouvrir ${title}:`, openError);
+          Alert.alert('Information', `${title} sera bientôt disponible.`);
+        }
+      }
+    } catch (error) {
+      console.warn(`Erreur lors de l'ouverture du lien légal:`, error);
+      // Ne pas afficher d'erreur à l'utilisateur, juste logger
+      // L'utilisateur peut toujours voir les liens même si l'URL n'est pas encore configurée
     }
   };
 
@@ -137,72 +185,43 @@ export default function LoginScreen({ navigation }) {
           navigation.replace('MainApp');
         }
       } else {
-        // Vérifier le nombre actuel de tentatives
-        const currentAttempts = await getCurrentAttempts('login');
-        
-        // Si on a moins de 3 tentatives, afficher seulement l'erreur normale
-        if (currentAttempts < 3) {
-          // Ne pas enregistrer, juste afficher l'erreur normale
-          // L'erreur est déjà gérée par le Redux store
-        } else {
-          // À partir de la 4ème tentative, enregistrer et gérer les avertissements
-          const attemptData = await recordFailedAttempt('login');
-          if (attemptData) {
-            // Afficher un avertissement seulement à partir de 4 tentatives
-            if (attemptData.attempts >= 4) {
-              if (attemptData.attempts >= 5 && attemptData.blockedUntil) {
-                const timeText = formatRemainingTime(
-                  Math.ceil((attemptData.blockedUntil - Date.now()) / 1000)
-                );
-                Alert.alert(
-                  'Trop de tentatives',
-                  `Vous avez dépassé le nombre maximum de tentatives. Veuillez patienter ${timeText} avant de réessayer.`,
-                  [{ text: 'OK' }]
-                );
-              } else if (attemptData.attempts === 4) {
-                Alert.alert(
-                  'Attention',
-                  'Vous avez effectué 4 tentatives. Après une 5ème tentative échouée, vous serez temporairement bloqué.',
-                  [{ text: 'OK' }]
-                );
-              }
-            }
-            checkBlockStatus();
+        // Enregistrer TOUTES les tentatives échouées
+        const attemptData = await recordFailedAttempt('login');
+        if (attemptData) {
+          // Mettre à jour le statut de blocage pour afficher le message dans l'UI
+          await checkBlockStatus();
+          
+          // Afficher une alerte seulement si bloqué (5 tentatives)
+          if (attemptData.attempts >= 5 && attemptData.blockedUntil) {
+            const timeText = formatRemainingTime(
+              Math.ceil((attemptData.blockedUntil - Date.now()) / 1000)
+            );
+            Alert.alert(
+              'Trop de tentatives',
+              `Vous avez dépassé le nombre maximum de tentatives. Veuillez patienter ${timeText} avant de réessayer.`,
+              [{ text: 'OK' }]
+            );
           }
         }
       }
     } catch (error) {
       console.error('Erreur de connexion:', error);
-      // Vérifier le nombre actuel de tentatives
-      const currentAttempts = await getCurrentAttempts('login');
-      
-      // Si on a moins de 3 tentatives, afficher seulement l'erreur normale
-      if (currentAttempts < 3) {
-        // Ne pas enregistrer, juste afficher l'erreur normale
-      } else {
-        // À partir de la 4ème tentative, enregistrer et gérer les avertissements
-        const attemptData = await recordFailedAttempt('login');
-        if (attemptData) {
-          // Afficher un avertissement seulement à partir de 4 tentatives
-          if (attemptData.attempts >= 4) {
-            if (attemptData.attempts >= 5 && attemptData.blockedUntil) {
-              const timeText = formatRemainingTime(
-                Math.ceil((attemptData.blockedUntil - Date.now()) / 1000)
-              );
-              Alert.alert(
-                'Trop de tentatives',
-                `Vous avez dépassé le nombre maximum de tentatives. Veuillez patienter ${timeText} avant de réessayer.`,
-                [{ text: 'OK' }]
-              );
-            } else if (attemptData.attempts === 4) {
-              Alert.alert(
-                'Attention',
-                'Vous avez effectué 4 tentatives. Après une 5ème tentative échouée, vous serez temporairement bloqué.',
-                [{ text: 'OK' }]
-              );
-            }
-          }
-          checkBlockStatus();
+      // Enregistrer TOUTES les tentatives échouées
+      const attemptData = await recordFailedAttempt('login');
+      if (attemptData) {
+        // Mettre à jour le statut de blocage pour afficher le message dans l'UI
+        await checkBlockStatus();
+        
+        // Afficher une alerte seulement si bloqué (5 tentatives)
+        if (attemptData.attempts >= 5 && attemptData.blockedUntil) {
+          const timeText = formatRemainingTime(
+            Math.ceil((attemptData.blockedUntil - Date.now()) / 1000)
+          );
+          Alert.alert(
+            'Trop de tentatives',
+            `Vous avez dépassé le nombre maximum de tentatives. Veuillez patienter ${timeText} avant de réessayer.`,
+            [{ text: 'OK' }]
+          );
         }
       }
     }
@@ -321,29 +340,31 @@ export default function LoginScreen({ navigation }) {
                   <View style={styles.blockedTextContainer}>
                     <Text style={styles.blockedTitle}>Accès temporairement bloqué</Text>
                     <Text style={styles.blockedText}>
-                      Vous avez dépassé le nombre maximum de tentatives. Veuillez patienter avant de réessayer.
+                      Vous avez dépassé le nombre maximum de tentatives de connexion. Veuillez patienter avant de réessayer.
                     </Text>
-                    <View style={styles.blockedTimerContainer}>
-                      <Ionicons name="time-outline" size={16} color="#DC2626" />
-                      <Text style={styles.blockedTimer}>
-                        Temps restant : {formatRemainingTime(remainingTime)}
-                      </Text>
-                    </View>
+                    {remainingTime > 0 && (
+                      <View style={styles.blockedTimerContainer}>
+                        <Ionicons name="time" size={18} color="#DC2626" />
+                        <Text style={styles.blockedTimer}>
+                          Temps restant : {formatRemainingTime(remainingTime)}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               )}
 
               {/* Avertissement avant blocage */}
-              {blockedInfo && !blockedInfo.blocked && blockedInfo.attempts >= 4 && (
+              {blockedInfo && !blockedInfo.blocked && blockedInfo.attempts && blockedInfo.attempts >= 4 && (
                 <View style={styles.warningContainer}>
                   <View style={styles.warningIconContainer}>
-                    <Ionicons name="warning-outline" size={20} color="#FF9800" />
+                    <Ionicons name="warning" size={16} color="#FFFFFF" />
                   </View>
                   <View style={styles.warningTextContainer}>
                     <Text style={styles.warningTitle}>Attention</Text>
                     <Text style={styles.warningText}>
-                      Vous avez effectué {blockedInfo.attempts} tentative{blockedInfo.attempts > 1 ? 's' : ''}. 
-                      {blockedInfo.attempts === 4 && ' Après une 5ème tentative échouée, vous serez temporairement bloqué.'}
+                      Vous avez effectué {blockedInfo.attempts} tentative{blockedInfo.attempts > 1 ? 's' : ''} échouée{blockedInfo.attempts > 1 ? 's' : ''}. 
+                      {blockedInfo.attempts === 4 && '\nAprès une 5ème tentative échouée, vous serez temporairement bloqué.'}
                     </Text>
                   </View>
                 </View>
@@ -405,6 +426,23 @@ export default function LoginScreen({ navigation }) {
                 <Text style={styles.registerText}>Pas encore de compte ? </Text>
                 <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
                   <Text style={styles.registerLinkText}>S'inscrire</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Liens légaux */}
+              <View style={styles.legalLinksContainer}>
+                <TouchableOpacity
+                  onPress={() => handleOpenLegalLink('privacy')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.legalLinkText}>Politique de confidentialité</Text>
+                </TouchableOpacity>
+                <Text style={styles.legalSeparator}> • </Text>
+                <TouchableOpacity
+                  onPress={() => handleOpenLegalLink('terms')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.legalLinkText}>Conditions générales</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -542,6 +580,93 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    gap: 12,
+  },
+  warningIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FF9800',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  warningTextContainer: {
+    flex: 1,
+  },
+  warningTitle: {
+    color: '#C2410C',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  warningText: {
+    color: '#9A3412',
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  blockedContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 2,
+    borderColor: '#FCA5A5',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  blockedIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  blockedTextContainer: {
+    flex: 1,
+  },
+  blockedTitle: {
+    color: '#991B1B',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  blockedText: {
+    color: '#7F1D1D',
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  blockedTimerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  blockedTimer: {
+    color: '#DC2626',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   forgotPasswordLink: {
     alignSelf: 'flex-end',
     marginBottom: 24,
@@ -609,5 +734,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     textDecorationLine: 'underline',
+  },
+  legalLinksContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 16,
+    paddingHorizontal: 20,
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  legalLinkText: {
+    color: '#6B7280',
+    fontSize: 12,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+  legalSeparator: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginHorizontal: 4,
   },
 });

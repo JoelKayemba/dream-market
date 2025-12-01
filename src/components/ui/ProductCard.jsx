@@ -7,6 +7,7 @@ import { useFavorites } from '../../hooks/useFavorites';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 import { formatPrice } from '../../utils/currency';
 import { farmService } from '../../backend';
+import { trackInteractionWithUserId } from '../../utils/interactionTracker';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_PADDING = 16;
@@ -27,6 +28,7 @@ export default function ProductCard({
   const { toggleProductFavorite, isProductFavorite } = useFavorites();
   const { requireAuth } = useRequireAuth();
   const isFavorite = isProductFavorite(product.id);
+  const userId = useSelector((state) => state.auth?.user?.id);
 
   const handlePress = () => {
     if (onPress) onPress();
@@ -52,6 +54,15 @@ export default function ProductCard({
       const wasInCart = isInCart;
       dispatch(toggleCartItem({ product, quantity: 1 }));
 
+      // Tracker l'ajout au panier pour la personnalisation
+      if (!wasInCart && userId) {
+        trackInteractionWithUserId(userId, {
+          type: 'cart_add',
+          productId: product.id,
+          categoryId: product.category_id || product.categories?.id,
+        });
+      }
+
       if (wasInCart) {
         // Pas d'alerte pour le retrait, juste un feedback visuel
       } else {
@@ -63,7 +74,17 @@ export default function ProductCard({
   const handleToggleFavorite = (e) => {
     e.stopPropagation();
     requireAuth(() => {
+      const wasFavorite = isFavorite;
       toggleProductFavorite(product);
+      
+      // Tracker l'ajout aux favoris pour la personnalisation
+      if (!wasFavorite && userId) {
+        trackInteractionWithUserId(userId, {
+          type: 'favorite',
+          productId: product.id,
+          categoryId: product.category_id || product.categories?.id,
+        });
+      }
     });
   };
 

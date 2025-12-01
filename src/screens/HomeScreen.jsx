@@ -26,12 +26,13 @@ import {
   ScreenWrapper 
 } from '../components/ui';
 import { selectCartItemsCount } from '../store/cartSlice';
-import { 
+import {
   selectClientCategories,
   selectPopularProducts,
   selectNewProducts,
   selectPromotionProducts,
   selectClientProducts,
+  selectPersonalizedProducts,
   selectClientProductsLoading,
   selectClientProductsLoadingMore,
   selectClientProductsPagination,
@@ -39,7 +40,8 @@ import {
   fetchPopularProducts,
   fetchNewProducts,
   fetchPromotionProducts,
-  fetchProducts
+  fetchProducts,
+  fetchUserInteractions
 } from '../store/client';
 import { useNotifications } from '../hooks/useNotifications';
 import { useRequireAuth } from '../hooks/useRequireAuth';
@@ -67,9 +69,11 @@ export default function HomeScreen({ navigation }) {
   const newProducts = useSelector(selectNewProducts);
   const promotionProducts = useSelector(selectPromotionProducts);
   const allProducts = useSelector(selectClientProducts);
+  const personalizedProducts = useSelector(selectPersonalizedProducts);
   const loading = useSelector(selectClientProductsLoading);
   const loadingMore = useSelector(selectClientProductsLoadingMore);
   const pagination = useSelector(selectClientProductsPagination);
+  const userId = useSelector((state) => state.auth?.user?.id);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -79,6 +83,13 @@ export default function HomeScreen({ navigation }) {
     loadData();
     startAnimations();
   }, []);
+
+  // Recharger les interactions quand l'utilisateur change
+  useEffect(() => {
+    if (userId) {
+      dispatch(fetchUserInteractions(userId));
+    }
+  }, [userId, dispatch]);
 
   // Charger plus de produits pour la section "Tous les produits"
   const loadMoreProducts = useCallback(() => {
@@ -114,15 +125,37 @@ export default function HomeScreen({ navigation }) {
         dispatch(fetchPromotionProducts()),
         dispatch(fetchProducts())
       ]);
+      
+      // Charger les interactions utilisateur pour la personnalisation
+      if (userId) {
+        dispatch(fetchUserInteractions(userId));
+      }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
     }
   };
 
   const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
+    try {
+      setRefreshing(true);
+      // Recharger toutes les données avec refresh
+      await Promise.all([
+        dispatch(fetchCategories()),
+        dispatch(fetchPopularProducts()),
+        dispatch(fetchNewProducts()),
+        dispatch(fetchPromotionProducts()),
+        dispatch(fetchProducts({ page: 0, refresh: true }))
+      ]);
+      
+      // Recharger les interactions utilisateur
+      if (userId) {
+        await dispatch(fetchUserInteractions(userId));
+      }
+    } catch (error) {
+      console.error('Erreur lors du refresh:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   // Gestionnaires d'événements
@@ -218,44 +251,7 @@ export default function HomeScreen({ navigation }) {
             />
           </Container>
     
-          {/* Section Hero */}
-          <Animated.View style={[styles.heroSection, { opacity: fadeAnim }]}>
-            <ExpoLinearGradient
-              colors={['#2F8F46', '#3FB15A', '#4CAF50']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.heroGradient}
-            >
-              <View style={styles.heroContent}>
-                <View style={styles.heroBadgeChip}>
-                  <Ionicons name="planet-outline" size={14} color="#E8F9EC" />
-                  <Text style={styles.heroBadgeText}>Dream Market</Text>
-                </View>
-                <Text style={styles.heroTitle}>Une expérience d'achat agricole futuriste.</Text>
-                <Text style={styles.heroDescription}>
-                  Accédez aux meilleurs produits frais, personnalisez vos commandes et suivez-les en temps réel.
-                </Text>
-                <View style={styles.heroActions}>
-                  <TouchableOpacity 
-                    style={styles.heroPrimaryButton}
-                    onPress={() => navigation.navigate('Produits')}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="compass-outline" size={16} color="#12381C" />
-                    <Text style={styles.heroPrimaryText}>Explorer</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.heroSecondaryButton}
-                    onPress={() => navigation.navigate('Services')}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="flash-outline" size={16} color="#E8F9EC" />
-                    <Text style={styles.heroSecondaryText}>Services</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </ExpoLinearGradient>
-          </Animated.View>
+          
     
           {/* Catégories */}
           <Container style={styles.section}>
@@ -280,7 +276,7 @@ export default function HomeScreen({ navigation }) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.categoriesContainer}
             >
-              {(categories && categories.length > 0) ? categories.slice(0, 8).map((category) => (
+              {((categories && categories.length > 0) && !refreshing) ? categories.slice(0, 8).map((category) => (
                 <Animated.View
                   key={category.id}
                   style={[
@@ -355,7 +351,7 @@ export default function HomeScreen({ navigation }) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.productsContainer}
             >
-              {(newProducts && newProducts.length > 0) ? newProducts.slice(0, 4).map((product) => (
+              {((newProducts && newProducts.length > 0) && !refreshing) ? newProducts.slice(0, 4).map((product) => (
                 <View key={product.id} style={styles.productCardWrapper}>
                   <ProductCard
                     product={product}
@@ -402,7 +398,7 @@ export default function HomeScreen({ navigation }) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.productsContainer}
             >
-              {(popularProducts && popularProducts.length > 0) ? popularProducts.slice(0, 4).map((product) => (
+              {((popularProducts && popularProducts.length > 0) && !refreshing) ? popularProducts.slice(0, 4).map((product) => (
                 <View key={product.id} style={styles.productCardWrapper}>
                   <ProductCard
                     product={product}
@@ -449,7 +445,7 @@ export default function HomeScreen({ navigation }) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.productsContainer}
             >
-              {(promotionProducts && promotionProducts.length > 0) ? promotionProducts.slice(0, 4).map((product) => (
+              {((promotionProducts && promotionProducts.length > 0) && !refreshing) ? promotionProducts.slice(0, 4).map((product) => (
                 <View key={product.id} style={styles.productCardWrapper}>
                   <ProductCard
                     product={product}
@@ -491,8 +487,8 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
     
-            {loading && allProducts.length === 0 ? (
-              // Skeleton pour tous les produits lors du chargement initial (2 par ligne)
+            {(loading || refreshing) && personalizedProducts.length === 0 && allProducts.length === 0 ? (
+              // Skeleton pour tous les produits lors du chargement initial ou refresh (2 par ligne)
               <View style={styles.productsRow}>
                 {Array.from({ length: 4 }).map((_, index) => (
                   <ProductCardSkeleton key={`all-product-skeleton-${index}`} width={CARD_WIDTH} />
@@ -500,7 +496,7 @@ export default function HomeScreen({ navigation }) {
               </View>
             ) : (
               <FlatList
-                data={allProducts || []}
+                data={personalizedProducts.length > 0 ? personalizedProducts : allProducts}
                 renderItem={({ item }) => (
                   <ProductCard
                     product={item}
@@ -655,86 +651,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 16,
   },
-  // Hero Section Premium avec gradient
-  heroSection: {
+  // Hero Section Simple
+  heroSectionSimple: {
     paddingVertical: 12,
-    paddingHorizontal: 10,
+    paddingHorizontal: 0,
   },
-  heroGradient: {
-    borderRadius: 24,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+  heroContentSimple: {
+    paddingVertical: 8,
   },
-  heroContent: {
-    padding: 24,
-    gap: 16,
-  },
-  heroBadgeChip: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(232, 249, 236, 0.3)',
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-  },
-  heroBadgeText: {
-    color: '#E8F9EC',
-    fontSize: 12,
+  heroTitleSimple: {
+    fontSize: 18,
     fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  heroTitle: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '800',
-    lineHeight: 30,
-    letterSpacing: 0.4,
-  },
-  heroDescription: {
-    color: 'rgba(247, 255, 249, 0.85)',
-    fontSize: 13,
-    lineHeight: 20,
-    fontWeight: '500',
-  },
-  heroActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  heroPrimaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#E8F9EC',
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-  },
-  heroPrimaryText: {
-    color: '#1B4D24',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  heroSecondaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(232, 249, 236, 0.45)',
-    backgroundColor: 'rgba(13, 52, 25, 0.25)',
-  },
-  heroSecondaryText: {
-    color: '#E8F9EC',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    color: '#1F2937',
+    letterSpacing: -0.3,
   },
   section: {
     paddingVertical: 2,

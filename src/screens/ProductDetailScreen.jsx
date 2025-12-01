@@ -22,6 +22,7 @@ import { formatPrice } from '../utils/currency';
 import { farmService } from '../backend';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
+import { trackInteractionWithUserId } from '../utils/interactionTracker';
 
 const { width } = Dimensions.get('window');
 
@@ -54,6 +55,7 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   const isInCart = useSelector((s) => selectIsInCart(s, product.id));
   const cartQuantity = useSelector((s) => selectCartItemQuantity(s, product.id));
+  const userId = useSelector((state) => state.auth?.user?.id);
   
   // Calculer le stock disponible
   const availableStock = typeof product.stock === 'number' ? product.stock : null;
@@ -119,6 +121,16 @@ export default function ProductDetailScreen({ route, navigation }) {
     requireAuth(() => {
       const wasFavorite = isFavorite;
       toggleProductFavorite(product);
+      
+      // Tracker l'ajout aux favoris pour la personnalisation
+      if (!wasFavorite && userId) {
+        trackInteractionWithUserId(userId, {
+          type: 'favorite',
+          productId: product.id,
+          categoryId: product.category_id || product.categories?.id,
+        });
+      }
+      
       Alert.alert(
         wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris',
         `${product.name} ${wasFavorite ? 'a été retiré de' : 'a été ajouté à'} vos favoris.`
@@ -145,6 +157,16 @@ export default function ProductDetailScreen({ route, navigation }) {
 
       const wasInCart = isInCart;
       dispatch(toggleCartItem({ product, quantity }));
+      
+      // Tracker l'ajout au panier pour la personnalisation
+      if (!wasInCart && userId) {
+        trackInteractionWithUserId(userId, {
+          type: 'cart_add',
+          productId: product.id,
+          categoryId: product.category_id || product.categories?.id,
+        });
+      }
+      
       if (wasInCart) {
         Alert.alert('Produit retiré du panier', `${product.name} a été retiré de votre panier.`);
       } else {

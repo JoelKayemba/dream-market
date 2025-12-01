@@ -49,6 +49,7 @@ export const TABLES = {
   FAVORITES: 'favorites',
   NOTIFICATIONS: 'notifications',
   CARTS: 'carts',
+  USER_PRODUCT_INTERACTIONS: 'user_product_interactions',
 };
 
 // Rôles utilisateurs

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { productService, categoryService } from '../../backend';
+import { productService, categoryService, personalizationService } from '../../backend';
 
 // État initial pour les produits côté client
 const initialState = {
@@ -8,6 +8,8 @@ const initialState = {
   popularProducts: [],
   newProducts: [],
   promotionProducts: [],
+  personalizedProducts: [], // Produits triés par personnalisation
+  userInteractions: [], // Interactions utilisateur pour la personnalisation
   loading: false,
   loadingMore: false, // Chargement de plus d'éléments
   initialLoading: false, // Loading pour le premier chargement
@@ -138,6 +140,26 @@ export const fetchPromotionProducts = createAsyncThunk(
   }
 );
 
+// Charger les interactions utilisateur pour la personnalisation
+export const fetchUserInteractions = createAsyncThunk(
+  'clientProducts/fetchUserInteractions',
+  async (userId, { rejectWithValue }) => {
+    try {
+      if (!userId) {
+        return [];
+      }
+      const interactions = await personalizationService.getUserInteractions(userId, {
+        limit: 200, // Limite élevée pour avoir assez de données
+        days: 90, // 3 derniers mois
+      });
+      return interactions;
+    } catch (error) {
+      console.warn('⚠️ [Products] Erreur lors du chargement des interactions:', error);
+      return []; // Retourner un tableau vide en cas d'erreur
+    }
+  }
+);
+
 // Slice Redux
 const clientProductsSlice = createSlice({
   name: 'clientProducts',
@@ -177,6 +199,38 @@ const clientProductsSlice = createSlice({
         } else {
           // Chargement de plus d'éléments
           state.products = [...state.products, ...items];
+        }
+        
+        // Recalculer les produits personnalisés si on a des interactions
+        if (state.userInteractions.length > 0) {
+          state.personalizedProducts = personalizationService.sortProductsByPersonalization(
+            state.products,
+            state.userInteractions
+          );
+        } else {
+          // Tri intelligent par défaut
+          state.personalizedProducts = [...state.products].sort((a, b) => {
+            // Promotions en premier
+            const aHasPromo = a.old_price && a.old_price > 0;
+            const bHasPromo = b.old_price && b.old_price > 0;
+            if (aHasPromo && !bHasPromo) return -1;
+            if (!aHasPromo && bHasPromo) return 1;
+            
+            // Nouveautés
+            if (a.is_new && !b.is_new) return -1;
+            if (!a.is_new && b.is_new) return 1;
+            
+            // Popularité
+            if (a.is_popular && !b.is_popular) return -1;
+            if (!a.is_popular && b.is_popular) return 1;
+            
+            // Stock disponible
+            if (a.stock > 0 && b.stock === 0) return -1;
+            if (a.stock === 0 && b.stock > 0) return 1;
+            
+            // Date de création
+            return new Date(b.created_at) - new Date(a.created_at);
+          });
         }
         
         state.pagination = {
@@ -244,6 +298,43 @@ const clientProductsSlice = createSlice({
       })
       .addCase(fetchPromotionProducts.rejected, (state, action) => {
         state.error = action.payload;
+      })
+      
+      // Fetch User Interactions
+      .addCase(fetchUserInteractions.fulfilled, (state, action) => {
+        state.userInteractions = action.payload;
+        
+        // Recalculer les produits personnalisés si on a des produits
+        if (state.products.length > 0 && action.payload.length > 0) {
+          state.personalizedProducts = personalizationService.sortProductsByPersonalization(
+            state.products,
+            action.payload
+          );
+        } else {
+          // Si pas d'interactions, utiliser l'ordre par défaut intelligent
+          state.personalizedProducts = [...state.products].sort((a, b) => {
+            // Promotions en premier
+            const aHasPromo = a.old_price && a.old_price > 0;
+            const bHasPromo = b.old_price && b.old_price > 0;
+            if (aHasPromo && !bHasPromo) return -1;
+            if (!aHasPromo && bHasPromo) return 1;
+            
+            // Nouveautés
+            if (a.is_new && !b.is_new) return -1;
+            if (!a.is_new && b.is_new) return 1;
+            
+            // Popularité
+            if (a.is_popular && !b.is_popular) return -1;
+            if (!a.is_popular && b.is_popular) return 1;
+            
+            // Stock disponible
+            if (a.stock > 0 && b.stock === 0) return -1;
+            if (a.stock === 0 && b.stock > 0) return 1;
+            
+            // Date de création
+            return new Date(b.created_at) - new Date(a.created_at);
+          });
+        }
       });
   },
 });
@@ -256,6 +347,8 @@ export const selectClientCategories = (state) => state.client?.products?.categor
 export const selectPopularProducts = (state) => state.client?.products?.popularProducts || [];
 export const selectNewProducts = (state) => state.client?.products?.newProducts || [];
 export const selectPromotionProducts = (state) => state.client?.products?.promotionProducts || [];
+export const selectPersonalizedProducts = (state) => state.client?.products?.personalizedProducts || state.client?.products?.products || [];
+export const selectUserInteractions = (state) => state.client?.products?.userInteractions || [];
 export const selectClientProductsLoading = (state) => state.client?.products?.initialLoading || false;
 export const selectClientProductsLoadingMore = (state) => state.client?.products?.loadingMore || false;
 export const selectClientProductsError = (state) => state.client?.products?.error || null;
