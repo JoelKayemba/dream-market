@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   TouchableOpacity,
   View,
@@ -7,341 +7,298 @@ import {
   Text,
   Alert,
 } from 'react-native';
-import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 
-export default function ServiceCard({ 
-  service, 
-  onPress, 
-  onContact, 
+const PRIMARY = '#2F8F46';
+const ACCENT = '#2563EB';
+const PRIMARY_SOFT = '#E8F5E9';
+
+export default function ServiceCard({
+  service,
+  onPress,
+  navigation,
   variant = 'default',
   fullWidth = false,
-  style 
+  style,
 }) {
+  const [imgFailed, setImgFailed] = useState(false);
   const { toggleServiceFavorite, isServiceFavorite } = useFavorites();
   const { requireAuth } = useRequireAuth();
-  const isFavorite = isServiceFavorite(service.id);
+  const isFavorite = isServiceFavorite(service?.id);
 
-  const highlightChips = [
-    service.isActive ? { label: 'Disponible', icon: 'flash-outline', color: '#9BE7AC' } : { label: 'Indisponible', icon: 'time-outline', color: '#FF6B6B' },
-    service.category ? { label: service.category, icon: 'layers-outline', color: '#82D7FF' } : null,
-    service.price ? { label: service.price, icon: 'cash-outline', color: '#E8F9EC' } : null,
-  ].filter(Boolean);
+  const imageUri = service?.image || service?.main_image;
+  const description = service?.description || service?.shortDescription;
+  const category = service?.category;
+  const isActive = service?.isActive !== false;
 
-  const metrics = [
-    { icon: 'stats-chart-outline', label: `${service.reviewCount || 0} avis` },
-    service.deliveryTime ? { icon: 'time-outline', label: service.deliveryTime } : null,
-    service.coverage ? { icon: 'navigate-outline', label: service.coverage } : null,
-  ].filter(Boolean);
+  const handleOpen = () => {
+    if (onPress) {
+      onPress(service);
+    } else if (navigation) {
+      navigation.navigate('ServiceDetail', { service });
+    }
+  };
 
-  const gradientByVariant = {
-    default: ['#12291B', '#1F4730'],
-    featured: ['#20314A', '#2F8F46'],
-    compact: ['#1B1F2E', '#324463'],
-  }[variant] || ['#12291B', '#1F4730'];
+  const handleFavorite = useCallback(
+    (e) => {
+      e?.stopPropagation?.();
+      requireAuth(() => {
+        const was = isFavorite;
+        toggleServiceFavorite(service);
+        if (!was) {
+          Alert.alert('Favori', `${service.name} a été ajouté à vos favoris.`);
+        }
+      });
+    },
+    [service, isFavorite, requireAuth, toggleServiceFavorite]
+  );
 
-  const description = service.description || service.shortDescription;
-  const limitedFeatures = Array.isArray(service.features) ? service.features.slice(0, 3) : [];
-
-  const handleToggleFavorite = (e) => {
-    e.stopPropagation();
-    requireAuth(() => {
-      const wasFavorite = isFavorite;
-      toggleServiceFavorite(service);
-
-      Alert.alert(
-        wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris !',
-        wasFavorite
-          ? `${service.name} a été retiré de vos favoris.`
-          : `${service.name} a été ajouté à vos favoris.`
-      );
-    });
+  const handleContact = (e) => {
+    e?.stopPropagation();
+    const { showContactMenu } = require('../../utils/contactInfo');
+    showContactMenu(service.name);
   };
 
   return (
     <TouchableOpacity
-      onPress={() => onPress(service)}
-      activeOpacity={0.9}
-      style={[
-        styles.cardShell,
-        fullWidth && styles.cardShellFullWidth,
-        style,
-      ]}
+      style={[styles.wrap, fullWidth && styles.wrapFull, style]}
+      onPress={handleOpen}
+      activeOpacity={0.92}
+      accessibilityRole="button"
     >
-      <ExpoLinearGradient
-        colors={gradientByVariant}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.card}
-      >
-        <View style={styles.mediaRow}>
-          <Image
-            source={{ uri: service.image }}
-            style={styles.mediaImage}
-            resizeMode="cover"
-          />
-
-          <View style={styles.headerOverlay}>
-            <View style={styles.chipRow}>
-              {highlightChips.map((chip, index) => (
-                <View key={`${chip.label}-${index}`} style={[styles.chip, { borderColor: chip.color }]}>
-                  <Ionicons name={chip.icon} size={13} color={chip.color} />
-                  <Text style={[styles.chipText, { color: chip.color }]}>{chip.label}</Text>
-                </View>
-              ))}
+      <View style={styles.card}>
+        <View style={styles.imageBlock}>
+          {imageUri && !imgFailed ? (
+            <Image
+              source={{ uri: imageUri }}
+              style={styles.image}
+              resizeMode="cover"
+              onError={() => setImgFailed(true)}
+            />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Ionicons name="construct-outline" size={40} color={PRIMARY} style={{ opacity: 0.35 }} />
             </View>
+          )}
 
-            <TouchableOpacity
-              style={styles.favoriteButton}
-              onPress={handleToggleFavorite}
-              activeOpacity={0.85}
-            >
-              <Ionicons
-                name={isFavorite ? 'heart' : 'heart-outline'}
-                size={20}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
+          <TouchableOpacity style={styles.fabHeart} onPress={handleFavorite} hitSlop={8}>
+            <Ionicons
+              name={isFavorite ? 'heart' : 'heart-outline'}
+              size={20}
+              color={isFavorite ? '#E53935' : '#374151'}
+            />
+          </TouchableOpacity>
+
+          <View style={[styles.statusPill, !isActive && styles.statusPillOff]}>
+            <Ionicons
+              name={isActive ? 'flash-outline' : 'time-outline'}
+              size={13}
+              color={isActive ? PRIMARY : '#9CA3AF'}
+            />
+            <Text style={[styles.statusText, !isActive && styles.statusTextOff]}>
+              {isActive ? 'Disponible' : 'Indisponible'}
+            </Text>
           </View>
         </View>
 
         <View style={styles.body}>
           <View style={styles.titleRow}>
-            <Text style={styles.serviceName} numberOfLines={1}>
-              {service.name}
+            <Text style={styles.title} numberOfLines={2}>
+              {service?.name || 'Service'}
             </Text>
-            {service.priceDetails ? (
-              <Text style={styles.priceDetails} numberOfLines={1}>
-                {service.priceDetails}
-              </Text>
+          </View>
+
+          <View style={styles.metaRow}>
+            {category ? (
+              <View style={styles.metaItem}>
+                <Ionicons name="layers-outline" size={15} color={ACCENT} />
+                <Text style={styles.metaText} numberOfLines={1}>
+                  {category}
+                </Text>
+              </View>
+            ) : null}
+            {service?.price || service?.priceDetails ? (
+              <View style={styles.metaItem}>
+                <Ionicons name="pricetag-outline" size={15} color="#6B7280" />
+                <Text style={styles.metaText} numberOfLines={1}>
+                  {service?.price || service?.priceDetails}
+                </Text>
+              </View>
             ) : null}
           </View>
 
           {description ? (
-            <Text style={styles.description} numberOfLines={3}>
+            <Text style={styles.desc} numberOfLines={2}>
               {description}
             </Text>
           ) : null}
 
-          {limitedFeatures.length > 0 ? (
-            <View style={styles.featuresRow}>
-              {limitedFeatures.map((feature, index) => (
-                <View key={`${feature}-${index}`} style={styles.featurePill}>
-                  <Ionicons name="checkmark-circle-outline" size={12} color="#9BE7AC" />
-                  <Text style={styles.featureText}>{feature}</Text>
-                </View>
-              ))}
-              {service.features && service.features.length > limitedFeatures.length ? (
-                <Text style={styles.moreIndicator}>
-                  +{service.features.length - limitedFeatures.length} autres
-                </Text>
-              ) : null}
-            </View>
-          ) : null}
-
-          {metrics.length > 0 ? (
-            <View style={styles.metricsRow}>
-              {metrics.map((metric, index) => (
-                <View key={`${metric.label}-${index}`} style={styles.metricItem}>
-                  <Ionicons name={metric.icon} size={12} color="#E8F9EC" />
-                  <Text style={styles.metricLabel}>{metric.label}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-
-          <View style={styles.footerRow}>
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => onPress(service)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="eye-outline" size={16} color="#E8F9EC" />
-              <Text style={styles.secondaryButtonText}>Voir détails</Text>
+          <View style={styles.actions}>
+            <TouchableOpacity style={styles.btnGhost} onPress={handleContact} activeOpacity={0.85}>
+              <Ionicons name="chatbubble-outline" size={17} color={PRIMARY} />
+              <Text style={styles.btnGhostText}>Contacter</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                const { showContactMenu } = require('../../utils/contactInfo');
-                showContactMenu(service.name);
-              }}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="chatbubbles-outline" size={16} color="#0F2A17" />
-              <Text style={styles.primaryButtonText}>Nous contacter</Text>
+            <TouchableOpacity style={styles.btnSolid} onPress={handleOpen} activeOpacity={0.9}>
+              <Text style={styles.btnSolidText}>Voir le service</Text>
+              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
-      </ExpoLinearGradient>
+      </View>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  cardShell: {
+  wrap: {
     width: 300,
     marginRight: 16,
-    marginBottom: 18,
+    marginBottom: 16,
   },
-  cardShellFullWidth: {
+  wrapFull: {
     width: '100%',
     marginRight: 0,
   },
   card: {
-    borderRadius: 26,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: '#E8EDE9',
     shadowColor: '#102618',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 6,
+    elevation: 4,
   },
-  mediaRow: {
+  imageBlock: {
+    height: 148,
+    backgroundColor: '#EFF6FF',
     position: 'relative',
   },
-  mediaImage: {
+  image: {
     width: '100%',
-    height: 160,
+    height: '100%',
   },
-  headerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    padding: 16,
-    justifyContent: 'space-between',
+  imagePlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EFF6FF',
   },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+  fabHeart: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  chip: {
+  statusPill: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
-    borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  chipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+  statusPillOff: {
+    opacity: 0.95,
   },
-  favoriteButton: {
-    alignSelf: 'flex-end',
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-    padding: 8,
-    borderRadius: 16,
+  statusText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: PRIMARY,
+  },
+  statusTextOff: {
+    color: '#6B7280',
   },
   body: {
-    padding: 20,
-    gap: 14,
+    padding: 16,
+    paddingTop: 14,
   },
   titleRow: {
-    gap: 6,
+    marginBottom: 8,
   },
-  serviceName: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+  title: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: -0.2,
   },
-  priceDetails: {
-    color: 'rgba(232, 249, 236, 0.75)',
-    fontSize: 12,
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 8,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    maxWidth: '100%',
+  },
+  metaText: {
+    fontSize: 13,
+    color: '#6B7280',
     fontWeight: '500',
+    flexShrink: 1,
   },
-  description: {
-    color: 'rgba(232, 249, 236, 0.8)',
-    fontSize: 13,
-    lineHeight: 19,
+  desc: {
+    fontSize: 14,
+    color: '#4B5563',
+    lineHeight: 20,
+    marginBottom: 14,
   },
-  featuresRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  featurePill: {
+  actions: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+  },
+  btnGhost: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: 'rgba(155, 231, 172, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(155, 231, 172, 0.28)',
+    borderWidth: 1.5,
+    borderColor: PRIMARY,
+    backgroundColor: '#FFFFFF',
   },
-  featureText: {
-    color: '#9BE7AC',
-    fontSize: 11.5,
-    fontWeight: '600',
+  btnGhostText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: PRIMARY,
   },
-  moreIndicator: {
-    color: 'rgba(232, 249, 236, 0.65)',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  metricsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  metricItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: 'rgba(232, 249, 236, 0.12)',
-  },
-  metricLabel: {
-    color: '#E8F9EC',
-    fontSize: 11.5,
-    fontWeight: '600',
-  },
-  footerRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  secondaryButton: {
+  btnSolid: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(232, 249, 236, 0.28)',
-    borderRadius: 16,
     paddingVertical: 12,
-    backgroundColor: 'rgba(232, 249, 236, 0.1)',
+    borderRadius: 14,
+    backgroundColor: PRIMARY,
   },
-  secondaryButtonText: {
-    color: '#E8F9EC',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  primaryButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderRadius: 16,
-    paddingVertical: 12,
-    backgroundColor: '#9BE7AC',
-  },
-  primaryButtonText: {
-    color: '#0F2A17',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+  btnSolidText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });

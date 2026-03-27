@@ -2,10 +2,11 @@ import { Linking, Alert, Platform } from 'react-native';
 
 // Informations de contact Dream Market
 export const CONTACT_INFO = {
-  phone1: '+243858000217',
-  phone2: '+243899292369',
-  phone1Display: '+243 858 000 217',
-  phone2Display: '899 292 369',
+  /** Numéro service client (WhatsApp / appel) */
+  phone1: '+243810150729',
+  phone2: '',
+  phone1Display: '+243 810 150 729',
+  phone2Display: '',
   email: 'dreamfield2000@gmail.com',
   address: 'Avenue Lufira, N°16, Q/école, C/Lemba, référence église notre dame d\'Afrique et arrêt mayadi station total échangeur',
   hours: 'Ouvert de 8H30 à 16H30 du lundi au vendredi',

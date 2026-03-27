@@ -186,12 +186,12 @@ export default function RegisterScreen({ navigation }) {
       // Si l'inscription réussit, réinitialiser les tentatives et naviguer
       if (result.type.endsWith('/fulfilled')) {
         await resetAttempts('register');
-        // Si on est dans un modal, fermer le modal au lieu de naviguer
+        const role = result.payload?.user?.role;
+        const target = role === 'admin' ? 'AdminDashboard' : 'MainApp';
         if (navigation.goBack && typeof navigation.goBack === 'function') {
           navigation.goBack();
         } else {
-          // Sinon, navigation normale
-          navigation.replace('MainApp');
+          navigation.replace(target);
         }
       } else {
         // Vérifier le nombre actuel de tentatives

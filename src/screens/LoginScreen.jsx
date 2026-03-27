@@ -177,12 +177,13 @@ export default function LoginScreen({ navigation }) {
       // Si la connexion réussit, réinitialiser les tentatives et fermer le modal
       if (result.type.endsWith('/fulfilled')) {
         await resetAttempts('login');
+        const role = result.payload?.user?.role;
+        const target = role === 'admin' ? 'AdminDashboard' : 'MainApp';
         // Si on est dans un modal, fermer le modal au lieu de naviguer
         if (navigation.goBack && typeof navigation.goBack === 'function') {
           navigation.goBack();
         } else {
-          // Sinon, navigation normale
-          navigation.replace('MainApp');
+          navigation.replace(target);
         }
       } else {
         // Enregistrer TOUTES les tentatives échouées

@@ -6,6 +6,7 @@ import {
   validateAndSanitizeEmail,
   sanitizeString,
 } from '../../utils/inputSanitizer';
+import { notifyAdminNewOrder } from './orderNotificationService';
 
 export const orderService = {
   // Récupérer toutes les commandes (admin seulement) avec pagination
@@ -256,6 +257,12 @@ export const orderService = {
         await supabase.rpc('notify_admin_new_order', { order_id: data.id });
       } catch (rpcError) {
         console.error('[orderService] RPC notify_admin_new_order failed:', rpcError);
+      }
+
+      try {
+        await notifyAdminNewOrder(data);
+      } catch (notifyError) {
+        console.error('[orderService] Notification email admin (Brevo):', notifyError);
       }
 
       return data;

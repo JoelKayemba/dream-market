@@ -114,8 +114,9 @@ export default function App() {
       const result = await store.dispatch(loadStoredAuth());
       
       if (result.payload && result.type.endsWith('/fulfilled')) {
-        // Utilisateur déjà connecté, aller directement à MainApp
-        setInitialRoute('MainApp');
+        // Admin : tableau de bord admin ; sinon app cliente
+        const role = result.payload.user?.role;
+        setInitialRoute(role === 'admin' ? 'AdminDashboard' : 'MainApp');
         // Charger le panier de l'utilisateur connecté
         const { loadCart } = require('./src/store/cartSlice');
         store.dispatch(loadCart());

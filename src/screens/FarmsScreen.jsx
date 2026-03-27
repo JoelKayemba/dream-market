@@ -1,24 +1,26 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, FlatList, Dimensions, TouchableOpacity, Text, RefreshControl, ActivityIndicator } from 'react-native';
-import { 
-  FarmCard,
-  Divider,
-  ScreenWrapper 
-} from '../components/ui';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  FlatList,
+  TouchableOpacity,
+  Text,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
+import { FarmCard, ScreenWrapper } from '../components/ui';
 import { useDispatch, useSelector } from 'react-redux';
-import { 
-  selectClientFarms, 
+import {
+  selectClientFarms,
   selectClientFarmsLoading,
   selectClientFarmsLoadingMore,
   selectClientFarmsPagination,
-  fetchFarms
+  fetchFarms,
 } from '../store/client';
 import { Ionicons } from '@expo/vector-icons';
 
-const { width } = Dimensions.get('window');
-const CARD_PADDING = 16;
-const CARD_GAP = 12;
-const CARD_WIDTH = (width - CARD_PADDING * 2 - CARD_GAP) / 2;
+const GREEN = '#2F8F46';
 
 export default function FarmsScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -26,7 +28,7 @@ export default function FarmsScreen({ navigation }) {
   const loading = useSelector(selectClientFarmsLoading);
   const loadingMore = useSelector(selectClientFarmsLoadingMore);
   const pagination = useSelector(selectClientFarmsPagination);
-  
+
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -35,11 +37,13 @@ export default function FarmsScreen({ navigation }) {
 
   const loadData = async (page = 0, refresh = false) => {
     try {
-      await dispatch(fetchFarms({
-        page,
-        refresh,
-        search: null
-      }));
+      await dispatch(
+        fetchFarms({
+          page,
+          refresh,
+          search: null,
+        })
+      );
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
     }
@@ -66,7 +70,7 @@ export default function FarmsScreen({ navigation }) {
     if (!loadingMore) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#4CAF50" />
+        <ActivityIndicator size="small" color={GREEN} />
         <Text style={styles.footerLoaderText}>Chargement...</Text>
       </View>
     );
@@ -78,68 +82,63 @@ export default function FarmsScreen({ navigation }) {
 
   return (
     <ScreenWrapper edges={['top', 'left', 'right']}>
-      <ScrollView 
-        style={styles.container} 
+      <ScrollView
+        style={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#4CAF50']}
-            tintColor="#4CAF50"
+            colors={[GREEN]}
+            tintColor={GREEN}
           />
         }
       >
-        {/* Header simple et élégant */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <View>
-              <Text style={styles.title}>Fermes</Text>
-              <Text style={styles.subtitle}>Nos partenaires agricoles</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={() => navigation.navigate('Search')}
-            >
-              <Ionicons name="search-outline" size={22} color="#283106" />
-            </TouchableOpacity>
+        <View style={styles.hero}>
+          <View style={styles.heroIconWrap}>
+            <Ionicons name="leaf" size={26} color={GREEN} />
           </View>
+          <View style={styles.heroTextCol}>
+            <Text style={styles.heroTitle}>Fermes partenaires</Text>
+            <Text style={styles.heroSubtitle}>Des producteurs locaux sélectionnés pour vous</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.searchBtn}
+            onPress={() => navigation.navigate('Search')}
+            accessibilityLabel="Rechercher"
+          >
+            <Ionicons name="search-outline" size={22} color="#283106" />
+          </TouchableOpacity>
         </View>
 
-        <Divider />
-
-        {/* Section Toutes les fermes */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Toutes les fermes</Text>
-              <Text style={styles.sectionSubtitle}>Réseau de fermes partenaires</Text>
-            </View>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>À découvrir</Text>
             <TouchableOpacity
               onPress={() => navigation.navigate('AllFarms')}
-              style={styles.viewAllButton}
+              style={styles.seeAll}
+              activeOpacity={0.75}
             >
-              <Text style={styles.viewAllText}>Tout voir</Text>
-              <Ionicons name="chevron-forward" size={16} color="#4CAF50" />
+              <Text style={styles.seeAllText}>Tout voir</Text>
+              <Ionicons name="chevron-forward" size={18} color={GREEN} />
             </TouchableOpacity>
           </View>
-          
+
           {loading && farms.length === 0 ? (
-            <View style={styles.skeletonContainer}>
-              {Array.from({ length: 4 }).map((_, index) => (
-                <View key={`farm-skeleton-${index}`} style={styles.skeletonCard} />
+            <View style={styles.skeletonBlock}>
+              {[0, 1, 2].map((k) => (
+                <View key={k} style={[styles.skeletonCard, k < 2 && { marginBottom: 14 }]} />
               ))}
             </View>
           ) : (
             <FlatList
               data={farms || []}
               renderItem={({ item }) => (
-                <View style={styles.farmCardWrapper}>
+                <View style={styles.cardPad}>
                   <FarmCard
                     farm={item}
                     navigation={navigation}
                     onPress={handleFarmPress}
-                    variant="default"
                     style={styles.farmCard}
                   />
                 </View>
@@ -152,38 +151,34 @@ export default function FarmsScreen({ navigation }) {
               ListFooterComponent={renderFooter}
               ListEmptyComponent={
                 <View style={styles.emptyState}>
-                  <Ionicons name="leaf-outline" size={48} color="#E0E0E0" />
-                  <Text style={styles.emptyStateTitle}>Aucune ferme</Text>
-                  <Text style={styles.emptyStateText}>
-                    Aucune ferme disponible pour le moment.
-                  </Text>
+                  <View style={styles.emptyIconCircle}>
+                    <Ionicons name="leaf-outline" size={40} color={GREEN} style={{ opacity: 0.4 }} />
+                  </View>
+                  <Text style={styles.emptyTitle}>Aucune ferme pour le moment</Text>
+                  <Text style={styles.emptyText}>Revenez bientôt ou élargissez votre recherche.</Text>
                 </View>
               }
             />
           )}
         </View>
 
-        {/* Call to Action */}
-        <View style={styles.ctaSection}>
-          <View style={styles.ctaCard}>
-            <Ionicons name="business-outline" size={40} color="#4CAF50" />
-            <Text style={styles.ctaTitle}>Vous êtes producteur ?</Text>
-            <Text style={styles.ctaText}>
-              Rejoignez notre réseau de fermes partenaires
-            </Text>
-            <TouchableOpacity 
-              style={styles.ctaButton}
-              onPress={() => {
-                const { showContactMenu } = require('../utils/contactInfo');
-                showContactMenu();
-              }}
-            >
-              <Text style={styles.ctaButtonText}>Nous contacter</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.cta}>
+          <Text style={styles.ctaTitle}>Vous êtes producteur ?</Text>
+          <Text style={styles.ctaText}>Rejoignez le réseau Dream Market.</Text>
+          <TouchableOpacity
+            style={styles.ctaBtn}
+            onPress={() => {
+              const { showContactMenu } = require('../utils/contactInfo');
+              showContactMenu();
+            }}
+            activeOpacity={0.9}
+          >
+            <Text style={styles.ctaBtnText}>Nous contacter</Text>
+            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.spacer} />
+        <View style={{ height: 28 }} />
       </ScrollView>
     </ScreenWrapper>
   );
@@ -192,30 +187,50 @@ export default function FarmsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAF9',
+    backgroundColor: '#F4F7F5',
   },
-  header: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  headerContent: {
+  hero: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E8EDE9',
+    shadowColor: '#0F1E13',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  title: {
-    fontSize: 28,
+  heroIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#E8F5E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  heroTextCol: {
+    flex: 1,
+  },
+  heroTitle: {
+    fontSize: 20,
     fontWeight: '800',
     color: '#111827',
-    letterSpacing: 0.3,
-    marginBottom: 4,
+    letterSpacing: -0.3,
   },
-  subtitle: {
-    fontSize: 14,
+  heroSubtitle: {
+    fontSize: 13,
     color: '#6B7280',
-    fontWeight: '500',
+    marginTop: 4,
+    lineHeight: 18,
   },
-  searchButton: {
+  searchBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -224,62 +239,49 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   section: {
-    paddingVertical: 12,
+    paddingBottom: 8,
   },
-  sectionHeader: {
+  sectionHead: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
     paddingHorizontal: 16,
+    marginBottom: 14,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: '800',
     color: '#111827',
-    marginBottom: 4,
-    letterSpacing: 0.3,
   },
-  sectionSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  viewAllButton: {
+  seeAll: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#F0F8F0',
+    gap: 2,
   },
-  viewAllText: {
-    fontSize: 13,
+  seeAllText: {
+    fontSize: 14,
     fontWeight: '700',
-    color: '#4CAF50',
+    color: GREEN,
   },
-  skeletonContainer: {
+  cardPad: {
     paddingHorizontal: 16,
-  },
-  farmCardWrapper: {
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   farmCard: {
     width: '100%',
   },
+  skeletonBlock: {
+    paddingHorizontal: 16,
+  },
   skeletonCard: {
-    width: '100%',
-    height: 200,
+    height: 120,
     backgroundColor: '#E5E7EB',
-    borderRadius: 16,
-    marginBottom: 12,
+    borderRadius: 18,
+    opacity: 0.6,
   },
   footerLoader: {
     paddingVertical: 20,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   footerLoaderText: {
     marginTop: 8,
@@ -288,61 +290,64 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 32,
+    paddingVertical: 48,
+    paddingHorizontal: 24,
   },
-  emptyStateTitle: {
-    fontSize: 18,
+  emptyIconCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: '#E8F5E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 17,
     fontWeight: '700',
-    color: '#6B7280',
-    marginTop: 16,
+    color: '#374151',
     marginBottom: 8,
   },
-  emptyStateText: {
+  emptyText: {
     fontSize: 14,
     color: '#9CA3AF',
     textAlign: 'center',
     lineHeight: 20,
   },
-  ctaSection: {
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-  },
-  ctaCard: {
-    backgroundColor: '#F0F8F0',
+  cta: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    padding: 20,
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0F0E0',
+    borderColor: '#E8EDE9',
+    alignItems: 'center',
   },
   ctaTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
     color: '#111827',
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center',
+    marginBottom: 6,
   },
   ctaText: {
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 20,
+    marginBottom: 16,
   },
-  ctaButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 20,
+  ctaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: GREEN,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    borderRadius: 14,
   },
-  ctaButtonText: {
+  ctaBtnText: {
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '700',
-  },
-  spacer: {
-    height: 24,
+    fontWeight: '800',
   },
 });

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl } from 'react-native';
+import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import Container from '../../components/ui/Container';
@@ -193,6 +194,22 @@ export default function AdminDashboard({ navigation }) {
   
   const sortedQuickActions = [...quickActions].sort((a, b) => a.priority - b.priority); // Trier par priorité
 
+  /** Retour à l’app cliente (onglets Accueil, Produits, etc.) */
+  const goToClientSpace = useCallback(() => {
+    let nav = navigation;
+    let parent = nav?.getParent?.();
+    while (parent) {
+      nav = parent;
+      parent = nav.getParent?.();
+    }
+    nav?.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'MainApp' }],
+      })
+    );
+  }, [navigation]);
+
   const handleQuickAction = (action) => {
     switch (action.route) {
       case 'AnalyticsDashboard':
@@ -305,6 +322,14 @@ export default function AdminDashboard({ navigation }) {
             {unreadAdminCount > 0 && ` • ${unreadAdminCount} nouvelle(s)`}
           </Text>
         </View>
+        <TouchableOpacity
+          style={styles.clientSpaceButton}
+          onPress={goToClientSpace}
+          accessibilityLabel="Aller à l'espace client"
+        >
+          <Ionicons name="storefront-outline" size={20} color="#2F8F46" />
+          <Text style={styles.clientSpaceButtonText}>Client</Text>
+        </TouchableOpacity>
         <AdminNotificationCenter navigation={navigation} />
       </View>
 
@@ -472,6 +497,21 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     padding: 8,
+  },
+  clientSpaceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 4,
+    gap: 4,
+  },
+  clientSpaceButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2F8F46',
   },
   headerContent: {
     flex: 1,

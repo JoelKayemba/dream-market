@@ -688,7 +688,7 @@ export const generateInvoiceHTML = (order, logoUri = null) => {
           <div class="company-details">
             <div>📍 ${CONTACT_INFO.address}</div>
             <div>📞 ${CONTACT_INFO.phone1Display}</div>
-            <div>📱 ${CONTACT_INFO.phone2Display}</div>
+            ${CONTACT_INFO.phone2Display ? `<div>📱 ${CONTACT_INFO.phone2Display}</div>` : ''}
             <div>✉️ ${CONTACT_INFO.email}</div>
             <div>🕑 ${CONTACT_INFO.hours}</div>
           </div>
