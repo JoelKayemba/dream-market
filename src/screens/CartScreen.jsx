@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
@@ -7,7 +7,6 @@ import {
   removeFromCartWithSync, 
   updateCartItemQuantityWithSync, 
   clearCartWithSync, 
-  loadCart,
   selectCartItems, 
   selectCartTotals,
   selectCartItemsCount,
@@ -57,9 +56,8 @@ export default function CartScreen({ navigation }) {
     return 'Gratuite';
   }, [deliveryFee, deliveryFeeLoading]);
 
-  useEffect(() => {
-    dispatch(loadCart());
-  }, [dispatch]);
+  // Ne pas recharger le panier à chaque ouverture : évite d’écraser l’état avec une réponse vide
+  // en course (race avec le premier ajout). Le panier est chargé au démarrage / à la connexion (App.js).
 
   const handleQuantityChange = (productId, newQuantity) => {
     // Trouver l'article dans le panier

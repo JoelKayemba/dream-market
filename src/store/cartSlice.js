@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { orderService, cartService } from '../backend';
 import { supabase } from '../backend/config/supabase';
+import { loginUser, registerUser, loadStoredAuth, logout } from './authSlice';
 
 // Clé de base pour AsyncStorage (sera complétée avec l'ID utilisateur)
 const CART_STORAGE_KEY_BASE = '@dream_market_cart';
@@ -64,19 +65,27 @@ export const loadCart = createAsyncThunk(
       // Utilisateur connecté : charger depuis la base de données
       try {
         const dbCart = await cartService.getUserCart(userId);
-        
-        // Charger aussi le panier local pour fusionner si nécessaire
-        const localCart = await loadCartFromStorage(userId);
-        
-        // Si le panier local existe et est différent, fusionner
+
+        // Panier local lié au compte
+        let localCart = await loadCartFromStorage(userId);
+
+        // Migrer le panier « invité » si le compte n’avait encore rien en local
+        // (évite perte après ajout avant que currentUserId / clé user soit cohérent)
+        if (localCart.length === 0) {
+          const guestCart = await loadCartFromStorage(null);
+          if (guestCart.length > 0) {
+            localCart = guestCart;
+            await clearCartFromStorage(null);
+          }
+        }
+
+        // Si le panier local (ou migré) a des articles, fusionner avec la DB
         if (localCart.length > 0) {
           const mergedCart = await cartService.syncCart(userId, localCart);
-          // Sauvegarder le panier fusionné localement
           await saveCartToStorage(mergedCart, userId);
           return { items: mergedCart, userId };
         }
-        
-        // Sauvegarder le panier de la DB localement
+
         await saveCartToStorage(dbCart, userId);
         return { items: dbCart, userId };
       } catch (dbError) {
@@ -311,16 +320,13 @@ export const addToCart = createAsyncThunk(
     const state = getState();
     const userId = state.auth?.user?.id;
 
-    // Ajouter localement
-    const result = { product, quantity };
+    const result = { product, quantity, userId: userId || null };
 
-    // Si connecté, synchroniser avec la DB
     if (userId) {
       try {
         await cartService.addOrUpdateCartItem(userId, product.id, quantity);
       } catch (error) {
         console.warn('⚠️ Erreur lors de la synchronisation avec la DB:', error);
-        // Continuer même en cas d'erreur DB
       }
     }
 
@@ -502,6 +508,25 @@ const cartSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(loginUser.fulfilled, (state, action) => {
+        const id = action.payload?.user?.id;
+        if (id) state.currentUserId = id;
+      })
+      .addCase(registerUser.fulfilled, (state, action) => {
+        const id = action.payload?.user?.id;
+        if (id) state.currentUserId = id;
+      })
+      .addCase(loadStoredAuth.fulfilled, (state, action) => {
+        if (!action.payload) {
+          state.currentUserId = null;
+          return;
+        }
+        const id = action.payload.user?.id;
+        if (id) state.currentUserId = id;
+      })
+      .addCase(logout.fulfilled, (state) => {
+        state.currentUserId = null;
+      })
       // loadCart
       .addCase(loadCart.pending, (state) => {
         state.loading = true;
@@ -509,8 +534,16 @@ const cartSlice = createSlice({
       })
       .addCase(loadCart.fulfilled, (state, action) => {
         state.loading = false;
-        state.items = action.payload.items || [];
-        state.currentUserId = action.payload.userId;
+        const incoming = action.payload.items || [];
+        const uid = action.payload.userId;
+        state.currentUserId = uid;
+        // Évite d’écraser le panier si une requête GET vide arrive en course avec un POST d’ajout déjà fait
+        if (uid && incoming.length === 0 && state.items.length > 0) {
+          saveCartToStorage(state.items, uid);
+          return;
+        }
+        state.items = incoming;
+        saveCartToStorage(incoming, uid);
       })
       .addCase(loadCart.rejected, (state, action) => {
         state.loading = false;
@@ -524,8 +557,15 @@ const cartSlice = createSlice({
       })
       .addCase(syncCartWithDB.fulfilled, (state, action) => {
         state.loading = false;
-        state.items = action.payload.items || [];
-        state.currentUserId = action.payload.userId;
+        const incoming = action.payload.items || [];
+        const uid = action.payload.userId;
+        state.currentUserId = uid;
+        if (uid && incoming.length === 0 && state.items.length > 0) {
+          saveCartToStorage(state.items, uid);
+          return;
+        }
+        state.items = incoming;
+        saveCartToStorage(incoming, uid);
       })
       .addCase(syncCartWithDB.rejected, (state, action) => {
         state.loading = false;
@@ -539,21 +579,23 @@ const cartSlice = createSlice({
       })
       .addCase(addToCart.fulfilled, (state, action) => {
         state.loading = false;
-        const { product, quantity } = action.payload;
+        const { product, quantity, userId: payloadUserId } = action.payload;
+        const storageUserId = payloadUserId ?? state.currentUserId;
+        if (payloadUserId) {
+          state.currentUserId = payloadUserId;
+        }
         const existingIndex = state.items.findIndex(item => item.product.id === product.id);
-        
+
         if (existingIndex >= 0) {
-          // Augmenter la quantité si l'article existe déjà
           state.items[existingIndex].quantity += quantity;
         } else {
-          // Ajouter un nouvel article
           state.items.push({
             product,
             quantity,
             addedAt: new Date().toISOString(),
           });
         }
-        saveCartToStorage(state.items, state.currentUserId);
+        saveCartToStorage(state.items, storageUserId);
       })
       .addCase(addToCart.rejected, (state, action) => {
         state.loading = false;
