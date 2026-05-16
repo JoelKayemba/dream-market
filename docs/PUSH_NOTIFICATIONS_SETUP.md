@@ -76,3 +76,12 @@ eas build --profile development --platform ios
 | 503 « Server misconfigured » | Secret `PUSH_WEBHOOK_SECRET` non défini sur le projet Supabase. |
 | Pas de notification mais `is_sent` passe à true | Aucune ligne dans `user_push_tokens` pour cet utilisateur (permissions refusées ou pas de build natif). |
 | Erreurs Expo dans les logs de la fonction | Vérifier `EXPO_ACCESS_TOKEN` et le format des messages sur la doc Expo Push. |
+
+---
+
+## Reçois plusieurs fois la même notification ?
+
+1. **Plusieurs webhooks** sur `notifications` (INSERT) qui appellent la même fonction → **Database → Webhooks** : ne garde **qu’un seul** actif pour cette table et cet événement ; désactive ou supprime les doublons.
+2. **Plusieurs lignes dans `user_push_tokens`** pour le même téléphone / plusieurs installs → dans **Table Editor**, nettoie les jetons obsolètes pour ton `user_id` (garde la ligne la plus récente si besoin).
+3. **App pas encore rebuildée** après correctif : l’ancienne tâche admin (`backgroundNotificationServiceNew`) pouvait encore envoyer une **notification locale** en plus du push → nouveau **EAS build**.
+4. **Edge Function à jour** : la fonction fait une réservation atomique + jetons **distincts** avant Expo → `supabase functions deploy send-push-notification`

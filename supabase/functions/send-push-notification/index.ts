@@ -52,14 +52,21 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { data: existing } = await supabase
+    // Réserver la ligne une seule fois (évite les doublons si plusieurs webhooks / retries parallèles)
+    const claimedAt = new Date().toISOString();
+    const { data: claimedRows, error: claimErr } = await supabase
       .from("notifications")
-      .select("is_sent")
+      .update({
+        is_sent: true,
+        sent_at: claimedAt,
+      })
       .eq("id", record.id)
-      .maybeSingle();
+      .eq("is_sent", false)
+      .select("id");
 
-    if (existing?.is_sent) {
-      return new Response(JSON.stringify({ ok: true, skipped: "already_sent" }), {
+    if (claimErr) throw claimErr;
+    if (!claimedRows || claimedRows.length === 0) {
+      return new Response(JSON.stringify({ ok: true, skipped: "already_sent_or_claimed" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -71,12 +78,18 @@ Deno.serve(async (req: Request) => {
 
     if (tokErr) throw tokErr;
 
+    const uniqueTokens = [
+      ...new Set(
+        (tokenRows ?? []).map((row: { expo_push_token: string }) => row.expo_push_token).filter(Boolean),
+      ),
+    ];
+
     const title = String(record.title ?? "Dream Market");
     const body = String(record.message ?? "");
 
-    if (tokenRows && tokenRows.length > 0) {
-      const messages = tokenRows.map((row: { expo_push_token: string }) => ({
-        to: row.expo_push_token,
+    if (uniqueTokens.length > 0) {
+      const messages = uniqueTokens.map((to) => ({
+        to,
         title,
         body,
         sound: "default",
@@ -112,16 +125,6 @@ Deno.serve(async (req: Request) => {
     } else {
       console.log("[send-push-notification] No push tokens for user", record.user_id);
     }
-
-    const { error: updErr } = await supabase
-      .from("notifications")
-      .update({
-        is_sent: true,
-        sent_at: new Date().toISOString(),
-      })
-      .eq("id", record.id);
-
-    if (updErr) throw updErr;
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -16,7 +16,6 @@ import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { notificationService } from '../backend/services/notificationService';
 
 // Nom de la tâche de notification en arrière-plan
 const BACKGROUND_NOTIFICATION_TASK = 'BACKGROUND_NOTIFICATION_TASK';
@@ -68,33 +67,10 @@ function defineBackgroundTask() {
           return;
         }
 
-        // Récupérer les notifications non envoyées pour les admins
-        const unsentNotifications = await notificationService.getUnsentNotifications(userId, null, 'admin');
-        
-        console.log(`🔔 [BackgroundNotificationService] ${unsentNotifications.length} notifications non envoyées trouvées`);
-        
-        // Envoyer les notifications push
-        for (const notification of unsentNotifications) {
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: notification.title,
-              body: notification.message,
-              data: {
-                notificationId: notification.id,
-                orderId: notification.order_id,
-                adminAction: true,
-                urgent: notification.type === 'admin_pending_order',
-                ...notification.data
-              }
-            },
-            trigger: null // Envoyer immédiatement
-          });
-          
-          // Marquer comme envoyée
-          await notificationService.markNotificationAsSent(notification.id);
-          
-          console.log(`✅ [BackgroundNotificationService] Notification envoyée: ${notification.id}`);
-        }
+        // Push réels : webhook DB → Edge Function → Expo. Pas de notification locale ici (doublons).
+        console.log(
+          '🔔 [BackgroundNotificationService] Tâche OK — envoi push géré côté serveur (Edge Function).'
+        );
         
       } catch (error) {
         console.error('❌ [BackgroundNotificationService] Erreur lors de l\'exécution:', error);
