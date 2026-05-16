@@ -21,7 +21,7 @@ export default function ProfileStackNavigator() {
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
-        cardStyle: { backgroundColor: '#f5f5f5' },
+        cardStyle: { backgroundColor: '#F7F6F3' },
       }}
     >
       <Stack.Screen

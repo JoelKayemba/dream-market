@@ -28,6 +28,7 @@ import SearchScreen from './src/screens/SearchScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import CategoryProductsScreen from './src/screens/CategoryProductsScreen';
 import AllProductsScreen from './src/screens/AllProductsScreen';
+import CategoriesBrowseScreen from './src/screens/CategoriesBrowseScreen';
 import ProductDetailScreen from './src/screens/ProductDetailScreen';
 import CartScreen from './src/screens/CartScreen';
 import FarmDetailScreen from './src/screens/FarmDetailScreen';
@@ -261,6 +262,13 @@ export default function App() {
                   component={AllProductsScreen}
                   options={{
                     title: 'Tous nos produits'
+                  }}
+                />
+                <Stack.Screen
+                  name="CategoriesBrowse"
+                  component={CategoriesBrowseScreen}
+                  options={{
+                    title: 'Catégories'
                   }}
                 />
                 <Stack.Screen

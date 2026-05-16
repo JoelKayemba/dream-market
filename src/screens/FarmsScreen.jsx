@@ -20,7 +20,8 @@ import {
 } from '../store/client';
 import { Ionicons } from '@expo/vector-icons';
 
-const GREEN = '#2F8F46';
+const ACCENT = '#5C6B52';
+const BG = '#F7F6F3';
 
 export default function FarmsScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -70,7 +71,7 @@ export default function FarmsScreen({ navigation }) {
     if (!loadingMore) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={GREEN} />
+        <ActivityIndicator size="small" color={ACCENT} />
         <Text style={styles.footerLoaderText}>Chargement...</Text>
       </View>
     );
@@ -89,39 +90,37 @@ export default function FarmsScreen({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[GREEN]}
-            tintColor={GREEN}
+            colors={[ACCENT]}
+            tintColor={ACCENT}
           />
         }
       >
         <View style={styles.hero}>
-          <View style={styles.heroIconWrap}>
-            <Ionicons name="leaf" size={26} color={GREEN} />
-          </View>
+          <View style={styles.heroAccent} />
           <View style={styles.heroTextCol}>
             <Text style={styles.heroTitle}>Fermes partenaires</Text>
-            <Text style={styles.heroSubtitle}>Des producteurs locaux sélectionnés pour vous</Text>
+            <Text style={styles.heroSubtitle}>
+              Producteurs locaux — qualité et traçabilité
+            </Text>
           </View>
           <TouchableOpacity
             style={styles.searchBtn}
             onPress={() => navigation.navigate('Search')}
             accessibilityLabel="Rechercher"
           >
-            <Ionicons name="search-outline" size={22} color="#283106" />
+            <Ionicons name="search-outline" size={21} color="#3D3D38" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHead}>
-            <Text style={styles.sectionTitle}>À découvrir</Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('AllFarms')}
-              style={styles.seeAll}
-              activeOpacity={0.75}
-            >
-              <Text style={styles.seeAllText}>Tout voir</Text>
-              <Ionicons name="chevron-forward" size={18} color={GREEN} />
-            </TouchableOpacity>
+            <View style={styles.sectionTitleRow}>
+              <View style={styles.sectionAccentLine} />
+              <View>
+                <Text style={styles.sectionTitle}>Répertoire</Text>
+                <Text style={styles.sectionSubtitle}>Exploitations référencées</Text>
+              </View>
+            </View>
           </View>
 
           {loading && farms.length === 0 ? (
@@ -139,6 +138,7 @@ export default function FarmsScreen({ navigation }) {
                     farm={item}
                     navigation={navigation}
                     onPress={handleFarmPress}
+                    variant="minimal"
                     style={styles.farmCard}
                   />
                 </View>
@@ -152,7 +152,7 @@ export default function FarmsScreen({ navigation }) {
               ListEmptyComponent={
                 <View style={styles.emptyState}>
                   <View style={styles.emptyIconCircle}>
-                    <Ionicons name="leaf-outline" size={40} color={GREEN} style={{ opacity: 0.4 }} />
+                    <Ionicons name="leaf-outline" size={36} color="#B8C4A8" />
                   </View>
                   <Text style={styles.emptyTitle}>Aucune ferme pour le moment</Text>
                   <Text style={styles.emptyText}>Revenez bientôt ou élargissez votre recherche.</Text>
@@ -171,10 +171,10 @@ export default function FarmsScreen({ navigation }) {
               const { showContactMenu } = require('../utils/contactInfo');
               showContactMenu();
             }}
-            activeOpacity={0.9}
+            activeOpacity={0.85}
           >
             <Text style={styles.ctaBtnText}>Nous contacter</Text>
-            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+            <Ionicons name="arrow-forward" size={17} color={ACCENT} />
           </TouchableOpacity>
         </View>
 
@@ -187,54 +187,49 @@ export default function FarmsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4F7F5',
+    backgroundColor: BG,
   },
   hero: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E8EDE9',
-    shadowColor: '#0F1E13',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
+    marginTop: 10,
+    marginBottom: 22,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    gap: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E2E0DA',
   },
-  heroIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: '#E8F5E9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
+  heroAccent: {
+    width: 3,
+    alignSelf: 'stretch',
+    minHeight: 44,
+    borderRadius: 2,
+    backgroundColor: '#B8C4A8',
   },
   heroTextCol: {
     flex: 1,
+    justifyContent: 'center',
   },
   heroTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
-    letterSpacing: -0.3,
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#2C2C28',
+    letterSpacing: -0.35,
   },
   heroSubtitle: {
     fontSize: 13,
-    color: '#6B7280',
-    marginTop: 4,
-    lineHeight: 18,
+    color: '#86857D',
+    marginTop: 5,
+    lineHeight: 19,
+    fontWeight: '400',
   },
   searchBtn: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    backgroundColor: '#EDECE8',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -242,26 +237,32 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   sectionHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 16,
-    marginBottom: 14,
+    marginBottom: 16,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 12,
+  },
+  sectionAccentLine: {
+    width: 3,
+    alignSelf: 'stretch',
+    minHeight: 40,
+    borderRadius: 2,
+    backgroundColor: '#B8C4A8',
   },
   sectionTitle: {
     fontSize: 17,
-    fontWeight: '800',
-    color: '#111827',
+    fontWeight: '600',
+    color: '#2C2C28',
+    letterSpacing: -0.2,
   },
-  seeAll: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: GREEN,
+  sectionSubtitle: {
+    fontSize: 12,
+    color: '#86857D',
+    marginTop: 3,
+    fontWeight: '400',
   },
   cardPad: {
     paddingHorizontal: 16,
@@ -274,10 +275,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   skeletonCard: {
-    height: 120,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 18,
-    opacity: 0.6,
+    height: 132,
+    backgroundColor: '#E8E6E1',
+    borderRadius: 14,
+    opacity: 0.85,
   },
   footerLoader: {
     paddingVertical: 20,
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
   footerLoaderText: {
     marginTop: 8,
     fontSize: 12,
-    color: '#6B7280',
+    color: '#86857D',
   },
   emptyState: {
     alignItems: 'center',
@@ -294,60 +295,64 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyIconCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: '#E8F5E9',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#EDECE8',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   emptyTitle: {
     fontSize: 17,
-    fontWeight: '700',
-    color: '#374151',
+    fontWeight: '600',
+    color: '#2C2C28',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: '#86857D',
     textAlign: 'center',
     lineHeight: 20,
   },
   cta: {
     marginHorizontal: 16,
-    marginTop: 8,
+    marginTop: 12,
     padding: 20,
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E8EDE9',
+    borderColor: '#E2E0DA',
     alignItems: 'center',
   },
   ctaTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#111827',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C2C28',
     marginBottom: 6,
+    letterSpacing: -0.15,
   },
   ctaText: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 13,
+    color: '#86857D',
     textAlign: 'center',
     marginBottom: 16,
+    lineHeight: 19,
   },
   ctaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: GREEN,
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#C5C9B8',
   },
   ctaBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
+    color: ACCENT,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

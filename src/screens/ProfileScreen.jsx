@@ -24,14 +24,14 @@ import { useAuthModal } from '../contexts/AuthModalContext';
  * Composants locaux simples pour éviter les dépendances externes
  */
 const PrimaryButton = ({ title, onPress, icon, style }) => (
-  <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={[styles.btnBase, styles.btnPrimary, style]}>
+  <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.btnBase, styles.btnPrimary, style]}>
     {icon ? <Ionicons name={icon} size={18} color="#FFFFFF" style={{ marginRight: 8 }} /> : null}
     <Text style={styles.btnPrimaryText}>{title}</Text>
   </TouchableOpacity>
 );
 
 const OutlineButton = ({ title, onPress, style }) => (
-  <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={[styles.btnBase, styles.btnOutline, style]}>
+  <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.btnBase, styles.btnOutline, style]}>
     <Text style={styles.btnOutlineText}>{title}</Text>
   </TouchableOpacity>
 );
@@ -48,14 +48,13 @@ export default function ProfileScreen({ navigation }) {
   
   const quickActions = useMemo(
     () => [
-      { id: 'orders', title: 'Mes Commandes', subtitle: 'Suivre et gérer', icon: 'receipt-outline', color: '#283106', route: 'Orders' },
-      { id: 'favorites', title: 'Mes Favoris', subtitle: 'Produits sauvegardés', icon: 'heart-outline', color: '#FF6B6B', route: 'Favorites' },
-      { id: 'feedback', title: 'Feedback', subtitle: 'Retours et suggestions', icon: 'chatbox-ellipses-outline', color: '#9C27B0', route: 'Feedback' },
-      { id: 'faq', title: 'FAQ', subtitle: 'Questions fréquentes', icon: 'help-circle-outline', color: '#2196F3', route: 'FAQ' },
-      { id: 'support', title: 'Support', subtitle: 'Aide et contact', icon: 'chatbubbles-outline', color: '#FF9800', route: 'Support' },
-      { id: 'profile', title: 'Informations', subtitle: 'Modifier profil', icon: 'person-outline', color: '#607D8B', route: 'PersonalInfo' },
-      { id: 'settings', title: 'Paramètres', subtitle: 'Notifications, sécurité', icon: 'settings-outline', color: '#9C27B0', route: 'Settings' },
-      // { id: 'addresses', title: 'Adresses', subtitle: 'Gérer mes adresses', icon: 'location-outline', color: '#607D8B', route: 'Addresses' },
+      { id: 'orders', title: 'Mes commandes', subtitle: 'Suivi et historique', icon: 'receipt-outline', route: 'Orders' },
+      { id: 'favorites', title: 'Mes favoris', subtitle: 'Produits et fermes', icon: 'heart-outline', route: 'Favorites' },
+      { id: 'feedback', title: 'Feedback', subtitle: 'Suggestions et avis', icon: 'chatbox-ellipses-outline', route: 'Feedback' },
+      { id: 'faq', title: 'FAQ', subtitle: 'Questions fréquentes', icon: 'help-circle-outline', route: 'FAQ' },
+      { id: 'support', title: 'Support', subtitle: 'Aide et contact', icon: 'chatbubbles-outline', route: 'Support' },
+      { id: 'profile', title: 'Informations', subtitle: 'Profil et coordonnées', icon: 'person-outline', route: 'PersonalInfo' },
+      { id: 'settings', title: 'Paramètres', subtitle: 'Notifications et sécurité', icon: 'settings-outline', route: 'Settings' },
     ],
     []
   );
@@ -153,7 +152,7 @@ export default function ProfileScreen({ navigation }) {
         >
           <View style={styles.notConnectedContent}>
             <View style={styles.notConnectedIconContainer}>
-              <Ionicons name="person-circle-outline" size={100} color={COLORS.accentText} />
+              <Ionicons name="person-circle-outline" size={88} color="#B8C4A8" />
             </View>
             <Text style={styles.notConnectedTitle}>Connectez-vous</Text>
             <Text style={styles.notConnectedSubtitle}>
@@ -187,7 +186,8 @@ export default function ProfileScreen({ navigation }) {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header / Carte profil */}
         <View style={styles.header}>
-          <View style={styles.profileCard}>
+          <View style={styles.profileCardSurface}>
+            <View style={styles.profileCard}>
             <View style={styles.avatarContainer}>
               <View style={styles.avatar}>
                 <Ionicons name="person" size={32} color="#FFFFFF" />
@@ -205,16 +205,20 @@ export default function ProfileScreen({ navigation }) {
               </Text>
               {!!displayUser?.email && <Text numberOfLines={1} style={styles.userEmail}>{displayUser.email}</Text>}
               {!!displayUser?.phone && <Text numberOfLines={1} style={styles.userPhone}>{displayUser.phone}</Text>}
-
-             
             </View>
+          </View>
           </View>
         </View>
 
         {/* Actions rapides */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Actions Rapides</Text>
-          <Text style={styles.sectionSubtitle}>Gérez votre compte et vos préférences</Text>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionAccentLine} />
+            <View style={styles.sectionHeaderText}>
+              <Text style={styles.sectionTitle}>Espace compte</Text>
+              <Text style={styles.sectionSubtitle}>Raccourcis et préférences</Text>
+            </View>
+          </View>
 
           <View style={styles.quickActionsGrid}>
             {quickActions.map((a) => (
@@ -224,14 +228,14 @@ export default function ProfileScreen({ navigation }) {
                 activeOpacity={0.85}
                 onPress={() => handleQuickAction(a.route)}
               >
-                <View style={[styles.actionIconContainer, { backgroundColor: withAlpha(a.color, 0.12) }]}>
-                  <Ionicons name={a.icon} size={20} color={a.color} />
+                <View style={styles.actionIconContainer}>
+                  <Ionicons name={a.icon} size={20} color="#5C6B52" />
                 </View>
                 <View style={styles.actionTextContainer}>
                   <Text style={styles.actionTitle}>{a.title}</Text>
                   <Text style={styles.actionSubtitle}>{a.subtitle}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color="#CBD5E0" />
+                <Ionicons name="chevron-forward" size={17} color="#C5C9B8" />
               </TouchableOpacity>
             ))}
           </View>
@@ -242,8 +246,8 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.section}>
             <View style={styles.adminSection}>
               <View style={styles.adminHeader}>
-                <Ionicons name="shield-checkmark" size={20} color={COLORS.purple} />
-                <Text style={styles.adminTitle}>Espace Administrateur</Text>
+                <Ionicons name="shield-checkmark-outline" size={20} color="#5C6B52" />
+                <Text style={styles.adminTitle}>Administration</Text>
               </View>
               <Text style={styles.adminSubtitle}>Accédez au tableau de bord d'administration</Text>
               <PrimaryButton
@@ -258,8 +262,13 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Documents légaux */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Informations légales</Text>
-          <Text style={styles.sectionSubtitle}>Consultez nos documents officiels</Text>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionAccentLine} />
+            <View style={styles.sectionHeaderText}>
+              <Text style={styles.sectionTitle}>Informations légales</Text>
+              <Text style={styles.sectionSubtitle}>Documents officiels</Text>
+            </View>
+          </View>
 
           <View style={styles.legalLinksContainer}>
             <TouchableOpacity
@@ -267,14 +276,14 @@ export default function ProfileScreen({ navigation }) {
               activeOpacity={0.7}
               onPress={() => handleOpenLink(legalLinks.privacyPolicy, 'Politique de confidentialité')}
             >
-              <View style={[styles.legalLinkIconContainer, { backgroundColor: withAlpha('#2196F3', 0.12) }]}>
-                <Ionicons name="shield-checkmark-outline" size={20} color="#2196F3" />
+              <View style={styles.legalLinkIconContainer}>
+                <Ionicons name="shield-checkmark-outline" size={20} color="#5C6B52" />
               </View>
               <View style={styles.legalLinkTextContainer}>
                 <Text style={styles.legalLinkTitle}>Politique de confidentialité</Text>
                 <Text style={styles.legalLinkSubtitle}>Protection de vos données</Text>
               </View>
-              <Ionicons name="open-outline" size={18} color={COLORS.subtext} />
+              <Ionicons name="open-outline" size={17} color="#A8A59E" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -282,14 +291,14 @@ export default function ProfileScreen({ navigation }) {
               activeOpacity={0.7}
               onPress={() => handleOpenLink(legalLinks.legalMentions, 'Mentions légales')}
             >
-              <View style={[styles.legalLinkIconContainer, { backgroundColor: withAlpha('#9C27B0', 0.12) }]}>
-                <Ionicons name="document-text-outline" size={20} color="#9C27B0" />
+              <View style={styles.legalLinkIconContainer}>
+                <Ionicons name="document-text-outline" size={20} color="#5C6B52" />
               </View>
               <View style={styles.legalLinkTextContainer}>
                 <Text style={styles.legalLinkTitle}>Mentions légales</Text>
                 <Text style={styles.legalLinkSubtitle}>Informations sur l'éditeur</Text>
               </View>
-              <Ionicons name="open-outline" size={18} color={COLORS.subtext} />
+              <Ionicons name="open-outline" size={17} color="#A8A59E" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -297,14 +306,14 @@ export default function ProfileScreen({ navigation }) {
               activeOpacity={0.7}
               onPress={() => handleOpenLink(legalLinks.termsOfService, 'Conditions générales')}
             >
-              <View style={[styles.legalLinkIconContainer, { backgroundColor: withAlpha('#FF9800', 0.12) }]}>
-                <Ionicons name="document-outline" size={20} color="#FF9800" />
+              <View style={styles.legalLinkIconContainer}>
+                <Ionicons name="document-outline" size={20} color="#5C6B52" />
               </View>
               <View style={styles.legalLinkTextContainer}>
                 <Text style={styles.legalLinkTitle}>Conditions générales</Text>
                 <Text style={styles.legalLinkSubtitle}>CGU d'utilisation</Text>
               </View>
-              <Ionicons name="open-outline" size={18} color={COLORS.subtext} />
+              <Ionicons name="open-outline" size={17} color="#A8A59E" />
             </TouchableOpacity>
           </View>
         </View>
@@ -312,9 +321,9 @@ export default function ProfileScreen({ navigation }) {
         {/* À propos / version + Déconnexion */}
         <View style={styles.section}>
           <View style={styles.aboutCard}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <Ionicons name="leaf-outline" size={18} color={COLORS.primary} />
-              <Text style={[styles.sectionTitle, { marginLeft: 8, marginBottom: 0 }]}>Dream Market</Text>
+            <View style={styles.aboutCardHeader}>
+              <Ionicons name="leaf-outline" size={17} color="#5C6B52" />
+              <Text style={styles.aboutCardTitle}>Dream Market</Text>
             </View>
             <Text style={styles.aboutText}>
               Plateforme simple et efficace pour commander des produits agricoles et services associés.
@@ -336,30 +345,14 @@ export default function ProfileScreen({ navigation }) {
     );
   }
 
-/** Utils */
-const withAlpha = (hex, alpha = 0.2) => {
-  // hex #RRGGBB -> rgba(r,g,b,alpha)
-  const clean = (hex || '').replace('#', '');
-  if (clean.length !== 6) return 'rgba(0,0,0,0.05)';
-  const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 4), 16);
-  const b = parseInt(clean.slice(4, 6), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
-};
-
 const COLORS = {
-  bg: '#F8FAFC',
+  bg: '#F7F6F3',
   card: '#FFFFFF',
-  border: '#F1F5F9',
-  text: '#1A202C',
-  subtext: '#718096',
-  muted: '#A0AEC0',
-  primary: '#4CAF50', // vert
-  danger: '#FF6B6B',
-  blue: '#2196F3',
-  orange: '#FF9800',
-  purple: '#9C27B0',
-  accentText: '#777E5C',
+  border: '#E2E0DA',
+  text: '#2C2C28',
+  subtext: '#86857D',
+  muted: '#A8A59E',
+  primary: '#5C6B52',
 };
 
 const styles = StyleSheet.create({
@@ -372,9 +365,16 @@ const styles = StyleSheet.create({
 
   // HEADER + PROFIL
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 32,
-    paddingBottom: 20,
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 12,
+  },
+  profileCardSurface: {
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 18,
   },
   profileCard: {
     flexDirection: 'row',
@@ -385,23 +385,23 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 3,
   },
   adminBadge: {
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: COLORS.purple,
+    backgroundColor: '#3D4D38',
     borderRadius: 10,
     width: 20,
     height: 20,
@@ -414,10 +414,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userName: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 21,
+    fontWeight: '600',
     color: COLORS.text,
     marginBottom: 4,
+    letterSpacing: -0.3,
   },
   userEmail: {
     fontSize: 14,
@@ -459,19 +460,37 @@ const styles = StyleSheet.create({
 
   // SECTIONS
   section: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 12,
+    marginBottom: 16,
+  },
+  sectionAccentLine: {
+    width: 3,
+    borderRadius: 2,
+    backgroundColor: '#B8C4A8',
+    minHeight: 44,
+  },
+  sectionHeaderText: {
+    flex: 1,
+    justifyContent: 'center',
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '600',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 3,
+    letterSpacing: -0.2,
   },
   sectionSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.subtext,
-    marginBottom: 16,
+    marginBottom: 0,
+    fontWeight: '400',
   },
 
   // QUICK ACTIONS
@@ -482,31 +501,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.card,
-    padding: 16,
-    borderRadius: 16,
+    padding: 14,
+    borderRadius: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   actionIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    backgroundColor: '#EDECE8',
   },
   actionTextContainer: {
     flex: 1,
   },
   actionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#2D3748',
+    color: COLORS.text,
     marginBottom: 2,
   },
   actionSubtitle: {
@@ -517,15 +537,12 @@ const styles = StyleSheet.create({
   // ADMIN
   adminSection: {
     backgroundColor: COLORS.card,
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.purple,
+    padding: 18,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderLeftWidth: 3,
+    borderLeftColor: '#B8C4A8',
   },
   adminHeader: {
     flexDirection: 'row',
@@ -552,9 +569,21 @@ const styles = StyleSheet.create({
   aboutCard: {
     backgroundColor: COLORS.card,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  aboutCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  aboutCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    letterSpacing: -0.15,
   },
   aboutText: {
     fontSize: 14,
@@ -591,15 +620,15 @@ const styles = StyleSheet.create({
     minWidth: 260,
   },
   modalText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#283106',
+    color: COLORS.text,
     marginTop: 16,
     textAlign: 'center',
   },
   modalSubtext: {
     fontSize: 14,
-    color: '#777E5C',
+    color: COLORS.subtext,
     marginTop: 6,
     textAlign: 'center',
   },
@@ -624,10 +653,10 @@ const styles = StyleSheet.create({
   btnOutline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#C5C9B8',
   },
   btnOutlineText: {
-    color: '#2D3748',
+    color: COLORS.primary,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -695,23 +724,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.card,
-    padding: 16,
-    borderRadius: 16,
+    padding: 14,
+    borderRadius: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   legalLinkIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    backgroundColor: '#EDECE8',
   },
   legalLinkTextContainer: {
     flex: 1,

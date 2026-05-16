@@ -50,6 +50,7 @@ export const TABLES = {
   NOTIFICATIONS: 'notifications',
   CARTS: 'carts',
   USER_PRODUCT_INTERACTIONS: 'user_product_interactions',
+  USER_PUSH_TOKENS: 'user_push_tokens',
 };
 
 // Rôles utilisateurs

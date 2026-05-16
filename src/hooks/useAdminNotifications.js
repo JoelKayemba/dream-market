@@ -10,7 +10,6 @@ import {
 } from '../store/notificationsSlice';
 import { notificationService } from '../backend/services/notificationService';
 import { useAuth } from './useAuth';
-import * as Notifications from 'expo-notifications';
 
 export const useAdminNotifications = () => {
   const dispatch = useDispatch();
@@ -90,10 +89,6 @@ export const useAdminNotifications = () => {
 
       // Mettre à jour le store Redux
       dispatch(setNotifications(formattedNotifications));
-
-      // Vérifier les notifications non envoyées
-      await checkAndSendUnsentNotifications();
-      
     } catch (error) {
       console.error('❌ [useAdminNotifications] Erreur lors du chargement:', error);
     }
@@ -119,61 +114,6 @@ export const useAdminNotifications = () => {
       },
       'admin' // Spécifier le rôle pour filtrer les notifications
     );
-  };
-
-  const checkAndSendUnsentNotifications = async () => {
-    try {
-      if (!user?.id) {
-        return;
-      }
-
-      // Récupérer les notifications non envoyées depuis Supabase (admin seulement)
-      const unsentNotifications = await notificationService.getUnsentNotifications(user.id, null, 'admin');
-
-      // Envoyer les notifications push pour les nouvelles notifications non envoyées
-      for (const notification of unsentNotifications) {
-        try {
-          
-          await sendAdminNotification(
-            notification.title,
-            notification.message,
-            {
-              type: notification.type,
-              notificationId: notification.id,
-              orderId: notification.order_id,
-              urgent: notification.type === 'admin_pending_order',
-              ...notification.data
-            }
-          );
-          
-          // Marquer comme envoyée dans Supabase
-          await notificationService.markNotificationAsSent(notification.id);
-          
-        } catch (error) {
-          console.error('❌ [useAdminNotifications] Erreur lors de l\'envoi:', error);
-        }
-      }
-    } catch (error) {
-      console.error('❌ [useAdminNotifications] Erreur lors de la vérification:', error);
-    }
-  };
-
-  const sendAdminNotification = async (title, body, data = {}) => {
-    try {
-      
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: title,
-          body: body,
-          data: data,
-          sound: 'default',
-        },
-        trigger: null, // Notification immédiate
-      });
-      
-    } catch (error) {
-      console.error('❌ [sendAdminNotification] Erreur lors de l\'envoi de la notification admin:', error);
-    }
   };
 
   const getTimeAgo = (dateString) => {

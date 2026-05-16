@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BackHandler } from 'react-native';
+import { BackHandler, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Écrans principaux
 import HomeScreen from '../screens/HomeScreen';
-import ProductsScreen from '../screens/ProductsScreen';
 import FarmsScreen from '../screens/FarmsScreen';
 import ServicesScreen from '../screens/ServicesScreen';
 import ProfileStackNavigator from './ProfileStackNavigator';
@@ -42,13 +41,11 @@ export default function AppNavigator({ navigation }) {
   return (
     <Tab.Navigator
         screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) => {
+          tabBarIcon: ({ focused, color }) => {
             let iconName;
 
             if (route.name === 'Accueil') {
               iconName = focused ? 'home' : 'home-outline';
-            } else if (route.name === 'Produits') {
-              iconName = focused ? 'leaf' : 'leaf-outline';
             } else if (route.name === 'Fermes') {
               iconName = focused ? 'business' : 'business-outline';
             } else if (route.name === 'Services') {
@@ -57,27 +54,50 @@ export default function AppNavigator({ navigation }) {
               iconName = focused ? 'person' : 'person-outline';
             }
 
-            return <Ionicons name={iconName} size={size} color={color} />;
+            const iconSize = focused ? 24 : 22;
+
+            return (
+              <View
+                style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: 23,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: focused ? 'rgba(76, 175, 80, 0.2)' : 'transparent',
+                }}
+              >
+                <Ionicons name={iconName} size={iconSize} color={color} />
+              </View>
+            );
           },
-          tabBarActiveTintColor: '#4CAF50',
-          tabBarInactiveTintColor: '#777E5C',
+          tabBarActiveTintColor: '#2E7D32',
+          tabBarInactiveTintColor: '#8D9A72',
           tabBarStyle: {
-            backgroundColor: '#f5f5f5',
+            backgroundColor: '#FFFFFF',
+            marginHorizontal: 0,
+            marginBottom: 0,
+            marginTop: 0,
             paddingTop: 8,
             paddingBottom: Math.max(insets.bottom, 8),
-            height: 60 + Math.max(insets.bottom, 8),
+            height: 64 + Math.max(insets.bottom, 8),
             borderTopWidth: 1,
-            borderTopColor: '#E5E7EB',
-            elevation: 8,
+            borderTopColor: '#E8EDE0',
+            borderTopLeftRadius: 18,
+            borderTopRightRadius: 18,
+            elevation: 10,
             shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
+            shadowOffset: { width: 0, height: -3 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+          },
+          tabBarItemStyle: {
+            paddingVertical: 2,
           },
           tabBarLabelStyle: {
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: '600',
-            marginTop: 4,
+            marginTop: 0,
           },
           headerShown: false,
         })}
@@ -87,13 +107,6 @@ export default function AppNavigator({ navigation }) {
           component={HomeScreen}
           options={{
             title: 'Accueil'
-          }}
-        />
-        <Tab.Screen 
-          name="Produits" 
-          component={ProductsScreen}
-          options={{
-            title: 'Produits'
           }}
         />
         <Tab.Screen 

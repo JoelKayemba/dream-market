@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, ScrollView, FlatList, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { Container, Button, Badge, ProductCard, FarmCard, ServiceCard , ScreenWrapper } from '../components/ui';
+import { Badge, ProductCard, FarmCard, ServiceCard , ScreenWrapper } from '../components/ui';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   selectClientProducts,
@@ -16,6 +16,13 @@ import {
   fetchServices
 } from '../store/client';
 import { trackInteractionWithUserId } from '../utils/interactionTracker';
+import {
+  buildRichSuggestions,
+  rankProductsForSearch,
+  rankFarmsForSearch,
+  rankServicesForSearch,
+} from '../utils/smartSearch';
+import { formatPrice } from '../utils/currency';
 
 export default function SearchScreen({ navigation, route }) {
   const dispatch = useDispatch();
@@ -27,8 +34,7 @@ export default function SearchScreen({ navigation, route }) {
     services: []
   });
   const [isSearching, setIsSearching] = useState(false);
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [searchHistory, setSearchHistory] = useState([]);
 
@@ -61,6 +67,21 @@ export default function SearchScreen({ navigation, route }) {
     loadData();
     loadSearchHistory();
   }, [dispatch]);
+
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    const t = setTimeout(() => setDebouncedQuery(trimmed), 260);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const suggestionEntries = useMemo(() => {
+    if (!debouncedQuery.trim()) return [];
+    return buildRichSuggestions(debouncedQuery, products, farms, services, 16);
+  }, [debouncedQuery, products, farms, services]);
+
+  const suggestionsSynced = debouncedQuery === searchQuery.trim();
+
+  const showSuggestionPanel = searchQuery.trim().length >= 1 && !hasSearched;
 
   // Charger l'historique de recherche
   const loadSearchHistory = async () => {
@@ -132,94 +153,6 @@ export default function SearchScreen({ navigation, route }) {
   // État de chargement global
   const isLoading = productsLoading || farmsLoading || servicesLoading;
 
-  // Générer les suggestions basées sur la requête
-  const generateSuggestions = (query) => {
-    if (!query.trim() || query.length < 1) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    const lowerQuery = query.toLowerCase();
-    const suggestionsList = [];
-
-    // Suggestions de produits
-    (products || []).forEach(product => {
-      if (product.name.toLowerCase().includes(lowerQuery)) {
-        suggestionsList.push({
-          id: `product-${product.id}`,
-          text: product.name,
-          type: 'product',
-          data: product,
-          icon: '🥕'
-        });
-      }
-      if (product.categories?.name && product.categories.name.toLowerCase().includes(lowerQuery)) {
-        suggestionsList.push({
-          id: `category-${product.categories.id}`,
-          text: product.categories.name,
-          type: 'category',
-          data: product.categories,
-          icon: '🏷️'
-        });
-      }
-    });
-
-    // Suggestions de fermes
-    (farms || []).forEach(farm => {
-      if (farm.name.toLowerCase().includes(lowerQuery)) {
-        suggestionsList.push({
-          id: `farm-${farm.id}`,
-          text: farm.name,
-          type: 'farm',
-          data: farm,
-          icon: '🚜'
-        });
-      }
-      if (farm.specialty && farm.specialty.toLowerCase().includes(lowerQuery)) {
-        suggestionsList.push({
-          id: `specialty-${farm.id}`,
-          text: farm.specialty,
-          type: 'specialty',
-          data: farm,
-          icon: '🌱'
-        });
-      }
-    });
-
-    // Suggestions de services
-    (services || []).forEach(service => {
-      if (service.name.toLowerCase().includes(lowerQuery)) {
-        suggestionsList.push({
-          id: `service-${service.id}`,
-          text: service.name,
-          type: 'service',
-          data: service,
-          icon: '🔧'
-        });
-      }
-      if (service.category && service.category.toLowerCase().includes(lowerQuery)) {
-        suggestionsList.push({
-          id: `service-category-${service.id}`,
-          text: service.category,
-          type: 'service-category',
-          data: service,
-          icon: '📋'
-        });
-      }
-    });
-
-    // Supprimer les doublons et limiter à 8 suggestions
-    const uniqueSuggestions = suggestionsList
-      .filter((suggestion, index, self) => 
-        index === self.findIndex(s => s.text === suggestion.text)
-      )
-      .slice(0, 8);
-
-    setSuggestions(uniqueSuggestions);
-    setShowSuggestions(uniqueSuggestions.length > 0);
-  };
-
   // Récupérer la requête initiale depuis la route si elle existe
   useEffect(() => {
     if (route.params?.initialQuery) {
@@ -232,7 +165,6 @@ export default function SearchScreen({ navigation, route }) {
     if (!query.trim()) {
       setSearchResults({ products: [], farms: [], services: [] });
       setHasSearched(false);
-      setShowSuggestions(false);
       return;
     }
 
@@ -241,41 +173,10 @@ export default function SearchScreen({ navigation, route }) {
 
     setIsSearching(true);
     setHasSearched(true);
-    setShowSuggestions(false); // Masquer les suggestions lors de la recherche
 
-    const lowerQuery = query.toLowerCase();
-
-    // Recherche dans les produits avec données backend
-    const filteredProducts = (products || []).filter(product =>
-      product.name.toLowerCase().includes(lowerQuery) ||
-      (product.description && product.description.toLowerCase().includes(lowerQuery)) ||
-      (product.short_description && product.short_description.toLowerCase().includes(lowerQuery)) ||
-      (product.farms?.name && product.farms.name.toLowerCase().includes(lowerQuery)) ||
-      (product.categories?.name && product.categories.name.toLowerCase().includes(lowerQuery)) ||
-      (product.tags && product.tags.some(tag => tag.toLowerCase().includes(lowerQuery)))
-    );
-
-    // Recherche dans les fermes avec données backend
-    const filteredFarms = (farms || []).filter(farm =>
-      farm.name.toLowerCase().includes(lowerQuery) ||
-      (farm.description && farm.description.toLowerCase().includes(lowerQuery)) ||
-      (farm.specialty && farm.specialty.toLowerCase().includes(lowerQuery)) ||
-      (farm.location && farm.location.toLowerCase().includes(lowerQuery)) ||
-      (farm.region && farm.region.toLowerCase().includes(lowerQuery)) ||
-      (farm.story && farm.story.toLowerCase().includes(lowerQuery)) ||
-      (farm.certifications && farm.certifications.some(cert => cert.toLowerCase().includes(lowerQuery))) ||
-      (farm.sustainable_practices && farm.sustainable_practices.some(practice => practice.toLowerCase().includes(lowerQuery)))
-    );
-
-    // Recherche dans les services avec données backend
-    const filteredServices = (services || []).filter(service =>
-      service.name.toLowerCase().includes(lowerQuery) ||
-      (service.description && service.description.toLowerCase().includes(lowerQuery)) ||
-      (service.short_description && service.short_description.toLowerCase().includes(lowerQuery)) ||
-      (service.category && service.category.toLowerCase().includes(lowerQuery)) ||
-      (service.coverage && service.coverage.toLowerCase().includes(lowerQuery)) ||
-      (service.features && service.features.some(feature => feature.toLowerCase().includes(lowerQuery)))
-    );
+    const filteredProducts = rankProductsForSearch(products || [], query);
+    const filteredFarms = rankFarmsForSearch(farms || [], query);
+    const filteredServices = rankServicesForSearch(services || [], query);
 
     // Tracker la recherche pour la personnalisation (après le filtrage)
     // On tracke seulement si on a trouvé au moins un produit correspondant
@@ -310,29 +211,97 @@ export default function SearchScreen({ navigation, route }) {
 
   const handleTextChange = (text) => {
     setSearchQuery(text);
-    generateSuggestions(text);
-    
+
     // Si on efface le texte, masquer les suggestions et réinitialiser
     if (!text.trim()) {
-      setShowSuggestions(false);
       setHasSearched(false);
       setSearchResults({ products: [], farms: [], services: [] });
     }
   };
 
   const handleSuggestionPress = (suggestion) => {
-    setSearchQuery(suggestion.text);
-    setShowSuggestions(false);
-    handleSearch(suggestion.text);
-    
-    // Navigation directe vers l'élément si c'est un élément spécifique
     if (suggestion.type === 'product') {
       navigation.navigate('ProductDetail', { product: suggestion.data });
-    } else if (suggestion.type === 'farm') {
-      navigation.navigate('FarmDetail', { farm: suggestion.data });
-    } else if (suggestion.type === 'service') {
-      navigation.navigate('ServiceDetail', { service: suggestion.data });
+      return;
     }
+    if (suggestion.type === 'farm') {
+      navigation.navigate('FarmDetail', { farm: suggestion.data });
+      return;
+    }
+    if (suggestion.type === 'service') {
+      navigation.navigate('ServiceDetail', { service: suggestion.data });
+      return;
+    }
+  };
+
+  const renderRichSuggestion = (suggestion) => {
+    const typeLabel =
+      suggestion.type === 'product'
+        ? 'Produit'
+        : suggestion.type === 'farm'
+          ? 'Ferme'
+          : 'Service';
+
+    const thumb =
+      suggestion.imageUri && typeof suggestion.imageUri === 'string' ? (
+        <Image source={{ uri: suggestion.imageUri }} style={styles.suggestionThumb} />
+      ) : (
+        <View style={styles.suggestionThumbPlaceholder}>
+          <Ionicons
+            name={
+              suggestion.type === 'product'
+                ? 'nutrition-outline'
+                : suggestion.type === 'farm'
+                  ? 'business-outline'
+                  : 'construct-outline'
+            }
+            size={22}
+            color="#8A917E"
+          />
+        </View>
+      );
+
+    const currency = String(suggestion.currency || 'CDF').toUpperCase();
+
+    const priceBlock =
+      suggestion.type === 'product' && suggestion.price != null ? (
+        <View style={styles.suggestionPriceCol}>
+          {suggestion.oldPrice != null &&
+          !Number.isNaN(Number(suggestion.oldPrice)) &&
+          Number(suggestion.oldPrice) > Number(suggestion.price) ? (
+            <Text style={styles.suggestionOldPrice}>{formatPrice(suggestion.oldPrice, currency)}</Text>
+          ) : null}
+          <Text style={styles.suggestionPrice}>{formatPrice(suggestion.price, currency)}</Text>
+        </View>
+      ) : suggestion.type === 'service' && suggestion.price != null ? (
+        <Text style={styles.suggestionPrice}>{formatPrice(suggestion.price, currency)}</Text>
+      ) : null;
+
+    return (
+      <TouchableOpacity
+        key={suggestion.id}
+        style={styles.suggestionCard}
+        onPress={() => handleSuggestionPress(suggestion)}
+        activeOpacity={0.85}
+      >
+        {thumb}
+        <View style={styles.suggestionCardBody}>
+          <Text style={styles.suggestionCardTitle} numberOfLines={2}>
+            {suggestion.text}
+          </Text>
+          {suggestion.subtitle ? (
+            <Text style={styles.suggestionCardMeta} numberOfLines={1}>
+              {suggestion.subtitle}
+            </Text>
+          ) : null}
+          <View style={styles.suggestionCardFooter}>
+            <Text style={styles.suggestionTypeBadge}>{typeLabel}</Text>
+            {priceBlock}
+          </View>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color="#B8C4A8" />
+      </TouchableOpacity>
+    );
   };
 
   // Gérer le clic sur un élément de l'historique
@@ -343,9 +312,8 @@ export default function SearchScreen({ navigation, route }) {
 
   const clearSearch = () => {
     setSearchQuery('');
+    setDebouncedQuery('');
     setSearchResults({ products: [], farms: [], services: [] });
-    setSuggestions([]);
-    setShowSuggestions(false);
     setHasSearched(false);
   };
 
@@ -394,31 +362,29 @@ export default function SearchScreen({ navigation, route }) {
     }
 
     // Affichage des suggestions si on tape mais qu'on n'a pas encore recherché
-    if (showSuggestions && !hasSearched && searchQuery.trim().length >= 1) {
+    if (showSuggestionPanel && searchQuery.trim().length >= 1) {
       return (
         <View style={styles.suggestionsContainer}>
-          <Text style={styles.suggestionsTitle}>Suggestions</Text>
-          {suggestions.map((suggestion) => (
-            <TouchableOpacity
-              key={suggestion.id}
-              style={styles.suggestionItem}
-              onPress={() => handleSuggestionPress(suggestion)}
-            >
-              <Text style={styles.suggestionIcon}>{suggestion.icon}</Text>
-              <View style={styles.suggestionContent}>
-                <Text style={styles.suggestionText}>{suggestion.text}</Text>
-                <Text style={styles.suggestionType}>
-                  {suggestion.type === 'product' && 'Produit'}
-                  {suggestion.type === 'farm' && 'Ferme'}
-                  {suggestion.type === 'service' && 'Service'}
-                  {suggestion.type === 'category' && 'Catégorie'}
-                  {suggestion.type === 'specialty' && 'Spécialité'}
-                  {suggestion.type === 'service-category' && 'Catégorie de service'}
-                </Text>
-              </View>
-              <Ionicons name="arrow-forward" size={16} color="#777E5C" />
-            </TouchableOpacity>
-          ))}
+          <View style={styles.suggestionsHeaderRow}>
+            <Ionicons name="sparkles-outline" size={18} color="#5C6B52" />
+            <Text style={styles.suggestionsTitle}>Résultats suggérés</Text>
+          </View>
+          <Text style={styles.suggestionsSubtitle}>
+            Correspondance intelligente (tolère les fautes de frappe)
+          </Text>
+          {suggestionsSynced && suggestionEntries.length === 0 ? (
+            <View style={styles.suggestionsEmpty}>
+              <Text style={styles.suggestionsEmptyText}>
+                Aucun résultat proche. Validez la recherche ou reformulez.
+              </Text>
+            </View>
+          ) : (
+            suggestionEntries.map(renderRichSuggestion)
+          )}
+          <TouchableOpacity style={styles.searchSubmitHint} onPress={handleSearchSubmit} activeOpacity={0.85}>
+            <Ionicons name="search-circle-outline" size={22} color="#5C6B52" />
+            <Text style={styles.searchSubmitHintText}>Voir tous les résultats pour « {searchQuery.trim()} »</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -488,7 +454,7 @@ export default function SearchScreen({ navigation, route }) {
           <Ionicons name="search-outline" size={64} color="#777E5C" />
           <Text style={styles.emptyTitle}>Aucun résultat trouvé</Text>
           <Text style={styles.emptySubtitle}>
-            Essayez avec d'autres mots-clés ou vérifiez l'orthographe
+            Reformulez ou vérifiez l’orthographe — la recherche tolère déjà les petites erreurs.
           </Text>
         </View>
       );
@@ -975,42 +941,134 @@ const styles = StyleSheet.create({
   },
   suggestionsContainer: {
     padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    paddingBottom: 24,
+    backgroundColor: '#F7F6F3',
+  },
+  suggestionsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
   },
   suggestionsTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#2C3E50',
+    color: '#2C2C28',
+    letterSpacing: -0.2,
+  },
+  suggestionsSubtitle: {
+    fontSize: 12,
+    color: '#86857D',
+    marginBottom: 14,
+    lineHeight: 17,
+  },
+  suggestionsEmpty: {
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E0DA',
     marginBottom: 12,
   },
-  suggestionItem: {
+  suggestionsEmptyText: {
+    fontSize: 14,
+    color: '#6B6B66',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  suggestionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E2E0DA',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+    gap: 12,
+  },
+  suggestionThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: '#EDECE8',
+  },
+  suggestionThumbPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: '#EDECE8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestionCardBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  suggestionCardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2C2C28',
+    marginBottom: 4,
+  },
+  suggestionCardMeta: {
+    fontSize: 12,
+    color: '#86857D',
     marginBottom: 8,
   },
-  suggestionIcon: {
-    fontSize: 20,
-    marginRight: 12,
+  suggestionCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  suggestionContent: {
-    flex: 1,
+  suggestionTypeBadge: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#5C6B52',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
-  suggestionText: {
-    fontSize: 16,
+  suggestionPriceCol: {
+    alignItems: 'flex-end',
+  },
+  suggestionPrice: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#3D5A3D',
+  },
+  suggestionOldPrice: {
+    fontSize: 11,
     fontWeight: '500',
-    color: '#2C3E50',
+    color: '#9CA3AF',
+    textDecorationLine: 'line-through',
     marginBottom: 2,
   },
-  suggestionType: {
-    fontSize: 12,
-    color: '#777E5C',
-    textTransform: 'capitalize',
+  searchSubmitHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: '#EEF2EA',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D5DDCF',
+  },
+  searchSubmitHintText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3D4D38',
   },
   historyContainer: {
     padding: 16,

@@ -88,12 +88,8 @@ export const useNotifications = () => {
         }
       }));
 
-      // Mettre à jour le store Redux
+      // Mettre à jour le store Redux (push système : Edge Function + Expo)
       dispatch(setNotifications(formattedNotifications));
-
-      // Vérifier les notifications non envoyées
-      await checkAndSendUnsentNotifications();
-      
     } catch (error) {
       console.error('❌ [useNotifications] Erreur lors du chargement:', error);
     }
@@ -111,58 +107,6 @@ export const useNotifications = () => {
       },
       'client' // Spécifier le rôle pour filtrer les notifications
     );
-  };
-
-  const checkAndSendUnsentNotifications = async () => {
-    try {
-      if (!user?.id) return;
-      
-      // Récupérer les notifications non envoyées depuis Supabase (clients seulement)
-      const unsentNotifications = await notificationService.getUnsentNotifications(user.id, null, 'client');
-
-      // Envoyer les notifications push pour les nouvelles notifications non envoyées
-      for (const notification of unsentNotifications) {
-        try {
-          
-          await sendClientNotification(
-          notification.title,
-          notification.message,
-          {
-            type: notification.type,
-            notificationId: notification.id,
-              orderId: notification.order_id,
-            ...notification.data
-          }
-        );
-        
-          // Marquer comme envoyée dans Supabase
-          await notificationService.markNotificationAsSent(notification.id);
-          
-      } catch (error) {
-          console.error('❌ [useNotifications] Erreur lors de l\'envoi:', error);
-        }
-      }
-    } catch (error) {
-      console.error('❌ [useNotifications] Erreur lors de la vérification:', error);
-    }
-  };
-
-  const sendClientNotification = async (title, body, data = {}) => {
-    try {
-      
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: title,
-          body: body,
-          data: data,
-          sound: 'default',
-        },
-        trigger: null, // Notification immédiate
-      });
-      
-    } catch (error) {
-      console.error('❌ [sendClientNotification] Erreur lors de l\'envoi de la notification client:', error);
-    }
   };
 
   const getTimeAgo = (dateString) => {

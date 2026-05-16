@@ -1,0 +1,5 @@
+# Projet local / CLI — après `supabase link`, les fonctions se déploient vers ton projet cloud.
+
+[functions.send-push-notification]
+# Le webhook base de données n’envoie pas de JWT utilisateur : on valide via PUSH_WEBHOOK_SECRET.
+verify_jwt = false

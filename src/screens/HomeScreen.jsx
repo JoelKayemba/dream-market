@@ -12,19 +12,19 @@ import {
   ActivityIndicator,
   Text
 } from 'react-native';
-import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   Container,
-  Button,
   Badge,
   Divider,
   SearchBar,
   ProductCard,
-  SectionHeader,
-  ScreenWrapper 
+  FarmCard,
+  ServiceCard,
+  ScreenWrapper,
 } from '../components/ui';
+import { CONTACT_INFO, openWhatsApp } from '../utils/contactInfo';
 import { selectCartItemsCount } from '../store/cartSlice';
 import {
   selectClientCategories,
@@ -41,16 +41,40 @@ import {
   fetchNewProducts,
   fetchPromotionProducts,
   fetchProducts,
-  fetchUserInteractions
+  fetchUserInteractions,
+  fetchFarms,
+  fetchPopularFarms,
+  selectClientFarms,
+  selectPopularFarms,
+  selectClientFarmsLoading,
+  fetchServices,
+  selectClientServices,
 } from '../store/client';
 import { useNotifications } from '../hooks/useNotifications';
 import { useRequireAuth } from '../hooks/useRequireAuth';
 import { CategorySkeleton, ProductCardSkeleton } from '../components/Skeleton';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const CARD_PADDING = 16;
 const CARD_GAP = 12;
 const CARD_WIDTH = (width - CARD_PADDING * 2 - CARD_GAP) / 2; // 2 cards par ligne
+
+const HOME_FARM_CARD_WIDTH = 268;
+
+function normalizeServiceForCard(s) {
+  if (!s) return s;
+  const cat = s.category;
+  const categoryLabel = typeof cat === 'string' ? cat : cat?.name ?? s.category_name ?? '';
+  return {
+    ...s,
+    shortDescription: s.shortDescription ?? s.short_description,
+    description: s.description ?? s.short_description,
+    isActive: s.isActive !== undefined ? s.isActive : s.is_active !== false,
+    image: s.image ?? s.main_image,
+    category: categoryLabel || undefined,
+    currency: s.currency ?? s.currency_code,
+  };
+}
 
 export default function HomeScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -70,10 +94,18 @@ export default function HomeScreen({ navigation }) {
   const promotionProducts = useSelector(selectPromotionProducts);
   const allProducts = useSelector(selectClientProducts);
   const personalizedProducts = useSelector(selectPersonalizedProducts);
+  const clientFarms = useSelector(selectClientFarms);
+  const popularFarmsHome = useSelector(selectPopularFarms);
+  const farmsLoading = useSelector(selectClientFarmsLoading);
+  const clientServices = useSelector(selectClientServices);
   const loading = useSelector(selectClientProductsLoading);
   const loadingMore = useSelector(selectClientProductsLoadingMore);
   const pagination = useSelector(selectClientProductsPagination);
   const userId = useSelector((state) => state.auth?.user?.id);
+
+  const homeFarmsRow =
+    popularFarmsHome?.length > 0 ? popularFarmsHome.slice(0, 8) : clientFarms.slice(0, 8);
+  const homeServicesPreview = clientServices.slice(0, 2).map(normalizeServiceForCard);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -102,7 +134,7 @@ export default function HomeScreen({ navigation }) {
     if (!loadingMore) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#4CAF50" />
+        <ActivityIndicator size="small" color="#6B735A" />
         <Text style={styles.footerLoaderText}>Chargement...</Text>
       </View>
     );
@@ -123,7 +155,10 @@ export default function HomeScreen({ navigation }) {
         dispatch(fetchPopularProducts()),
         dispatch(fetchNewProducts()),
         dispatch(fetchPromotionProducts()),
-        dispatch(fetchProducts())
+        dispatch(fetchProducts()),
+        dispatch(fetchFarms({ page: 0, refresh: true })),
+        dispatch(fetchPopularFarms()),
+        dispatch(fetchServices({ page: 0, refresh: true })),
       ]);
       
       // Charger les interactions utilisateur pour la personnalisation
@@ -144,7 +179,10 @@ export default function HomeScreen({ navigation }) {
         dispatch(fetchPopularProducts()),
         dispatch(fetchNewProducts()),
         dispatch(fetchPromotionProducts()),
-        dispatch(fetchProducts({ page: 0, refresh: true }))
+        dispatch(fetchProducts({ page: 0, refresh: true })),
+        dispatch(fetchFarms({ page: 0, refresh: true })),
+        dispatch(fetchPopularFarms()),
+        dispatch(fetchServices({ page: 0, refresh: true })),
       ]);
       
       // Recharger les interactions utilisateur
@@ -160,15 +198,15 @@ export default function HomeScreen({ navigation }) {
 
   // Gestionnaires d'événements
   const handleSearch = (query) => {
-    navigation.navigate('Produits', { searchQuery: query });
+    navigation.navigate('AllProducts', { filter: 'all', searchQuery: query });
   };
 
   const handleCategoryPress = (category) => {
-    navigation.navigate('Produits', { categoryName: category.name });
+    navigation.navigate('CategoriesBrowse', { categoryName: category.name });
   };
 
   const handleViewAllCategories = () => {
-    navigation.navigate('Produits');
+    navigation.navigate('CategoriesBrowse');
   };
 
   // Animation du header
@@ -189,8 +227,8 @@ export default function HomeScreen({ navigation }) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={['#4CAF50']}
-              tintColor="#4CAF50"
+              colors={['#6B735A']}
+              tintColor="#6B735A"
             />
           }
           showsVerticalScrollIndicator={false}
@@ -223,7 +261,7 @@ export default function HomeScreen({ navigation }) {
                   style={styles.notificationButton}
                   onPress={() => requireAuth(() => navigation.navigate('Notifications'))}
                 >
-                  <Ionicons name="notifications-outline" size={20} color="#283106" />
+                  <Ionicons name="notifications-outline" size={20} color="#3D3D38" />
                   {unreadCount > 0 && (
                     <Badge text={unreadCount.toString()} style={styles.notificationBadge} />
                   )}
@@ -233,7 +271,7 @@ export default function HomeScreen({ navigation }) {
                   style={styles.cartButton}
                   onPress={() => requireAuth(() => navigation.navigate('Cart'))}
                 >
-                  <Ionicons name="cart-outline" size={20} color="#283106" />
+                  <Ionicons name="cart-outline" size={20} color="#3D3D38" />
                   {cartItemsCount > 0 && (
                     <Badge text={cartItemsCount.toString()} style={styles.cartBadge} />
                   )}
@@ -250,24 +288,20 @@ export default function HomeScreen({ navigation }) {
               style={styles.searchBar}
             />
           </Container>
-    
-          
-    
+
           {/* Catégories */}
           <Container style={styles.section}>
             <View style={styles.sectionHeaderCustom}>
               <View style={styles.sectionTitleGroup}>
-                <View style={[styles.sectionIconBadge, { backgroundColor: '#E8F5E9' }]}>
-                  <Ionicons name="grid-outline" size={16} color="#2F8F46" />
-                </View>
-                <View>
+                <View style={styles.sectionAccentLine} />
+                <View style={styles.sectionTitleBlock}>
                   <Text style={styles.sectionTitle}>Catégories</Text>
-                  <Text style={styles.sectionSubtitle}>Explorez par type de produit</Text>
+                  <Text style={styles.sectionSubtitle}>Par famille de produits</Text>
                 </View>
               </View>
               <TouchableOpacity style={styles.sectionActionButton} onPress={handleViewAllCategories}>
                 <Text style={styles.sectionActionText}>Tout</Text>
-                <Ionicons name="chevron-forward" size={14} color="#2F8F46" />
+                <Ionicons name="chevron-forward" size={15} color="#6B735A" />
               </TouchableOpacity>
             </View>
     
@@ -289,29 +323,14 @@ export default function HomeScreen({ navigation }) {
                     onPress={() => handleCategoryPress(category)}
                     activeOpacity={0.7}
                   >
-                    {(() => {
-                      const accentColor = category.color || '#4CAF50';
-                      const iconColor = category.iconColor || accentColor;
-                      const gradientColors = [`${accentColor}33`, `${accentColor}14`];
-                      return (
-                        <ExpoLinearGradient
-                          colors={gradientColors}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.categoryGradient}
-                        >
-                          <View style={styles.categoryIconContainer}>
-                            <Ionicons name={getCategoryIcon(category.name)} size={18} color={iconColor} />
-                          </View>
-                          <Text style={styles.categoryLabel} numberOfLines={1}>
-                            {category.name}
-                          </Text>
-                          <View style={styles.categoryBadge}>
-                            <Text style={styles.categoryBadgeText}>•</Text>
-                          </View>
-                        </ExpoLinearGradient>
-                      );
-                    })()}
+                    <View style={styles.categoryRow}>
+                      <View style={styles.categoryIconContainer}>
+                        <Ionicons name={getCategoryIcon(category.name)} size={18} color="#5C6B52" />
+                      </View>
+                      <Text style={styles.categoryLabel} numberOfLines={1}>
+                        {category.name}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 </Animated.View>
               )) : (
@@ -324,17 +343,63 @@ export default function HomeScreen({ navigation }) {
           </Container>
     
           <Divider style={styles.divider} />
+
+          {/* Sélection personnalisée */}
+          {personalizedProducts.length > 0 ? (
+            <>
+              <Container style={styles.section}>
+                <View style={styles.sectionHeaderCustom}>
+                  <View style={styles.sectionTitleGroup}>
+                    <View style={styles.sectionAccentLine} />
+                    <View style={styles.sectionTitleBlock}>
+                      <Text style={styles.sectionTitle}>Sélection pour vous</Text>
+                      <Text style={styles.sectionSubtitle}>Inspirée de vos consultations</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.sectionActionButton}
+                    onPress={() => navigation.navigate('AllProducts', { filter: 'all' })}
+                  >
+                    <Text style={styles.sectionActionText}>Voir tout</Text>
+                    <Ionicons name="chevron-forward" size={15} color="#6B735A" />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.productsContainer}
+                >
+                  {!refreshing
+                    ? personalizedProducts.slice(0, 10).map((product) => (
+                        <View key={product.id} style={styles.productCardWrapper}>
+                          <ProductCard
+                            product={product}
+                            navigation={navigation}
+                            variant="primary"
+                            size="medium"
+                            style={styles.productCard}
+                          />
+                        </View>
+                      ))
+                    : Array.from({ length: 4 }).map((_, index) => (
+                        <ProductCardSkeleton key={`perso-skel-${index}`} width={160} />
+                      ))}
+                </ScrollView>
+              </Container>
+
+              <Divider style={styles.divider} />
+            </>
+          ) : null}
     
           {/* Nouveautés */}
           <Container style={styles.section}>
             <View style={styles.sectionHeaderCustom}>
               <View style={styles.sectionTitleGroup}>
-                <View style={[styles.sectionIconBadge, { backgroundColor: '#E3F2FD' }]}>
-                  <Ionicons name="flash-outline" size={16} color="#1E88E5" />
-                </View>
-                <View>
+                <View style={styles.sectionAccentLine} />
+                <View style={styles.sectionTitleBlock}>
                   <Text style={styles.sectionTitle}>Nouveautés</Text>
-                  <Text style={styles.sectionSubtitle}>Derniers arrivages frais</Text>
+                  <Text style={styles.sectionSubtitle}>Derniers arrivages</Text>
                 </View>
               </View>
               <TouchableOpacity 
@@ -342,7 +407,7 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => navigation.navigate('AllProducts', { filter: 'new' })}
               >
                 <Text style={styles.sectionActionText}>Tout voir</Text>
-                <Ionicons name="chevron-forward" size={14} color="#2F8F46" />
+                <Ionicons name="chevron-forward" size={15} color="#6B735A" />
               </TouchableOpacity>
             </View>
     
@@ -376,12 +441,10 @@ export default function HomeScreen({ navigation }) {
           <Container style={styles.section} >
             <View style={styles.sectionHeaderCustom}>
               <View style={styles.sectionTitleGroup}>
-                <View style={[styles.sectionIconBadge, { backgroundColor: '#FFF5E6' }]}>
-                  <Ionicons name="flame-outline" size={16} color="#EF6C00" />
-                </View>
-                <View>
+                <View style={styles.sectionAccentLine} />
+                <View style={styles.sectionTitleBlock}>
                   <Text style={styles.sectionTitle}>Produits populaires</Text>
-                  <Text style={styles.sectionSubtitle}>Les préférés de nos clients</Text>
+                  <Text style={styles.sectionSubtitle}>Souvent commandés</Text>
                 </View>
               </View>
               <TouchableOpacity 
@@ -389,7 +452,7 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => navigation.navigate('AllProducts', { filter: 'featured' })}
               >
                 <Text style={styles.sectionActionText}>Tout voir</Text>
-                <Ionicons name="chevron-forward" size={14} color="#2F8F46" />
+                <Ionicons name="chevron-forward" size={15} color="#6B735A" />
               </TouchableOpacity>
             </View>
     
@@ -418,17 +481,106 @@ export default function HomeScreen({ navigation }) {
           </Container>
     
           <Divider style={styles.divider} />
+
+          {/* Nos producteurs */}
+          <Container style={styles.section}>
+            <View style={styles.sectionHeaderCustom}>
+              <View style={styles.sectionTitleGroup}>
+                <View style={styles.sectionAccentLine} />
+                <View style={styles.sectionTitleBlock}>
+                  <Text style={styles.sectionTitle}>Nos producteurs</Text>
+                  <Text style={styles.sectionSubtitle}>Fermes et exploitations partenaires</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.sectionActionButton}
+                onPress={() => navigation.navigate('Fermes')}
+              >
+                <Text style={styles.sectionActionText}>Tout voir</Text>
+                <Ionicons name="chevron-forward" size={15} color="#6B735A" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.farmsCarousel}
+            >
+              {farmsLoading && homeFarmsRow.length === 0
+                ? Array.from({ length: 3 }).map((_, index) => (
+                    <View key={`farm-skel-${index}`} style={[styles.farmCardShell, { width: HOME_FARM_CARD_WIDTH }]}>
+                      <View style={styles.farmSkeletonImg} />
+                      <View style={styles.farmSkeletonLine} />
+                      <View style={[styles.farmSkeletonLine, { width: '55%' }]} />
+                    </View>
+                  ))
+                : homeFarmsRow.length > 0
+                  ? homeFarmsRow.map((farm) => (
+                      <FarmCard
+                        key={farm.id}
+                        farm={farm}
+                        navigation={navigation}
+                        variant="minimal"
+                        style={{ width: HOME_FARM_CARD_WIDTH, marginRight: 12 }}
+                      />
+                    ))
+                  : (
+                      <Text style={styles.farmsEmptyHint}>
+                        Aucune ferme à afficher pour le moment.
+                      </Text>
+                    )}
+            </ScrollView>
+          </Container>
+
+          {/* Services utiles */}
+          <Container style={styles.section}>
+            <View style={styles.sectionHeaderCustom}>
+              <View style={styles.sectionTitleGroup}>
+                <View style={styles.sectionAccentLine} />
+                <View style={styles.sectionTitleBlock}>
+                  <Text style={styles.sectionTitle}>Services utiles</Text>
+                  <Text style={styles.sectionSubtitle}>Accompagnement pro</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.sectionActionButton}
+                onPress={() => navigation.navigate('Services')}
+              >
+                <Text style={styles.sectionActionText}>Tout voir</Text>
+                <Ionicons name="chevron-forward" size={15} color="#6B735A" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.servicesStack}>
+              {homeServicesPreview.length > 0 ? (
+                homeServicesPreview.map((svc) => (
+                  <ServiceCard
+                    key={svc.id}
+                    service={svc}
+                    navigation={navigation}
+                    variant="minimal"
+                    fullWidth
+                    style={styles.serviceHomeCard}
+                  />
+                ))
+              ) : (
+                <Text style={styles.servicesEmptyHint}>
+                  Les services disponibles apparaîtront ici après chargement.
+                </Text>
+              )}
+            </View>
+          </Container>
+    
+          <Divider style={styles.divider} />
     
           {/* Promotions */}
           <Container style={styles.section} >
             <View style={styles.sectionHeaderCustom}>
               <View style={styles.sectionTitleGroup}>
-                <View style={[styles.sectionIconBadge, { backgroundColor: '#FFE8E8' }]}>
-                  <Ionicons name="pricetags-outline" size={16} color="#C62828" />
-                </View>
-                <View>
+                <View style={styles.sectionAccentLine} />
+                <View style={styles.sectionTitleBlock}>
                   <Text style={styles.sectionTitle}>Promotions</Text>
-                  <Text style={styles.sectionSubtitle}>Profitez des meilleures offres</Text>
+                  <Text style={styles.sectionSubtitle}>Offres en cours</Text>
                 </View>
               </View>
               <TouchableOpacity 
@@ -436,7 +588,7 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => navigation.navigate('AllProducts', { filter: 'promotions' })}
               >
                 <Text style={styles.sectionActionText}>Tout voir</Text>
-                <Ionicons name="chevron-forward" size={14} color="#2F8F46" />
+                <Ionicons name="chevron-forward" size={15} color="#6B735A" />
               </TouchableOpacity>
             </View>
     
@@ -470,12 +622,10 @@ export default function HomeScreen({ navigation }) {
           <Container style={styles.section} >
             <View style={styles.sectionHeaderCustom}>
               <View style={styles.sectionTitleGroup}>
-                <View style={[styles.sectionIconBadge, { backgroundColor: '#E8F5E9' }]}>
-                  <Ionicons name="basket-outline" size={16} color="#2F8F46" />
-                </View>
-                <View>
+                <View style={styles.sectionAccentLine} />
+                <View style={styles.sectionTitleBlock}>
                   <Text style={styles.sectionTitle}>Tous les produits</Text>
-                  <Text style={styles.sectionSubtitle}>Tout ce qui est disponible</Text>
+                  <Text style={styles.sectionSubtitle}>Stock disponible</Text>
                 </View>
               </View>
               <TouchableOpacity 
@@ -483,11 +633,11 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => navigation.navigate('AllProducts', { filter: 'all' })}
               >
                 <Text style={styles.sectionActionText}>Voir tout</Text>
-                <Ionicons name="chevron-forward" size={14} color="#2F8F46" />
+                <Ionicons name="chevron-forward" size={15} color="#6B735A" />
               </TouchableOpacity>
             </View>
     
-            {(loading || refreshing) && personalizedProducts.length === 0 && allProducts.length === 0 ? (
+            {(loading || refreshing) && allProducts.length === 0 ? (
               // Skeleton pour tous les produits lors du chargement initial ou refresh (2 par ligne)
               <View style={styles.productsRow}>
                 {Array.from({ length: 4 }).map((_, index) => (
@@ -496,7 +646,7 @@ export default function HomeScreen({ navigation }) {
               </View>
             ) : (
               <FlatList
-                data={personalizedProducts.length > 0 ? personalizedProducts : allProducts}
+                data={allProducts}
                 renderItem={({ item }) => (
                   <ProductCard
                     product={item}
@@ -516,7 +666,7 @@ export default function HomeScreen({ navigation }) {
                 ListFooterComponent={renderFooter}
                 ListEmptyComponent={
                   <View style={styles.allProductsEmpty}>
-                    <Ionicons name="leaf-outline" size={24} color="#2F8F46" />
+                    <Ionicons name="leaf-outline" size={24} color="#8A917E" />
                     <Text style={styles.allProductsEmptyText}>
                       Aucun produit disponible pour le moment.
                     </Text>
@@ -524,6 +674,39 @@ export default function HomeScreen({ navigation }) {
                 }
               />
             )}
+          </Container>
+
+          <Container style={styles.homeFooter} padding="none">
+            <Text style={styles.homeFooterBrand}>Dream Market</Text>
+            <Text style={styles.homeFooterHours}>{CONTACT_INFO.hours}</Text>
+            <View style={styles.homeFooterRow}>
+              <TouchableOpacity
+                style={styles.homeFooterChip}
+                onPress={() =>
+                  openWhatsApp(CONTACT_INFO.phone1, 'Bonjour Dream Market, ')
+                }
+                activeOpacity={0.85}
+              >
+                <Ionicons name="logo-whatsapp" size={17} color="#5C6B52" />
+                <Text style={styles.homeFooterChipText}>WhatsApp</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.homeFooterChip}
+                onPress={() => navigation.navigate('Profil', { screen: 'FAQ' })}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="help-circle-outline" size={17} color="#5C6B52" />
+                <Text style={styles.homeFooterChipText}>FAQ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.homeFooterChip}
+                onPress={() => navigation.navigate('Profil', { screen: 'Support' })}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="chatbubbles-outline" size={17} color="#5C6B52" />
+                <Text style={styles.homeFooterChipText}>Aide</Text>
+              </TouchableOpacity>
+            </View>
           </Container>
     
           <View style={styles.spacer} />
@@ -555,7 +738,7 @@ const getCategoryIcon = (categoryName) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAF9',
+    backgroundColor: '#F7F6F3',
   },
   // Header élégant
   header: {
@@ -563,10 +746,10 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     // zIndex supprimé inutile maintenant que ça scrolle
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 2,
   },
   headerContent: {
     flexDirection: 'row',
@@ -589,17 +772,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   appTitle: {
-    color: '#1A3B1F',
-    fontWeight: '800',
+    color: '#2C2C28',
+    fontWeight: '600',
     fontSize: 17,
-    letterSpacing: 0.3,
+    letterSpacing: -0.2,
     marginBottom: 1,
   },
   appSubtitle: {
-    color: '#6B8E6F',
+    color: '#7A786F',
     fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.2,
+    fontWeight: '500',
+    letterSpacing: 0.15,
   },
   headerActions: {
     flexDirection: 'row',
@@ -609,8 +792,8 @@ const styles = StyleSheet.create({
   notificationButton: {
     position: 'relative',
     padding: 8,
-    backgroundColor: '#F0F8F0',
-    borderRadius: 12,
+    backgroundColor: '#EDECE8',
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -625,8 +808,8 @@ const styles = StyleSheet.create({
   cartButton: {
     position: 'relative',
     padding: 8,
-    backgroundColor: '#F0F8F0',
-    borderRadius: 12,
+    backgroundColor: '#EDECE8',
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -634,7 +817,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#5C6B52',
     minWidth: 18,
     height: 20,
   },
@@ -645,133 +828,209 @@ const styles = StyleSheet.create({
   searchBar: {
     width: '100%',
   },
+  farmsCarousel: {
+    paddingHorizontal: 0,
+    paddingVertical: 6,
+    paddingRight: 16,
+    gap: 0,
+  },
+  farmCardShell: {
+    marginRight: 12,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E8E6E1',
+    backgroundColor: '#FFFFFF',
+    paddingBottom: 12,
+  },
+  farmSkeletonImg: {
+    height: 120,
+    backgroundColor: '#EDECE8',
+    marginBottom: 12,
+  },
+  farmSkeletonLine: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#EDECE8',
+    marginHorizontal: 14,
+    marginBottom: 8,
+    width: '72%',
+  },
+  farmsEmptyHint: {
+    fontSize: 13,
+    color: '#86857D',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    fontStyle: 'italic',
+  },
+  servicesStack: {
+    gap: 12,
+    paddingHorizontal: 0,
+  },
+  serviceHomeCard: {
+    marginBottom: 0,
+    marginRight: 0,
+  },
+  servicesEmptyHint: {
+    fontSize: 13,
+    color: '#86857D',
+    paddingVertical: 16,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  homeFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 28,
+    paddingBottom: 8,
+    alignItems: 'center',
+  },
+  homeFooterBrand: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#5C6B52',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  homeFooterHours: {
+    fontSize: 12,
+    color: '#86857D',
+    textAlign: 'center',
+    lineHeight: 17,
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  homeFooterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  homeFooterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#E2E0DA',
+    backgroundColor: '#FFFFFF',
+  },
+  homeFooterChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#3D3D38',
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 16,
-  },
-  // Hero Section Simple
-  heroSectionSimple: {
-    paddingVertical: 12,
-    paddingHorizontal: 0,
-  },
-  heroContentSimple: {
-    paddingVertical: 8,
-  },
-  heroTitleSimple: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    letterSpacing: -0.3,
+    paddingBottom: 28,
   },
   section: {
     paddingVertical: 2,
   },
   divider: {
-    marginVertical: 4,
-    opacity: 0.5,
+    marginVertical: 8,
+    opacity: 0.35,
+    backgroundColor: '#DCDAD4',
   },
-  // Section Headers personnalisés
+  // En-têtes de sections — sobres
   sectionHeaderCustom: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
     paddingHorizontal: 0,
   },
   sectionTitleGroup: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: 12,
+    flex: 1,
+    marginRight: 8,
   },
-  sectionIconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
+  sectionAccentLine: {
+    width: 3,
+    alignSelf: 'stretch',
+    minHeight: 40,
+    borderRadius: 2,
+    backgroundColor: '#B8C4A8',
+  },
+  sectionTitleBlock: {
+    flex: 1,
     justifyContent: 'center',
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#1A3B1F',
-    marginBottom: 4,
-    letterSpacing: 0.3,
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#2C2C28',
+    marginBottom: 3,
+    letterSpacing: -0.2,
   },
   sectionSubtitle: {
-    fontSize: 13,
-    color: '#6B8E6F',
-    fontWeight: '500',
+    fontSize: 12,
+    color: '#86857D',
+    fontWeight: '400',
+    letterSpacing: 0.1,
   },
   sectionActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(47, 143, 70, 0.08)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+    gap: 2,
   },
   sectionActionText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2F8F46',
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#5C6B52',
   },
-  // Catégories modernes avec gradient
+  // Catégories — neutre
   categoriesContainer: {
     paddingHorizontal: 0,
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingLeft: 0,
     gap: 3,
   },
   categoryCard: {
-    borderRadius: 12,
+    borderRadius: 10,
     overflow: 'hidden',
     marginRight: 8,
     borderWidth: 1,
-    borderColor: 'rgba(47, 143, 70, 0.12)',
+    borderColor: '#E2E0DA',
     backgroundColor: '#FFFFFF',
-    shadowColor: 'rgba(33, 112, 55, 0.18)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  categoryGradient: {
+  categoryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    minWidth: 120,
-    gap: 8,
+    minWidth: 118,
+    gap: 10,
   },
   categoryIconContainer: {
     width: 32,
     height: 32,
-    borderRadius: 10,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(76, 175, 80, 0.12)',
+    backgroundColor: '#F0EFEC',
     flexShrink: 0,
   },
   categoryLabel: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: '500',
+    color: '#3D3D38',
     textAlign: 'left',
-    letterSpacing: 0.1,
+    letterSpacing: 0,
     flex: 1,
-  },
-  categoryBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-  },
-  categoryBadgeText: {
-    color: '#2F8F46',
-    fontSize: 13,
-    fontWeight: '800',
   },
   // Produits
   productsContainer: {
@@ -787,77 +1046,10 @@ const styles = StyleSheet.create({
   productCard: {
     width: 160,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  // Badges produits améliorés
-  newBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#2196F3',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 10,
-    shadowColor: '#2196F3',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
     elevation: 3,
-  },
-  newBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    marginLeft: 3,
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#FF9500',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 10,
-    shadowColor: '#FF9500',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  popularBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    marginLeft: 3,
-  },
-  promoBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 10,
-    shadowColor: '#FF3B30',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  promoBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
   },
   allProductsGrid: {
     gap: 12,
@@ -876,17 +1068,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 24,
     borderWidth: 1,
-    borderColor: 'rgba(47, 143, 70, 0.12)',
-    borderRadius: 16,
+    borderColor: '#E2E0DA',
+    borderRadius: 12,
     marginTop: 8,
     backgroundColor: '#FFFFFF',
     gap: 8,
   },
   allProductsEmptyText: {
-    color: '#2F8F46',
+    color: '#6B6B66',
     fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.2,
+    fontWeight: '500',
+    letterSpacing: 0,
   },
   footerLoader: {
     paddingVertical: 20,
@@ -896,7 +1088,7 @@ const styles = StyleSheet.create({
   footerLoaderText: {
     marginTop: 8,
     fontSize: 12,
-    color: '#777E5C',
+    color: '#86857D',
   },
   spacer: {
     height: 24,
@@ -909,7 +1101,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: '#6B8E6F',
+    color: '#86857D',
     fontWeight: '500',
   },
 });

@@ -12,7 +12,8 @@ export { default as PersonalInfoScreen } from '../screens/PersonalInfoScreen';
 // Constantes de navigation
 export const screens = {
   HOME: 'Accueil',
-  PRODUCTS: 'Produits',
+  PRODUCTS: 'AllProducts',
+  CATEGORIES_BROWSE: 'CategoriesBrowse',
   FARMS: 'Fermes',
   SERVICES: 'Services',
   PROFILE: 'Profil',

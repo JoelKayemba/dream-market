@@ -20,7 +20,12 @@ import {
 } from '../store/client';
 
 export default function AllProductsScreen({ navigation, route }) {
-  const { filter: routeFilter, farmId, searchQuery: initialSearchQuery } = route.params || {};
+  const {
+    filter: routeFilter,
+    farmId,
+    searchQuery: initialSearchQuery,
+    categoryName: routeCategoryName,
+  } = route.params || {};
   const filter = routeFilter || 'all'; // Par défaut 'all' si non défini
   const dispatch = useDispatch();
   
@@ -133,7 +138,13 @@ export default function AllProductsScreen({ navigation, route }) {
     if (initialSearchQuery !== undefined) {
       setSearchQuery(initialSearchQuery || '');
     }
-  }, [filter, farmId, initialSearchQuery]);
+  }, [filter, farmId, initialSearchQuery, routeCategoryName]);
+
+  useEffect(() => {
+    if (!routeCategoryName || !categories?.length) return;
+    const exists = categories.some((c) => c.name === routeCategoryName);
+    setSelectedCategories(exists ? [routeCategoryName] : []);
+  }, [routeCategoryName, categories]);
 
   const onRefresh = async () => {
     setRefreshing(true);
