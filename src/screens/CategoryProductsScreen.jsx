@@ -132,10 +132,6 @@ export default function CategoryProductsScreen({ navigation, route }) {
           🏡 {item.farm}
         </Text>
         
-        <Text style={styles.productDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-        
         <View style={styles.productFooter}>
           <View style={styles.ratingContainer}>
             <Ionicons name="star" size={14} color="#FFD700" />
@@ -461,12 +457,12 @@ const styles = StyleSheet.create({
   },
   productRow: {
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   productCard: {
     width: '48%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 11,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -476,40 +472,34 @@ const styles = StyleSheet.create({
   },
   productImage: {
     width: '100%',
-    height: 120,
+    height: 104,
   },
   productContent: {
-    padding: 12,
+    padding: 10,
   },
   productHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 6,
+    marginBottom: 5,
   },
   productName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#283106',
     flex: 1,
     marginRight: 8,
-    lineHeight: 18,
+    lineHeight: 17,
   },
   productPrice: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#4CAF50',
   },
   productFarm: {
     fontSize: 12,
     color: '#777E5C',
-    marginBottom: 6,
-  },
-  productDescription: {
-    fontSize: 12,
-    color: '#555',
-    lineHeight: 16,
-    marginBottom: 8,
+    marginBottom: 7,
   },
   productFooter: {
     flexDirection: 'row',

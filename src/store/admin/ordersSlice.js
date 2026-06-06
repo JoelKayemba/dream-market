@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import { orderService } from '../../backend/services/orderService';
 
 // État initial pour les commandes admin
@@ -358,9 +358,9 @@ export const selectFilteredOrders = (state) => {
 export const selectOrderById = (orderId) => (state) => 
   state.admin.orders.orders.find(order => order.id === orderId);
 
-export const selectOrderStats = (state) => {
-  const orders = state.admin.orders.orders;
-  const stats = {
+export const selectOrderStats = createSelector(
+  [selectAdminOrders],
+  (orders) => ({
     total: orders.length,
     pending: orders.filter(o => o.status === 'pending').length,
     confirmed: orders.filter(o => o.status === 'confirmed').length,
@@ -371,9 +371,7 @@ export const selectOrderStats = (state) => {
     totalRevenue: orders
       .filter(o => o.status === 'delivered')
       .reduce((sum, order) => sum + (Object.values(order.totals)[0] || 0), 0)
-  };
-  
-  return stats;
-};
+  })
+);
 
 export default ordersSlice.reducer;

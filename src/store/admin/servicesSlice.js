@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import { serviceService, categoryService } from '../../backend';
 
 // État initial pour les services admin
@@ -397,9 +397,9 @@ export const selectFilteredServices = (state) => {
   return filtered;
 };
 
-export const selectServiceStats = (state) => {
-  const services = state.admin.services.services;
-  
+export const selectServiceStats = createSelector(
+  [selectAdminServices, selectAdminCategories],
+  (services, categories) => {
   const avgRating = services.length > 0 
     ? services.reduce((acc, service) => acc + (service.rating || 0), 0) / services.length
     : 0;
@@ -408,10 +408,11 @@ export const selectServiceStats = (state) => {
     total: services.length,
     active: services.filter(s => s.is_active).length,
     inactive: services.filter(s => !s.is_active).length,
-    categories: state.admin.services.categories.length,
+    categories: categories.length,
     avgRating: avgRating
   };
-};
+  }
+);
 
 export const selectServiceById = (state, serviceId) => {
   return state.admin.services.services.find(service => service.id === serviceId);

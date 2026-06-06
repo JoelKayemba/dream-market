@@ -89,7 +89,7 @@ export default function ProductCard({
   };
 
   const imageSource = product.images?.[0] || product.image;
-  const imageHeight = fullWidth ? 140 : 120;
+  const imageHeight = fullWidth ? 124 : 104;
   const rawFarmName = product.farms?.name;
   const farmName = rawFarmName || 'Dream Market';
   const isDreamMarket =
@@ -137,12 +137,6 @@ export default function ProductCard({
     product.is_organic && 'Bio',
     product.discount && `-${product.discount}%`,
   ].filter(Boolean);
-
-  // Description courte (max 60 caractères)
-  const shortDescription = product.short_description || product.description || '';
-  const displayDescription = shortDescription.length > 60 
-    ? shortDescription.substring(0, 60) + '...' 
-    : shortDescription;
 
   // Stock info
   const stock = typeof product.stock === 'number' ? product.stock : null;
@@ -207,13 +201,6 @@ export default function ProductCard({
           <Text style={styles.name} numberOfLines={2}>
             {product.name}
           </Text>
-
-          {/* Description */}
-          {displayDescription && (
-            <Text style={styles.description} numberOfLines={2}>
-              {displayDescription}
-            </Text>
-          )}
 
           {/* Prix et ferme */}
           <View style={styles.priceRow}>
@@ -280,7 +267,7 @@ const styles = StyleSheet.create({
 
   // Card
   card: {
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -312,8 +299,8 @@ const styles = StyleSheet.create({
   },
   outOfStockBadge: {
     backgroundColor: '#DC2626',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 20,
   },
   outOfStockText: {
@@ -324,11 +311,11 @@ const styles = StyleSheet.create({
   },
   favoriteBtn: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    top: 7,
+    right: 7,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -336,8 +323,8 @@ const styles = StyleSheet.create({
   },
   chipsRow: {
     position: 'absolute',
-    left: 8,
-    bottom: 8,
+    left: 7,
+    bottom: 7,
     flexDirection: 'row',
     gap: 4,
     flexWrap: 'wrap',
@@ -359,27 +346,21 @@ const styles = StyleSheet.create({
 
   // Body
   body: {
-    padding: 12,
-    gap: 8,
+    padding: 10,
+    gap: 6,
   },
   name: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#111827',
-    lineHeight: 18,
+    lineHeight: 17,
     letterSpacing: 0.2,
-  },
-  description: {
-    fontSize: 12,
-    color: '#6B7280',
-    lineHeight: 16,
-    marginTop: -4,
   },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 4,
+    marginTop: 2,
   },
   priceContainer: {
     flexDirection: 'row',
@@ -388,21 +369,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   price: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: '#111827',
     letterSpacing: 0.3,
   },
   oldPrice: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#9CA3AF',
     textDecorationLine: 'line-through',
     fontWeight: '500',
   },
   farmBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
@@ -413,8 +394,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 4,
-    paddingTop: 8,
+    marginTop: 2,
+    paddingTop: 7,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },
@@ -432,9 +413,9 @@ const styles = StyleSheet.create({
     color: '#DC2626',
   },
   addBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',

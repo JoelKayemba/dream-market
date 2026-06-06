@@ -3,6 +3,9 @@ import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { supabase } from '../config/supabase';
 
+let pendingRegistration = null;
+let lastRegisteredKey = null;
+
 function getExpoProjectId() {
   return (
     Constants.expoConfig?.extra?.eas?.projectId ??
@@ -22,6 +25,18 @@ function normalizePlatform() {
  * À appeler après permission accordée ; prévoir un build EAS / dev client (pas Expo Go Android récent).
  */
 export async function registerExpoPushTokenForUser(userId) {
+  if (pendingRegistration) {
+    return pendingRegistration;
+  }
+
+  pendingRegistration = registerExpoPushTokenForUserInternal(userId).finally(() => {
+    pendingRegistration = null;
+  });
+
+  return pendingRegistration;
+}
+
+async function registerExpoPushTokenForUserInternal(userId) {
   try {
     if (!userId) return { ok: false, reason: 'no_user' };
 
@@ -44,6 +59,11 @@ export async function registerExpoPushTokenForUser(userId) {
     }
 
     const platform = normalizePlatform();
+    const registrationKey = `${userId}:${expoPushToken}:${platform}`;
+
+    if (registrationKey === lastRegisteredKey) {
+      return { ok: true, expoPushToken, skipped: true };
+    }
 
     const { error } = await supabase.rpc('upsert_expo_push_token', {
       p_token: expoPushToken,
@@ -55,6 +75,7 @@ export async function registerExpoPushTokenForUser(userId) {
       return { ok: false, reason: 'db_error', error };
     }
 
+    lastRegisteredKey = registrationKey;
     console.log('[pushTokenService] Jeton Expo Push enregistré');
     return { ok: true, expoPushToken };
   } catch (e) {
