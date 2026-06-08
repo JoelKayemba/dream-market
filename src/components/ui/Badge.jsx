@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
   base: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 20,

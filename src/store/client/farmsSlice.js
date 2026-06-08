@@ -1,11 +1,14 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { farmService } from '../../backend';
+import { localPersonalization } from '../../utils/localPersonalization';
 
 const initialState = {
   farms: [],
+  personalizedFarms: [],
   categories: [],
   popularFarms: [],
   newFarms: [],
+  localProfile: null,
   loading: false,
   loadingMore: false,
   initialLoading: false,
@@ -84,6 +87,11 @@ export const fetchNewFarms = createAsyncThunk(
   }
 );
 
+export const fetchFarmPersonalization = createAsyncThunk(
+  'clientFarms/fetchFarmPersonalization',
+  async (userId) => localPersonalization.getProfile(userId)
+);
+
 const clientFarmsSlice = createSlice({
   name: 'clientFarms',
   initialState,
@@ -120,6 +128,10 @@ const clientFarmsSlice = createSlice({
           state.farms = [...state.farms, ...newFarms];
           console.log(`✅ [farmsSlice] Added ${newFarms.length} new farms (from ${items.length} items)`);
         }
+        state.personalizedFarms = localPersonalization.rankFarms(
+          state.farms,
+          state.localProfile
+        );
         
         state.pagination = {
           page,
@@ -166,6 +178,13 @@ const clientFarmsSlice = createSlice({
       })
       .addCase(fetchNewFarms.rejected, (state, action) => {
         state.error = action.payload;
+      })
+      .addCase(fetchFarmPersonalization.fulfilled, (state, action) => {
+        state.localProfile = action.payload;
+        state.personalizedFarms = localPersonalization.rankFarms(
+          state.farms,
+          state.localProfile
+        );
       });
   },
 });
@@ -174,6 +193,9 @@ export const { } = clientFarmsSlice.actions;
 
 // Selectors avec valeurs par défaut
 export const selectClientFarms = (state) => state.client?.farms?.farms || [];
+export const selectPersonalizedFarms = (state) => state.client?.farms?.personalizedFarms?.length
+  ? state.client.farms.personalizedFarms
+  : state.client?.farms?.farms || [];
 export const selectClientFarmCategories = (state) => state.client?.farms?.categories || [];
 export const selectPopularFarms = (state) => state.client?.farms?.popularFarms || [];
 export const selectNewFarms = (state) => state.client?.farms?.newFarms || [];

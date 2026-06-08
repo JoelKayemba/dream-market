@@ -178,23 +178,22 @@ export default function SearchScreen({ navigation, route }) {
     const filteredFarms = rankFarmsForSearch(farms || [], query);
     const filteredServices = rankServicesForSearch(services || [], query);
 
-    // Tracker la recherche pour la personnalisation (après le filtrage)
-    // On tracke seulement si on a trouvé au moins un produit correspondant
-    if (userId && filteredProducts.length > 0) {
-      // Utiliser le premier produit trouvé pour le tracking
+    // Tracker la recherche pour la personnalisation locale et distante.
+    if (userId) {
       const firstMatch = filteredProducts[0];
+      const firstFarmMatch = filteredFarms[0];
       const productId = firstMatch?.id || null;
       const categoryId = firstMatch?.category_id || firstMatch?.categories?.id || null;
-      
-      // Tracker avec le productId du premier produit trouvé
-      if (productId) {
-        trackInteractionWithUserId(userId, {
-          type: 'search',
-          productId: productId,
-          searchQuery: query,
-          categoryId: categoryId,
-        });
-      }
+
+      trackInteractionWithUserId(userId, {
+        type: 'search',
+        itemType: productId ? 'product' : 'farm',
+        productId,
+        farmId: productId ? null : firstFarmMatch?.id,
+        relatedFarmId: firstMatch?.farm_id || firstMatch?.farms?.id,
+        searchQuery: query,
+        categoryId,
+      });
     }
 
     setSearchResults({
@@ -728,7 +727,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
@@ -805,7 +804,7 @@ const styles = StyleSheet.create({
   tabsContainer: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 4,
     marginBottom: 20,
     shadowColor: '#000',
@@ -818,7 +817,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 8,
-    borderRadius: 8,
+    borderRadius: 14,
     alignItems: 'center',
   },
   activeTab: {
@@ -847,7 +846,7 @@ const styles = StyleSheet.create({
   resultItem: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 16,
     width: '100%',
@@ -860,7 +859,7 @@ const styles = StyleSheet.create({
   itemImage: {
     width: 60,
     height: 60,
-    borderRadius: 8,
+    borderRadius: 14,
     marginRight: 12,
   },
   itemContent: {
@@ -966,7 +965,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingHorizontal: 12,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#E2E0DA',
     marginBottom: 12,
@@ -983,7 +982,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 22,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#E2E0DA',
@@ -997,13 +996,13 @@ const styles = StyleSheet.create({
   suggestionThumb: {
     width: 56,
     height: 56,
-    borderRadius: 12,
+    borderRadius: 20,
     backgroundColor: '#EDECE8',
   },
   suggestionThumbPlaceholder: {
     width: 56,
     height: 56,
-    borderRadius: 12,
+    borderRadius: 20,
     backgroundColor: '#EDECE8',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1060,7 +1059,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     backgroundColor: '#EEF2EA',
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#D5DDCF',
   },
@@ -1098,7 +1097,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,

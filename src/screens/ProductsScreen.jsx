@@ -29,29 +29,12 @@ import {
 } from '../store/client';
 import { Ionicons } from '@expo/vector-icons';
 import { CategorySkeleton, ProductCardSkeleton } from '../components/Skeleton';
+import { localPersonalization } from '../utils/localPersonalization';
 
 const { width } = Dimensions.get('window');
 const CARD_PADDING = 0;
 const CARD_GAP = 12;
 const CARD_WIDTH = (width - CARD_PADDING * 2 - CARD_GAP) / 2;
-
-// Fonction utilitaire pour les icônes de catégories
-const getCategoryIcon = (categoryName) => {
-  const icons = {
-    'légumes': 'leaf-outline',
-    'fruits': 'nutrition-outline',
-    'produits laitiers': 'ice-cream-outline',
-    'viandes': 'restaurant-outline',
-    'céréales': 'layers-outline',
-    'boissons': 'wine-outline',
-    'épices': 'flame-outline',
-    'bio': 'earth-outline',
-    'poissons': 'fish-outline',
-    'graines': 'podium-outline',
-    default: 'grid-outline'
-  };
-  return icons[categoryName?.toLowerCase()] || icons.default;
-};
 
 export default function ProductsScreen({ navigation, route }) {
   const { categoryName } = route.params || {};
@@ -79,8 +62,16 @@ export default function ProductsScreen({ navigation, route }) {
   useEffect(() => {
     if (userId) {
       dispatch(fetchUserInteractions(userId));
+    } else {
+      dispatch(fetchUserInteractions(null));
     }
   }, [userId, dispatch]);
+
+  useEffect(() => {
+    const source = personalizedProducts.length > 0 ? personalizedProducts : products;
+    const ids = source.slice(0, 16).map((product) => product.id);
+    localPersonalization.markDisplayed(userId || null, 'product', ids);
+  }, [userId, personalizedProducts, products]);
 
   const loadData = async (page = 0, refresh = false) => {
     try {
@@ -99,6 +90,8 @@ export default function ProductsScreen({ navigation, route }) {
       // Charger les interactions utilisateur pour la personnalisation
       if (userId) {
         dispatch(fetchUserInteractions(userId));
+      } else {
+        dispatch(fetchUserInteractions(null));
       }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
@@ -131,6 +124,8 @@ export default function ProductsScreen({ navigation, route }) {
       // Recharger les interactions utilisateur
       if (userId) {
         await dispatch(fetchUserInteractions(userId));
+      } else {
+        await dispatch(fetchUserInteractions(null));
       }
     } catch (error) {
       console.error('Erreur lors du refresh:', error);
@@ -231,7 +226,6 @@ export default function ProductsScreen({ navigation, route }) {
             {((categories && categories.length > 0) && !refreshing) ? categories.map((category) => {
               const isSelected = selectedCategory?.id === category.id;
               const accentColor = category.color || '#4CAF50';
-              const iconColor = isSelected ? '#FFFFFF' : accentColor;
               const gradientColors = isSelected 
                 ? [accentColor, accentColor] 
                 : [`${accentColor}33`, `${accentColor}14`];
@@ -256,11 +250,7 @@ export default function ProductsScreen({ navigation, route }) {
                       styles.categoryIconContainer,
                       isSelected && styles.categoryIconContainerSelected
                     ]}>
-                      <Ionicons 
-                        name={getCategoryIcon(category.name)} 
-                        size={18} 
-                        color={iconColor} 
-                      />
+                      <Text style={styles.categoryEmoji}>{category.emoji || '🏷️'}</Text>
                     </View>
                     <Text style={[
                       styles.categoryLabel,
@@ -288,11 +278,7 @@ export default function ProductsScreen({ navigation, route }) {
             <View style={styles.categoryHeader}>
               <View style={styles.categoryTitleContainer}>
                 <View style={styles.categoryIconBadge}>
-                  <Ionicons 
-                    name={getCategoryIcon(selectedCategory.name)} 
-                    size={18} 
-                    color="#FFFFFF" 
-                  />
+                  <Text style={styles.categoryEmojiBadge}>{selectedCategory.emoji || '🏷️'}</Text>
                 </View>
                 <View>
                   <Text style={styles.categoryTitle}>{selectedCategory.name}</Text>
@@ -592,7 +578,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 999,
     backgroundColor: '#F0F8F0',
   },
   viewAllText: {
@@ -606,7 +592,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 999,
     backgroundColor: '#F3F4F6',
   },
   clearFilterText: {
@@ -620,7 +606,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   categoryCard: {
-    borderRadius: 12,
+    borderRadius: 999,
     overflow: 'hidden',
     marginRight: 8,
     borderWidth: 1,
@@ -647,7 +633,7 @@ const styles = StyleSheet.create({
   categoryIconContainer: {
     width: 32,
     height: 32,
-    borderRadius: 10,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(76, 175, 80, 0.12)',
@@ -655,6 +641,12 @@ const styles = StyleSheet.create({
   },
   categoryIconContainerSelected: {
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  categoryEmoji: {
+    fontSize: 18,
+  },
+  categoryEmojiBadge: {
+    fontSize: 20,
   },
   categoryLabel: {
     fontSize: 13,
@@ -684,7 +676,7 @@ const styles = StyleSheet.create({
   categoryIconBadge: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 20,
     backgroundColor: '#4CAF50',
     alignItems: 'center',
     justifyContent: 'center',

@@ -82,6 +82,12 @@ export const useFavorites = () => {
   const addFarmToFavorites = (farm) => {
     if (user?.id) {
       dispatch(addToFavoritesBackend({ userId: user.id, itemType: 'farm', itemId: farm.id }));
+      trackInteractionWithUserId(user.id, {
+        type: 'favorite',
+        itemType: 'farm',
+        farmId: farm.id,
+        searchQuery: farm.specialty || farm.location || farm.city,
+      });
     } else {
       console.error('❌ No user ID available for adding farm to favorites');
     }
@@ -158,6 +164,12 @@ export const useFavorites = () => {
         dispatch(removeFromFavorites({ id: farm.id, type: 'farm' }));
       } else {
         dispatch(addToFavorites({ id: farm.id, type: 'farm', data: farm }));
+        trackInteractionWithUserId(user.id, {
+          type: 'favorite',
+          itemType: 'farm',
+          farmId: farm.id,
+          searchQuery: farm.specialty || farm.location || farm.city,
+        });
       }
       
       // 2. Synchronisation avec le backend (en arrière-plan)

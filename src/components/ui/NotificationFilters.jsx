@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   },
   filterCount: {
     backgroundColor: '#E0E0E0',
-    borderRadius: 10,
+    borderRadius: 16,
     paddingHorizontal: 6,
     paddingVertical: 2,
     marginLeft: 6,

@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   notificationItem: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 12,
     shadowColor: '#000',
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF5722',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 10,
   },
   urgentText: {
     color: '#FFFFFF',
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     right: 16,
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: 10,
     backgroundColor: '#4CAF50',
   },
   deleteButton: {

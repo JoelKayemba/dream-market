@@ -27,15 +27,16 @@ import { trackInteractionWithUserId } from '../utils/interactionTracker';
 const { width } = Dimensions.get('window');
 
 const COLORS = {
-  bg: '#F7F8F7',
+  bg: '#F6F6F3',
   card: '#FFFFFF',
-  text: '#111827',
-  subtext: '#6B7280',
+  text: '#20251A',
+  subtext: '#6B6F5D',
   border: 'rgba(17,24,39,0.08)',
-  primary: '#2F8F46',           // vert
-  primarySoft: 'rgba(47,143,70,0.10)',
+  primary: '#283106',
+  primarySoft: 'rgba(40,49,6,0.08)',
   overlay: 'rgba(0,0,0,0.55)',
-  star: '#E2B714',
+  star: '#D6A81E',
+  muted: '#F1F0EC',
 };
 
 export default function ProductDetailScreen({ route, navigation }) {
@@ -47,6 +48,7 @@ export default function ProductDetailScreen({ route, navigation }) {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [loadingFarm, setLoadingFarm] = useState(false);
+  const [resolvedFarm, setResolvedFarm] = useState(product.farms || null);
   const scrollViewRef = useRef(null);
 
   const { toggleProductFavorite, isProductFavorite } = useFavorites();
@@ -79,11 +81,47 @@ export default function ProductDetailScreen({ route, navigation }) {
     }
   }, [availableStock, hasStockLimit, quantity]);
 
+  React.useEffect(() => {
+    if (!userId || !product?.id) return;
+    trackInteractionWithUserId(userId, {
+      type: 'view',
+      productId: product.id,
+      categoryId: product.category_id || product.categories?.id,
+      relatedFarmId: product.farm_id || product.farms?.id,
+    });
+  }, [userId, product?.id]);
+
   const images = (product.images && product.images.length ? product.images : [product.image]).filter(Boolean);
-  const farmName = product.farms?.name || 'Dream Market';
+  React.useEffect(() => {
+    const farmId = product.farms?.id || product.farm_id;
+    const farmNameForCheck = (product.farms?.name || '').trim().toLowerCase();
+    const productIsDreamMarket = farmNameForCheck === 'dream market' || (!product.farms && !product.farm_id);
+    if (!farmId || productIsDreamMarket) return;
+
+    const currentFarm = resolvedFarm || product.farms;
+    const hasImage = currentFarm?.main_image || currentFarm?.cover_image || currentFarm?.image;
+    if (hasImage) return;
+
+    let cancelled = false;
+    farmService.getFarmById(farmId)
+      .then((farm) => {
+        if (!cancelled && farm) setResolvedFarm(farm);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product.farm_id, product.farms?.id]);
+
+  const displayFarm = resolvedFarm || product.farms;
+  const farmName = displayFarm?.name || 'Dream Market';
   const isDreamMarket =
-    (product.farms?.name || '').trim().toLowerCase() === 'dream market' ||
-    (!product.farms && !product.farm_id);
+    (displayFarm?.name || product.farms?.name || '').trim().toLowerCase() === 'dream market' ||
+    (!displayFarm && !product.farms && !product.farm_id);
+  const farmImageUri = displayFarm?.main_image || displayFarm?.cover_image || displayFarm?.image || null;
+  const farmLocation = displayFarm?.location || displayFarm?.city || displayFarm?.region || product.origin || 'RDC';
+  const farmVerified = !!displayFarm?.verified || isDreamMarket;
 
   const unitPrice = Number(product.price) || 0;
   const totalPrice = useMemo(() => unitPrice * (quantity || 1), [unitPrice, quantity]);
@@ -107,7 +145,13 @@ export default function ProductDetailScreen({ route, navigation }) {
   const quantityLabel = product.quantity_per_unit || product.weight || product.unit || null;
 
   const infoRows = [
-    { icon: 'grid-outline', label: 'Catégorie', value: product.categories?.name },
+    {
+      icon: 'grid-outline',
+      label: 'Catégorie',
+      value: product.categories?.name
+        ? `${product.categories?.emoji ? `${product.categories.emoji} ` : ''}${product.categories.name}`
+        : null,
+    },
     { icon: 'cube-outline', label: 'Conditionnement', value: quantityLabel },
     { icon: 'leaf-outline', label: 'Origine', value: product.origin || product.farms?.location },
     { icon: 'time-outline', label: 'Disponibilité', value: stockStatus },
@@ -115,7 +159,9 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   const metricsData = [
     { icon: 'leaf-outline', label: 'Origine', value: product.origin || product.farms?.location || 'Locale' },
-  ];
+    quantityLabel ? { icon: 'cube-outline', label: 'Unité', value: quantityLabel } : null,
+    { icon: 'checkmark-circle-outline', label: 'Stock', value: stockStatus },
+  ].filter(Boolean);
 
   const handleFavoriteToggle = () => {
     requireAuth(() => {
@@ -128,6 +174,7 @@ export default function ProductDetailScreen({ route, navigation }) {
           type: 'favorite',
           productId: product.id,
           categoryId: product.category_id || product.categories?.id,
+          relatedFarmId: product.farm_id || product.farms?.id,
         });
       }
       
@@ -164,6 +211,7 @@ export default function ProductDetailScreen({ route, navigation }) {
           type: 'cart_add',
           productId: product.id,
           categoryId: product.category_id || product.categories?.id,
+          relatedFarmId: product.farm_id || product.farms?.id,
         });
       }
       
@@ -359,50 +407,94 @@ export default function ProductDetailScreen({ route, navigation }) {
           )}
         </View>
 
-        {/* Bandeau simple (sans gradient) */}
-        <View style={{ paddingHorizontal: 16, marginTop: -28, zIndex: 1 }}>
+        {images.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.thumbnailRow}
+          >
+            {images.map((uri, idx) => (
+              <TouchableOpacity
+                key={`thumb-${idx}`}
+                onPress={() => scrollToImage(idx)}
+                style={[styles.thumbnailButton, selectedImage === idx && styles.thumbnailButtonActive]}
+                activeOpacity={0.85}
+              >
+                <Image source={{ uri }} style={styles.thumbnailImage} resizeMode="cover" />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Résumé produit */}
+        <View style={{ paddingHorizontal: 16, marginTop: images.length > 1 ? 10 : -26, zIndex: 1 }}>
           <View style={styles.heroCard}>
-            <View style={styles.heroHeaderRow}>
-              <Text style={styles.heroProductName}>{product.name}</Text>
-              {highlightChips.length ? (
-                <View style={styles.heroChipsRow}>
-                  {highlightChips.map((label, i) => (
-                    <View key={String(i)} style={styles.heroChip}>
-                      <Text style={styles.heroChipText}>{label}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <View />
-              )}
-            </View>
+            {highlightChips.length ? (
+              <View style={styles.heroChipsRow}>
+                {highlightChips.map((label, i) => (
+                  <View key={String(i)} style={styles.heroChip}>
+                    <Text style={styles.heroChipText}>{label}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            <Text style={styles.heroProductName}>{product.name}</Text>
 
             <View style={styles.heroPriceRow}>
-              {product.old_price ? (
-                <Text style={styles.heroOldPrice}>{formatPrice(product.old_price, product.currency)}</Text>
-              ) : null}
-              <Text style={styles.heroPrice}>{formatPrice(product.price, product.currency)}</Text>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.heroFarmButton, isDreamMarket && styles.heroFarmButtonDisabled]}
-              onPress={openFarmDetail}
-              activeOpacity={isDreamMarket ? 1 : 0.85}
-              disabled={isDreamMarket}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="leaf-outline" size={16} color={isDreamMarket ? COLORS.subtext : COLORS.primary} />
-                <Text style={[styles.heroFarmText, isDreamMarket && { color: COLORS.subtext }]}>
-                  {farmName}
+              <View>
+                {product.old_price ? (
+                  <Text style={styles.heroOldPrice}>{formatPrice(product.old_price, product.currency)}</Text>
+                ) : null}
+                <Text style={styles.heroPrice}>{formatPrice(product.price, product.currency)}</Text>
+              </View>
+              <View style={[styles.stockPill, hasStockLimit && availableStock === 0 && styles.stockPillOut]}>
+                <Ionicons
+                  name={hasStockLimit && availableStock === 0 ? 'close-circle-outline' : 'checkmark-circle-outline'}
+                  size={14}
+                  color={hasStockLimit && availableStock === 0 ? '#9A3412' : COLORS.primary}
+                />
+                <Text style={[styles.stockPillText, hasStockLimit && availableStock === 0 && styles.stockPillTextOut]}>
+                  {hasStockLimit && availableStock === 0 ? 'Indisponible' : 'Disponible'}
                 </Text>
               </View>
-              {isDreamMarket ? (
-                <View />
-              ) : (
-                <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
-              )}
-            </TouchableOpacity>
+            </View>
           </View>
+        </View>
+
+        {/* Ferme / vendeur */}
+        <View style={styles.sellerCard}>
+          <View style={styles.sellerImageWrap}>
+            {farmImageUri ? (
+              <Image source={{ uri: farmImageUri }} style={styles.sellerImage} resizeMode="cover" />
+            ) : (
+              <View style={styles.sellerImagePlaceholder}>
+                <Ionicons name="business-outline" size={26} color="#8A917E" />
+              </View>
+            )}
+          </View>
+          <View style={styles.sellerContent}>
+            <Text style={styles.sellerEyebrow}>Producteur / fournisseur</Text>
+            <Text style={styles.sellerName} numberOfLines={1}>{farmName}</Text>
+            <View style={styles.sellerMetaRow}>
+              <Ionicons name="location-outline" size={13} color={COLORS.subtext} />
+              <Text style={styles.sellerMetaText} numberOfLines={1}>{farmLocation}</Text>
+              {farmVerified && (
+                <View style={styles.sellerVerified}>
+                  <Ionicons name="shield-checkmark-outline" size={11} color={COLORS.primary} />
+                  <Text style={styles.sellerVerifiedText}>Référencé</Text>
+                </View>
+              )}
+            </View>
+          </View>
+          <TouchableOpacity
+            style={[styles.sellerAction, isDreamMarket && styles.sellerActionDisabled]}
+            onPress={openFarmDetail}
+            activeOpacity={isDreamMarket ? 1 : 0.85}
+            disabled={isDreamMarket}
+          >
+            <Ionicons name="chevron-forward" size={18} color={isDreamMarket ? '#B4B8AA' : COLORS.primary} />
+          </TouchableOpacity>
         </View>
 
         {/* Metrics */}
@@ -576,8 +668,8 @@ export default function ProductDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   scrollContent: { paddingTop: 0 },
 
-  imageSection: { position: 'relative', backgroundColor: '#0B1A10' },
-  productImage: { width, height: width * 0.82 },
+  imageSection: { position: 'relative', backgroundColor: '#EDECE8' },
+  productImage: { width, height: width * 0.88 },
 
   navButton: {
     position: 'absolute',
@@ -603,7 +695,7 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   roundBtn: { padding: 10, backgroundColor: COLORS.overlay, borderRadius: 24 },
-  imageCounter: { backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, marginRight: 10 },
+  imageCounter: { backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 22, marginRight: 10 },
   imageCounterText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
 
   imageIndicators: {
@@ -613,56 +705,177 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
   },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.35)', marginHorizontal: 4 },
-  dotActive: { backgroundColor: '#9BE7AC', width: 22 },
+  dot: { width: 8, height: 8, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.35)', marginHorizontal: 4 },
+  dotActive: { backgroundColor: '#FFFFFF', width: 22 },
+
+  thumbnailRow: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    gap: 10,
+  },
+  thumbnailButton: {
+    width: 58,
+    height: 58,
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
+  },
+  thumbnailButtonActive: {
+    borderColor: COLORS.primary,
+    borderWidth: 2,
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+  },
 
   // Hero (sans gradient)
   heroCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 26,
+    padding: 18,
     borderWidth: 1,
     borderColor: COLORS.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  heroHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  heroProductName: { flex: 1, fontSize: 20, lineHeight: 26, fontWeight: '800', color: COLORS.text },
-  heroChipsRow: { flexDirection: 'row', flexWrap: 'wrap', maxWidth: '50%', marginLeft: 12 },
+  heroProductName: { fontSize: 22, lineHeight: 29, fontWeight: '800', color: COLORS.text, letterSpacing: -0.35 },
+  heroChipsRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 },
   heroChip: {
-    backgroundColor: COLORS.primarySoft,
+    backgroundColor: COLORS.muted,
     borderWidth: 1,
-    borderColor: 'rgba(47,143,70,0.18)',
+    borderColor: COLORS.border,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 999,
-    marginLeft: 6,
+    marginRight: 6,
     marginBottom: 6,
   },
-  heroChipText: { fontSize: 12, fontWeight: '700', color: COLORS.text },
-  heroPriceRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 12 },
-  heroOldPrice: { color: COLORS.subtext, textDecorationLine: 'line-through', fontSize: 14, fontWeight: '600', marginRight: 10 },
-  heroPrice: { color: COLORS.text, fontSize: 28, fontWeight: '800' },
-  heroFarmButton: {
-    marginTop: 14,
+  heroChipText: { fontSize: 11, fontWeight: '700', color: COLORS.text },
+  heroPriceRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 14 },
+  heroOldPrice: { color: COLORS.subtext, textDecorationLine: 'line-through', fontSize: 14, fontWeight: '600', marginBottom: 2 },
+  heroPrice: { color: COLORS.text, fontSize: 29, fontWeight: '900', letterSpacing: -0.4 },
+  stockPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: COLORS.primarySoft,
     borderWidth: 1,
     borderColor: COLORS.border,
-    backgroundColor: '#FAFAFA',
   },
-  heroFarmButtonDisabled: { opacity: 0.6 },
-  heroFarmText: { color: COLORS.text, fontSize: 13, fontWeight: '700', marginLeft: 8 },
+  stockPillOut: {
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FED7AA',
+  },
+  stockPillText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  stockPillTextOut: {
+    color: '#9A3412',
+  },
+
+  sellerCard: {
+    marginTop: 14,
+    marginHorizontal: 16,
+    backgroundColor: COLORS.card,
+    borderRadius: 26,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sellerImageWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: COLORS.muted,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  sellerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  sellerImagePlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sellerContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  sellerEyebrow: {
+    fontSize: 11,
+    color: COLORS.subtext,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginBottom: 3,
+  },
+  sellerName: {
+    fontSize: 15,
+    color: COLORS.text,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  sellerMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  sellerMetaText: {
+    flexShrink: 1,
+    fontSize: 12,
+    color: COLORS.subtext,
+    fontWeight: '600',
+  },
+  sellerVerified: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginLeft: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: COLORS.primarySoft,
+  },
+  sellerVerifiedText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  sellerAction: {
+    width: 36,
+    height: 36,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primarySoft,
+  },
+  sellerActionDisabled: {
+    backgroundColor: COLORS.muted,
+  },
 
   // Metrics
-  metricsRow: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: 16 },
+  metricsRow: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: 14 },
   metricCard: {
     flex: 1,
     minWidth: (width - 16 * 2 - 12 * 2) / 3,
     backgroundColor: COLORS.card,
-    borderRadius: 14,
+    borderRadius: 22,
     padding: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -670,7 +883,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   metricIcon: {
-    width: 28, height: 28, borderRadius: 10,
+    width: 28, height: 28, borderRadius: 16,
     backgroundColor: COLORS.primarySoft,
     alignItems: 'center', justifyContent: 'center', marginBottom: 8,
   },
@@ -682,7 +895,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginHorizontal: 16,
     backgroundColor: COLORS.card,
-    borderRadius: 14,
+    borderRadius: 22,
     padding: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -724,18 +937,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.primarySoft,
-    borderRadius: 12,
+    borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 10,
   },
   quantityButton: {
-    width: 42, height: 42, borderRadius: 10,
+    width: 42, height: 42, borderRadius: 16,
     borderWidth: 1, borderColor: 'rgba(47,143,70,0.2)',
     backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
   },
   quantityValue: {
-    minWidth: 66, borderRadius: 10, backgroundColor: '#FFFFFF',
+    minWidth: 66, borderRadius: 16, backgroundColor: '#FFFFFF',
     borderWidth: 1, borderColor: 'rgba(47,143,70,0.14)',
     alignItems: 'center', justifyContent: 'center', paddingVertical: 8,
   },
@@ -773,14 +986,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 20,
   },
   ctaBtnDisabled: { opacity: 0.6 },
   ctaText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', marginLeft: 8 },
 
   // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
-  modalCard: { backgroundColor: COLORS.card, padding: 18, borderRadius: 12, alignItems: 'center', minWidth: 200 },
+  modalCard: { backgroundColor: COLORS.card, padding: 18, borderRadius: 20, alignItems: 'center', minWidth: 200 },
   modalText: { marginTop: 10, color: COLORS.text, fontWeight: '600' },
 
   previewOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center' },

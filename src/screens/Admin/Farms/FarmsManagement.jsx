@@ -96,7 +96,7 @@ const FarmCard = memo(function FarmCard({ farm, onViewFarm, onViewProducts, onDe
         <View style={styles.farmFooter}>
           <View style={styles.statItem}>
             <Ionicons name="cube-outline" size={16} color="#4CAF50" />
-            <Text style={styles.statText}>{farm.products?.length || 0} produits</Text>
+            <Text style={styles.statText}>{farm.productCount ?? 0} produits</Text>
           </View>
           {!!farm.rating && (
             <View style={styles.statItem}>

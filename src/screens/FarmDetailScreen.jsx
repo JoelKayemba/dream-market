@@ -9,6 +9,7 @@ import { selectClientProducts } from '../store/client';
 import ProductCard from '../components/ui/ProductCard';
 import { useFavorites } from '../hooks/useFavorites';
 import { useRequireAuth } from '../hooks/useRequireAuth';
+import { trackInteractionWithUserId } from '../utils/interactionTracker';
 
 const { width } = Dimensions.get('window');
 
@@ -16,11 +17,22 @@ export default function FarmDetailScreen({ route, navigation }) {
   const { farm } = route.params;
   const dispatch = useDispatch();
   const products = useSelector(selectClientProducts);
+  const userId = useSelector((state) => state.auth?.user?.id);
   const [selectedTab, setSelectedTab] = useState('products');
   const { toggleFarmFavorite, isFarmFavorite } = useFavorites();
   const { requireAuth } = useRequireAuth();
   const isFavorite = isFarmFavorite(farm.id);
   const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
+
+  useEffect(() => {
+    if (!userId || !farm?.id) return;
+    trackInteractionWithUserId(userId, {
+      type: 'farm_view',
+      itemType: 'farm',
+      farmId: farm.id,
+      searchQuery: farm.specialty || farm.location || farm.city,
+    });
+  }, [userId, farm?.id]);
 
   // Vérification de sécurité
   if (!farm) {
@@ -37,6 +49,9 @@ export default function FarmDetailScreen({ route, navigation }) {
       </ScreenWrapper>
   );
   }
+
+  const farmImageUri = farm.main_image || farm.cover_image || farm.image || null;
+  const farmCoverUri = farm.cover_image || farm.main_image || farm.image || null;
 
   // Filtrer les produits de cette ferme avec useMemo pour éviter les recalculs
   const farmProducts = useMemo(() => {
@@ -191,11 +206,17 @@ export default function FarmDetailScreen({ route, navigation }) {
             activeOpacity={0.9}
             onPress={() => setImagePreviewVisible(true)}
           >
-            <Image
-              source={{ uri: farm.main_image || farm.cover_image || farm.image }}
-              style={styles.farmImage}
-              resizeMode="cover"
-            />
+            {farmCoverUri ? (
+              <Image
+                source={{ uri: farmCoverUri }}
+                style={styles.farmImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.farmImagePlaceholder}>
+                <Ionicons name="business-outline" size={48} color="#8A917E" />
+              </View>
+            )}
           </TouchableOpacity>
           <ExpoLinearGradient
             colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.65)']}
@@ -207,10 +228,10 @@ export default function FarmDetailScreen({ route, navigation }) {
               {highlightChips.map((chip, index) => (
                 <View
                   key={`${chip.label}-${index}`}
-                  style={[styles.imageChip, { borderColor: chip.color, backgroundColor: `${chip.color}20` }]}
+                  style={styles.imageChip}
                 >
-                  <Ionicons name={chip.icon} size={14} color={chip.color} />
-                  <Text style={[styles.imageChipText, { color: chip.color }]}>{chip.label}</Text>
+                  <Ionicons name={chip.icon} size={14} color="#FFFFFF" />
+                  <Text style={styles.imageChipText}>{chip.label}</Text>
                 </View>
               ))}
             </View>
@@ -430,7 +451,7 @@ export default function FarmDetailScreen({ route, navigation }) {
       </ScrollView>
       <ImagePreviewModal
         visible={imagePreviewVisible}
-        images={[farm.main_image || farm.cover_image || farm.image]}
+        images={farmImageUri ? [farmImageUri] : []}
         initialIndex={0}
         onClose={() => setImagePreviewVisible(false)}
         title={farm.name}
@@ -442,7 +463,7 @@ export default function FarmDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F6F6F3',
   },
   header: {
     flexDirection: 'row',
@@ -453,13 +474,13 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E6E4DD',
   },
   headerButton: {
     width: 40,
     height: 40,
-    borderRadius: 12,
-    backgroundColor: '#F9FAFB',
+    borderRadius: 20,
+    backgroundColor: '#F1F0EC',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -473,14 +494,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   headerTitle: {
-    color: '#111827',
+    color: '#20251A',
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: 0.2,
     textAlign: 'center',
   },
   headerSubtitle: {
-    color: '#6B7280',
+    color: '#6B6F5D',
     fontSize: 13,
     fontWeight: '500',
     textAlign: 'center',
@@ -490,14 +511,19 @@ const styles = StyleSheet.create({
   },
   imageSection: {
     position: 'relative',
-    height: 240,
+    height: 270,
     overflow: 'hidden',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    backgroundColor: '#EDECE8',
   },
   farmImage: {
     width: '100%',
     height: '100%',
+  },
+  farmImagePlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EDECE8',
   },
   imageGradient: {
     position: 'absolute',
@@ -510,43 +536,49 @@ const styles = StyleSheet.create({
   imageChipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 8,
   },
   imageChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
+    gap: 6,
+    paddingHorizontal: 11,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: 999,
     borderWidth: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(0,0,0,0.28)',
+    borderColor: 'rgba(255,255,255,0.22)',
   },
   imageChipText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   heroWrapper: {
     paddingHorizontal: 16,
-    marginTop: 16,
+    marginTop: -34,
+    zIndex: 2,
   },
   heroCard: {
-    borderRadius: 16,
+    borderRadius: 26,
     padding: 20,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E6E4DD',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 3,
   },
   heroTitle: {
-    color: '#111827',
-    fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: 0.2,
+    color: '#20251A',
+    fontSize: 25,
+    fontWeight: '800',
+    letterSpacing: -0.35,
   },
   heroSubtitle: {
-    color: '#6B7280',
+    color: '#6B6F5D',
     fontSize: 14,
     fontWeight: '500',
     marginTop: 6,
@@ -564,13 +596,13 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: '#F9FAFB',
+    borderRadius: 20,
+    backgroundColor: '#F6F6F3',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E6E4DD',
   },
   heroMetaText: {
-    color: '#374151',
+    color: '#3D4236',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -585,16 +617,16 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 110,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E6E4DD',
   },
   metricIcon: {
     width: 34,
     height: 34,
-    borderRadius: 10,
-    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    backgroundColor: '#F6F6F3',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
@@ -602,11 +634,11 @@ const styles = StyleSheet.create({
   metricValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A3B1F',
+    color: '#20251A',
   },
   metricLabel: {
     fontSize: 12,
-    color: '#6B8E6F',
+    color: '#6B6F5D',
     marginTop: 4,
     fontWeight: '500',
   },
@@ -618,16 +650,16 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E6E4DD',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     paddingVertical: 12,
   },
   tabButtonActive: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
+    backgroundColor: '#283106',
+    borderColor: '#283106',
   },
   tabButtonText: {
     fontSize: 14,
@@ -642,27 +674,27 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginHorizontal: 16,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E6E4DD',
   },
   sectionHeading: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: '#20251A',
     marginBottom: 12,
     letterSpacing: 0.2,
   },
   sectionBodyText: {
     fontSize: 14,
-    color: '#405243',
+    color: '#3D4236',
     lineHeight: 22,
     letterSpacing: 0.2,
   },
   sectionBodyTextMuted: {
     fontSize: 14,
-    color: '#7B8F82',
+    color: '#7C806F',
     lineHeight: 22,
     fontStyle: 'italic',
   },
@@ -677,15 +709,15 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: '#F9FAFB',
+    borderRadius: 20,
+    backgroundColor: '#F6F6F3',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E6E4DD',
   },
   infoChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#374151',
+    color: '#3D4236',
   },
   servicesList: {
     gap: 12,
@@ -700,7 +732,7 @@ const styles = StyleSheet.create({
   serviceItemText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
+    color: '#3D4236',
   },
   sectionRow: {
     flexDirection: 'row',
@@ -727,12 +759,12 @@ const styles = StyleSheet.create({
   sectionRowLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#3B4F40',
+    color: '#3D4236',
   },
   sectionRowValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#20251A',
     textAlign: 'right',
     flexShrink: 1,
   },
@@ -747,15 +779,15 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: '#F9FAFB',
+    borderRadius: 20,
+    backgroundColor: '#F6F6F3',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E6E4DD',
   },
   productsBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#374151',
+    color: '#3D4236',
   },
   emptyState: {
     alignItems: 'center',

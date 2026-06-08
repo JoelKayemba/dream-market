@@ -9,6 +9,31 @@ import {
   sanitizeArray,
 } from '../../utils/inputSanitizer';
 
+const FARM_WITH_PRODUCT_COUNT_SELECT = '*, products(count)';
+
+const normalizeFarm = (farm) => {
+  if (!farm) return farm;
+
+  let productCount = 0;
+
+  if (Array.isArray(farm.products)) {
+    if (farm.products.length === 1 && typeof farm.products[0]?.count === 'number') {
+      productCount = farm.products[0].count;
+    } else if (farm.products.some((item) => item?.id != null)) {
+      productCount = farm.products.filter((item) => item?.id != null).length;
+    }
+  }
+
+  if (typeof farm.productCount === 'number') {
+    productCount = Math.max(productCount, farm.productCount);
+  }
+
+  const { products, ...rest } = farm;
+  return { ...rest, productCount };
+};
+
+const normalizeFarms = (farms) => (farms || []).map(normalizeFarm);
+
 export const farmService = {
   // Récupérer toutes les fermes avec pagination
   getFarms: async (options = {}) => {
@@ -23,7 +48,7 @@ export const farmService = {
 
       let query = supabase
         .from('farms')
-        .select('*', { count: 'exact' })
+        .select(FARM_WITH_PRODUCT_COUNT_SELECT, { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -46,7 +71,7 @@ export const farmService = {
       if (error) throw error;
 
       return {
-        data: data || [],
+        data: normalizeFarms(data),
         total: count || 0,
         hasMore: (offset + limit) < (count || 0),
         limit,
@@ -62,12 +87,12 @@ export const farmService = {
     try {
       const { data, error } = await supabase
         .from('farms')
-        .select('*')
+        .select(FARM_WITH_PRODUCT_COUNT_SELECT)
         .eq('id', farmId)
         .single();
 
       if (error) throw error;
-      return data;
+      return normalizeFarm(data);
     } catch (error) {
       throw error;
     }
@@ -293,11 +318,11 @@ export const farmService = {
         .from('farms')
         .update({ verified })
         .eq('id', farmId)
-        .select()
+        .select(FARM_WITH_PRODUCT_COUNT_SELECT)
         .single();
 
       if (error) throw error;
-      return data;
+      return normalizeFarm(data);
     } catch (error) {
       throw error;
     }
@@ -308,12 +333,12 @@ export const farmService = {
     try {
       const { data, error } = await supabase
         .from('farms')
-        .select('*')
+        .select(FARM_WITH_PRODUCT_COUNT_SELECT)
         .or(`name.ilike.%${query}%, location.ilike.%${query}%, specialty.ilike.%${query}%, description.ilike.%${query}%`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return normalizeFarms(data);
     } catch (error) {
       throw error;
     }
@@ -324,12 +349,12 @@ export const farmService = {
     try {
       const { data, error } = await supabase
         .from('farms')
-        .select('*')
+        .select(FARM_WITH_PRODUCT_COUNT_SELECT)
         .eq('region', region)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return normalizeFarms(data);
     } catch (error) {
       throw error;
     }
@@ -340,12 +365,12 @@ export const farmService = {
     try {
       const { data, error } = await supabase
         .from('farms')
-        .select('*')
+        .select(FARM_WITH_PRODUCT_COUNT_SELECT)
         .eq('verified', true)
         .order('rating', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return normalizeFarms(data);
     } catch (error) {
       throw error;
     }
@@ -416,12 +441,12 @@ export const farmService = {
     try {
       const { data, error } = await supabase
         .from('farms')
-        .select('*')
+        .select(FARM_WITH_PRODUCT_COUNT_SELECT)
         .gte('rating', 4)
         .order('rating', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return normalizeFarms(data);
     } catch (error) {
       throw error;
     }
@@ -435,12 +460,12 @@ export const farmService = {
 
       const { data, error } = await supabase
         .from('farms')
-        .select('*')
+        .select(FARM_WITH_PRODUCT_COUNT_SELECT)
         .gte('created_at', thirtyDaysAgo.toISOString())
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return normalizeFarms(data);
     } catch (error) {
       throw error;
     }

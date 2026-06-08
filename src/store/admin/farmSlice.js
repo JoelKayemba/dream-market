@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import { farmService } from '../../backend';
 
 // Actions asynchrones avec backend Supabase
@@ -301,9 +301,9 @@ export const selectSortBy = (state) => state.admin.farms.sortBy;
 export const selectSortOrder = (state) => state.admin.farms.sortOrder;
 
 // Selector pour les fermes filtrées et triées
-export const selectFilteredFarms = (state) => {
-  const { farms, searchQuery, filter, sortBy, sortOrder } = state.admin.farms;
-
+export const selectFilteredFarms = createSelector(
+  [selectAllFarms, selectSearchQuery, selectFilter, selectSortBy, selectSortOrder],
+  (farms, searchQuery, filter, sortBy, sortOrder) => {
   // On travaille sur une copie pour ne pas muter le state
   let filteredFarms = [...farms];
 
@@ -364,7 +364,8 @@ export const selectFilteredFarms = (state) => {
   });
 
   return filteredFarms;
-};
+  }
+);
 
 // Selector pour une ferme spécifique
 export const selectFarmById = (state, farmId) =>
@@ -378,7 +379,7 @@ export const selectFarmStats = (state) => {
     verified: farms.filter((farm) => farm.verified).length,
     pending: farms.filter((farm) => !farm.verified).length,
     totalProducts: farms.reduce(
-      (sum, farm) => sum + (farm.products?.length || 0),
+      (sum, farm) => sum + (farm.productCount ?? 0),
       0
     ),
     averageRating:

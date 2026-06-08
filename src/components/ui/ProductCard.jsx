@@ -60,6 +60,7 @@ export default function ProductCard({
           type: 'cart_add',
           productId: product.id,
           categoryId: product.category_id || product.categories?.id,
+          relatedFarmId: product.farm_id || product.farms?.id,
         });
       }
 
@@ -83,6 +84,7 @@ export default function ProductCard({
           type: 'favorite',
           productId: product.id,
           categoryId: product.category_id || product.categories?.id,
+          relatedFarmId: product.farm_id || product.farms?.id,
         });
       }
     });
@@ -267,7 +269,7 @@ const styles = StyleSheet.create({
 
   // Card
   card: {
-    borderRadius: 14,
+    borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -301,7 +303,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#DC2626',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 20,
+    borderRadius: 999,
   },
   outOfStockText: {
     color: '#FFFFFF',
@@ -332,7 +334,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 6,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 999,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderWidth: 0.5,
     borderColor: 'rgba(0, 0, 0, 0.1)',

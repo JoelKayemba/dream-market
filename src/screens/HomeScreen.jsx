@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -44,15 +44,17 @@ import {
   fetchUserInteractions,
   fetchFarms,
   fetchPopularFarms,
-  selectClientFarms,
+  selectPersonalizedFarms,
   selectPopularFarms,
   selectClientFarmsLoading,
+  fetchFarmPersonalization,
   fetchServices,
   selectClientServices,
 } from '../store/client';
 import { useNotifications } from '../hooks/useNotifications';
 import { useRequireAuth } from '../hooks/useRequireAuth';
 import { CategorySkeleton, ProductCardSkeleton } from '../components/Skeleton';
+import { localPersonalization } from '../utils/localPersonalization';
 
 const { width } = Dimensions.get('window');
 const CARD_PADDING = 16;
@@ -94,7 +96,7 @@ export default function HomeScreen({ navigation }) {
   const promotionProducts = useSelector(selectPromotionProducts);
   const allProducts = useSelector(selectClientProducts);
   const personalizedProducts = useSelector(selectPersonalizedProducts);
-  const clientFarms = useSelector(selectClientFarms);
+  const personalizedFarms = useSelector(selectPersonalizedFarms);
   const popularFarmsHome = useSelector(selectPopularFarms);
   const farmsLoading = useSelector(selectClientFarmsLoading);
   const clientServices = useSelector(selectClientServices);
@@ -103,9 +105,24 @@ export default function HomeScreen({ navigation }) {
   const pagination = useSelector(selectClientProductsPagination);
   const userId = useSelector((state) => state.auth?.user?.id);
 
-  const homeFarmsRow =
-    popularFarmsHome?.length > 0 ? popularFarmsHome.slice(0, 8) : clientFarms.slice(0, 8);
-  const homeServicesPreview = clientServices.slice(0, 2).map(normalizeServiceForCard);
+  const homeFarmsRow = useMemo(
+    () => (popularFarmsHome?.length > 0 ? popularFarmsHome.slice(0, 8) : personalizedFarms.slice(0, 8)),
+    [popularFarmsHome, personalizedFarms]
+  );
+  const homeServicesPreview = useMemo(
+    () => clientServices.slice(0, 2).map(normalizeServiceForCard),
+    [clientServices]
+  );
+
+  useEffect(() => {
+    const ids = personalizedProducts.slice(0, 12).map((product) => product.id);
+    localPersonalization.markDisplayed(userId || null, 'product', ids);
+  }, [userId, personalizedProducts]);
+
+  useEffect(() => {
+    const ids = homeFarmsRow.slice(0, 8).map((farm) => farm.id);
+    localPersonalization.markDisplayed(userId || null, 'farm', ids);
+  }, [userId, homeFarmsRow]);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -120,6 +137,10 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     if (userId) {
       dispatch(fetchUserInteractions(userId));
+      dispatch(fetchFarmPersonalization(userId));
+    } else {
+      dispatch(fetchUserInteractions(null));
+      dispatch(fetchFarmPersonalization(null));
     }
   }, [userId, dispatch]);
 
@@ -164,6 +185,10 @@ export default function HomeScreen({ navigation }) {
       // Charger les interactions utilisateur pour la personnalisation
       if (userId) {
         dispatch(fetchUserInteractions(userId));
+        dispatch(fetchFarmPersonalization(userId));
+      } else {
+        dispatch(fetchUserInteractions(null));
+        dispatch(fetchFarmPersonalization(null));
       }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
@@ -188,6 +213,10 @@ export default function HomeScreen({ navigation }) {
       // Recharger les interactions utilisateur
       if (userId) {
         await dispatch(fetchUserInteractions(userId));
+        await dispatch(fetchFarmPersonalization(userId));
+      } else {
+        await dispatch(fetchUserInteractions(null));
+        await dispatch(fetchFarmPersonalization(null));
       }
     } catch (error) {
       console.error('Erreur lors du refresh:', error);
@@ -325,7 +354,7 @@ export default function HomeScreen({ navigation }) {
                   >
                     <View style={styles.categoryRow}>
                       <View style={styles.categoryIconContainer}>
-                        <Ionicons name={getCategoryIcon(category.name)} size={18} color="#5C6B52" />
+                        <Text style={styles.categoryEmoji}>{category.emoji || '🏷️'}</Text>
                       </View>
                       <Text style={styles.categoryLabel} numberOfLines={1}>
                         {category.name}
@@ -676,6 +705,8 @@ export default function HomeScreen({ navigation }) {
             )}
           </Container>
 
+          
+
           <Container style={styles.homeFooter} padding="none">
             <Text style={styles.homeFooterBrand}>Dream Market</Text>
             <Text style={styles.homeFooterHours}>{CONTACT_INFO.hours}</Text>
@@ -716,24 +747,6 @@ export default function HomeScreen({ navigation }) {
     
   
 }
-
-// Fonction utilitaire pour les icônes de catégories
-const getCategoryIcon = (categoryName) => {
-  const icons = {
-    'légumes': 'leaf-outline',
-    'fruits': 'nutrition-outline',
-    'produits laitiers': 'ice-cream-outline',
-    'viandes': 'restaurant-outline',
-    'céréales': 'layers-outline',
-    'boissons': 'wine-outline',
-    'épices': 'flame-outline',
-    'bio': 'earth-outline',
-    'poissons': 'fish-outline',
-    'graines': 'podium-outline',
-    default: 'grid-outline'
-  };
-  return icons[categoryName?.toLowerCase()] || icons.default;
-};
 
 const styles = StyleSheet.create({
   container: {
@@ -793,7 +806,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     padding: 8,
     backgroundColor: '#EDECE8',
-    borderRadius: 10,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -809,7 +822,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     padding: 8,
     backgroundColor: '#EDECE8',
-    borderRadius: 10,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -836,7 +849,7 @@ const styles = StyleSheet.create({
   },
   farmCardShell: {
     marginRight: 12,
-    borderRadius: 14,
+    borderRadius: 22,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E8E6E1',
@@ -850,7 +863,7 @@ const styles = StyleSheet.create({
   },
   farmSkeletonLine: {
     height: 12,
-    borderRadius: 6,
+    borderRadius: 12,
     backgroundColor: '#EDECE8',
     marginHorizontal: 14,
     marginBottom: 8,
@@ -877,6 +890,90 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  proCtaSection: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  proCtaCard: {
+    backgroundColor: '#283106',
+    borderRadius: 22,
+    padding: 18,
+    flexDirection: 'row',
+    gap: 14,
+    shadowColor: '#283106',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  proCtaIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  proCtaContent: {
+    flex: 1,
+  },
+  proCtaEyebrow: {
+    fontSize: 11,
+    color: '#D1D8BD',
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 5,
+  },
+  proCtaTitle: {
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.25,
+    marginBottom: 8,
+  },
+  proCtaText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#E7EBDD',
+    marginBottom: 14,
+  },
+  proCtaActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  proCtaPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 999,
+  },
+  proCtaPrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  proCtaSecondary: {
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  proCtaSecondaryText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   homeFooter: {
     paddingHorizontal: 20,
@@ -995,7 +1092,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   categoryCard: {
-    borderRadius: 10,
+    borderRadius: 999,
     overflow: 'hidden',
     marginRight: 8,
     borderWidth: 1,
@@ -1018,11 +1115,14 @@ const styles = StyleSheet.create({
   categoryIconContainer: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F0EFEC',
     flexShrink: 0,
+  },
+  categoryEmoji: {
+    fontSize: 18,
   },
   categoryLabel: {
     fontSize: 13,
@@ -1069,7 +1169,7 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     borderWidth: 1,
     borderColor: '#E2E0DA',
-    borderRadius: 12,
+    borderRadius: 20,
     marginTop: 8,
     backgroundColor: '#FFFFFF',
     gap: 8,

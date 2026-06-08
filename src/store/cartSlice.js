@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { orderService, cartService } from '../backend';
 import { supabase } from '../backend/config/supabase';
@@ -623,12 +623,15 @@ const cartSlice = createSlice({
 
 // Sélecteurs
 export const selectCartItems = (state) => state.cart.items;
-export const selectCartItemsCount = (state) => 
-  state.cart.items.reduce((total, item) => total + item.quantity, 0);
+export const selectCartItemsCount = createSelector(
+  [selectCartItems],
+  (items) => items.reduce((total, item) => total + item.quantity, 0)
+);
 
 // Sélecteur pour les totaux par devise
-export const selectCartTotals = (state) => {
-  return state.cart.items.reduce((totals, item) => {
+export const selectCartTotals = createSelector(
+  [selectCartItems],
+  (items) => items.reduce((totals, item) => {
     const currency = item.product.currency || 'CDF';
     const subtotal = item.product.price * item.quantity;
     
@@ -638,14 +641,14 @@ export const selectCartTotals = (state) => {
     totals[currency] += subtotal;
     
     return totals;
-  }, {});
-};
+  }, {})
+);
 
 // Sélecteur pour le total principal (CDF par défaut)
-export const selectCartTotal = (state) => {
-  const totals = selectCartTotals(state);
-  return totals.CDF || totals.USD || 0;
-};
+export const selectCartTotal = createSelector(
+  [selectCartTotals],
+  (totals) => totals.CDF || totals.USD || 0
+);
 
 // Sélecteur pour vérifier si un produit est dans le panier
 export const selectIsInCart = (state, productId) => 

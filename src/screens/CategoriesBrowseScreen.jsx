@@ -118,8 +118,11 @@ export default function CategoriesBrowseScreen({ navigation, route }) {
     setRouteSynced(true);
   };
 
-  const renderChip = (label, categoryId, _isAll) => {
+  const renderChip = (category, categoryId, _isAll) => {
     const selected = _isAll ? selectedCategoryId === null : selectedCategoryId === categoryId;
+    const label = _isAll ? 'Tous' : category?.name;
+    const emoji = _isAll ? '🛒' : category?.emoji || '🏷️';
+
     return (
       <TouchableOpacity
         key={_isAll ? 'all' : categoryId}
@@ -127,6 +130,7 @@ export default function CategoriesBrowseScreen({ navigation, route }) {
         onPress={() => selectCategory(categoryId)}
         activeOpacity={0.85}
       >
+        <Text style={styles.chipEmoji}>{emoji}</Text>
         <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>{label}</Text>
       </TouchableOpacity>
     );
@@ -140,8 +144,8 @@ export default function CategoriesBrowseScreen({ navigation, route }) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.chipsRow}
       >
-        {renderChip('Tous', null, true)}
-        {sortedCategories.map((cat) => renderChip(cat.name, cat.id, false))}
+        {renderChip(null, null, true)}
+        {sortedCategories.map((cat) => renderChip(cat, cat.id, false))}
       </ScrollView>
     </View>
   );
@@ -269,12 +273,18 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 22,
+    borderRadius: 999,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E0DA',
+  },
+  chipEmoji: {
+    fontSize: 16,
   },
   chipSelected: {
     backgroundColor: '#EEF2EA',

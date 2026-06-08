@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { productService, categoryService, personalizationService } from '../../backend';
+import { localPersonalization } from '../../utils/localPersonalization';
 
 // État initial pour les produits côté client
 const initialState = {
@@ -10,6 +11,7 @@ const initialState = {
   promotionProducts: [],
   personalizedProducts: [], // Produits triés par personnalisation
   userInteractions: [], // Interactions utilisateur pour la personnalisation
+  localProfile: null,
   loading: false,
   loadingMore: false, // Chargement de plus d'éléments
   initialLoading: false, // Loading pour le premier chargement
@@ -146,16 +148,19 @@ export const fetchUserInteractions = createAsyncThunk(
   async (userId, { rejectWithValue }) => {
     try {
       if (!userId) {
-        return [];
+        const localProfile = await localPersonalization.getProfile(null);
+        return { interactions: [], localProfile };
       }
+      const localProfile = await localPersonalization.getProfile(userId);
       const interactions = await personalizationService.getUserInteractions(userId, {
         limit: 200, // Limite élevée pour avoir assez de données
         days: 90, // 3 derniers mois
       });
-      return interactions;
+      return { interactions, localProfile };
     } catch (error) {
       console.warn('⚠️ [Products] Erreur lors du chargement des interactions:', error);
-      return []; // Retourner un tableau vide en cas d'erreur
+      const localProfile = await localPersonalization.getProfile(userId);
+      return { interactions: [], localProfile };
     }
   }
 );
@@ -201,37 +206,10 @@ const clientProductsSlice = createSlice({
           state.products = [...state.products, ...items];
         }
         
-        // Recalculer les produits personnalisés si on a des interactions
-        if (state.userInteractions.length > 0) {
-          state.personalizedProducts = personalizationService.sortProductsByPersonalization(
-            state.products,
-            state.userInteractions
-          );
-        } else {
-          // Tri intelligent par défaut
-          state.personalizedProducts = [...state.products].sort((a, b) => {
-            // Promotions en premier
-            const aHasPromo = a.old_price && a.old_price > 0;
-            const bHasPromo = b.old_price && b.old_price > 0;
-            if (aHasPromo && !bHasPromo) return -1;
-            if (!aHasPromo && bHasPromo) return 1;
-            
-            // Nouveautés
-            if (a.is_new && !b.is_new) return -1;
-            if (!a.is_new && b.is_new) return 1;
-            
-            // Popularité
-            if (a.is_popular && !b.is_popular) return -1;
-            if (!a.is_popular && b.is_popular) return 1;
-            
-            // Stock disponible
-            if (a.stock > 0 && b.stock === 0) return -1;
-            if (a.stock === 0 && b.stock > 0) return 1;
-            
-            // Date de création
-            return new Date(b.created_at) - new Date(a.created_at);
-          });
-        }
+        state.personalizedProducts = localPersonalization.rankProducts(
+          state.products,
+          state.localProfile
+        );
         
         state.pagination = {
           page,
@@ -302,39 +280,16 @@ const clientProductsSlice = createSlice({
       
       // Fetch User Interactions
       .addCase(fetchUserInteractions.fulfilled, (state, action) => {
-        state.userInteractions = action.payload;
+        const payload = Array.isArray(action.payload)
+          ? { interactions: action.payload, localProfile: null }
+          : action.payload || { interactions: [], localProfile: null };
+        state.userInteractions = payload.interactions || [];
+        state.localProfile = payload.localProfile || null;
         
-        // Recalculer les produits personnalisés si on a des produits
-        if (state.products.length > 0 && action.payload.length > 0) {
-          state.personalizedProducts = personalizationService.sortProductsByPersonalization(
-            state.products,
-            action.payload
-          );
-        } else {
-          // Si pas d'interactions, utiliser l'ordre par défaut intelligent
-          state.personalizedProducts = [...state.products].sort((a, b) => {
-            // Promotions en premier
-            const aHasPromo = a.old_price && a.old_price > 0;
-            const bHasPromo = b.old_price && b.old_price > 0;
-            if (aHasPromo && !bHasPromo) return -1;
-            if (!aHasPromo && bHasPromo) return 1;
-            
-            // Nouveautés
-            if (a.is_new && !b.is_new) return -1;
-            if (!a.is_new && b.is_new) return 1;
-            
-            // Popularité
-            if (a.is_popular && !b.is_popular) return -1;
-            if (!a.is_popular && b.is_popular) return 1;
-            
-            // Stock disponible
-            if (a.stock > 0 && b.stock === 0) return -1;
-            if (a.stock === 0 && b.stock > 0) return 1;
-            
-            // Date de création
-            return new Date(b.created_at) - new Date(a.created_at);
-          });
-        }
+        state.personalizedProducts = localPersonalization.rankProducts(
+          state.products,
+          state.localProfile
+        );
       });
   },
 });

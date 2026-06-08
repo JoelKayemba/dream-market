@@ -54,7 +54,7 @@ export const componentSpacing = {
   card: {
     padding: baseUnit * 4,             // 16px
     marginBottom: baseUnit * 2,        // 8px
-    borderRadius: baseUnit * 2,        // 8px
+    borderRadius: baseUnit * 6,        // 24px
   },
 
   // 🛍️ Produits
@@ -225,12 +225,12 @@ export const borders = {
   // Rayons de bordure
   radius: {
     none: 0,
-    xs: baseUnit,                      // 4px
-    sm: baseUnit * 2,                  // 8px
-    md: baseUnit * 4,                  // 16px
-    lg: baseUnit * 8,                  // 32px
-    xl: baseUnit * 16,                 // 64px
-    round: 999,                        // Complètement rond
+    xs: baseUnit * 1.5,                // 6px
+    sm: baseUnit * 3,                  // 12px
+    md: baseUnit * 5,                  // 20px
+    lg: baseUnit * 7,                  // 28px
+    xl: baseUnit * 9,                  // 36px
+    round: 999,                        // Complètement rond (pilule)
   },
   // Largeurs de bordure
   width: {

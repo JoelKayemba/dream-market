@@ -2,6 +2,7 @@ import { supabase } from '../config/supabase';
 
 const TABLE = 'app_settings';
 const DELIVERY_FEE_KEY = 'delivery_fee';
+let deliveryFeeChannelSequence = 0;
 
 export const DEFAULT_DELIVERY_FEE = {
   amount: 0,
@@ -79,8 +80,9 @@ export const deliveryFeeService = {
 
   subscribeToDeliveryFee(callback) {
     try {
+      deliveryFeeChannelSequence += 1;
       const channel = supabase
-        .channel('delivery_fee_changes')
+        .channel(`delivery_fee_changes:${deliveryFeeChannelSequence}`)
         .on(
           'postgres_changes',
           {

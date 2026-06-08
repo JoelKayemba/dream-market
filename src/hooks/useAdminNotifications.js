@@ -38,6 +38,7 @@ export const useAdminNotifications = () => {
     return () => {
       if (subscriptionRef.current) {
         notificationService.unsubscribeFromNotifications(subscriptionRef.current);
+        subscriptionRef.current = null;
       }
     };
   }, [user?.id, user?.role]);

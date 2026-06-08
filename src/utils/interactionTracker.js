@@ -1,5 +1,6 @@
 import { useSelector } from 'react-redux';
 import { personalizationService } from '../backend/services/personalizationService';
+import { localPersonalization } from './localPersonalization';
 
 /**
  * Utilitaire pour tracker les interactions utilisateur de manière non-bloquante
@@ -10,8 +11,8 @@ import { personalizationService } from '../backend/services/personalizationServi
 const interactionCache = new Map();
 const CACHE_DURATION = 5000; // 5 secondes
 
-const getCacheKey = (userId, type, productId) => {
-  return `${userId}_${type}_${productId || 'none'}`;
+const getCacheKey = (userId, type, productId, farmId) => {
+  return `${userId}_${type}_${productId || farmId || 'none'}`;
 };
 
 const isCached = (key) => {
@@ -40,7 +41,7 @@ const setCache = (key) => {
  */
 export const trackInteraction = async (interactionData) => {
   try {
-    const { type, productId, categoryId, searchQuery } = interactionData;
+    const { type, productId, farmId, categoryId, searchQuery, itemType, relatedFarmId } = interactionData;
 
     if (!type) {
       console.warn('⚠️ [InteractionTracker] Type d\'interaction requis');
@@ -52,7 +53,7 @@ export const trackInteraction = async (interactionData) => {
     // Pour l'instant, on va utiliser une approche différente
     
     // Vérifier le cache pour éviter les appels répétés
-    const cacheKey = getCacheKey('user', type, productId);
+    const cacheKey = getCacheKey('user', type, productId, farmId);
     if (isCached(cacheKey)) {
       return; // Déjà tracké récemment
     }
@@ -66,12 +67,24 @@ export const trackInteraction = async (interactionData) => {
       }
 
       try {
-        await personalizationService.trackInteraction(userId, {
+        await localPersonalization.track(userId, {
+          type,
+          itemType,
           productId,
+          farmId,
           categoryId,
-          interactionType: type,
           searchQuery,
+          relatedFarmId,
         });
+
+        if (productId) {
+          await personalizationService.trackInteraction(userId, {
+            productId,
+            categoryId,
+            interactionType: type,
+            searchQuery,
+          });
+        }
         setCache(cacheKey);
       } catch (error) {
         // Erreur silencieuse pour ne pas bloquer l'application
@@ -92,20 +105,32 @@ export const useInteractionTracker = () => {
   const track = async (interactionData) => {
     if (!userId) return; // Pas de tracking pour les utilisateurs non connectés
 
-    const { type, productId, categoryId, searchQuery } = interactionData;
-    const cacheKey = getCacheKey(userId, type, productId);
+    const { type, productId, farmId, categoryId, searchQuery, itemType, relatedFarmId } = interactionData;
+    const cacheKey = getCacheKey(userId, type, productId, farmId);
     
     if (isCached(cacheKey)) {
       return; // Déjà tracké récemment
     }
 
     try {
-      await personalizationService.trackInteraction(userId, {
+      await localPersonalization.track(userId, {
+        type,
+        itemType,
         productId,
+        farmId,
         categoryId,
-        interactionType: type,
         searchQuery,
+        relatedFarmId,
       });
+
+      if (productId) {
+        await personalizationService.trackInteraction(userId, {
+          productId,
+          categoryId,
+          interactionType: type,
+          searchQuery,
+        });
+      }
       setCache(cacheKey);
     } catch (error) {
       console.warn('⚠️ [InteractionTracker] Erreur:', error);
@@ -121,20 +146,32 @@ export const useInteractionTracker = () => {
 export const trackInteractionWithUserId = async (userId, interactionData) => {
   if (!userId) return;
 
-  const { type, productId, categoryId, searchQuery } = interactionData;
-  const cacheKey = getCacheKey(userId, type, productId);
+  const { type, productId, farmId, categoryId, searchQuery, itemType, relatedFarmId } = interactionData;
+  const cacheKey = getCacheKey(userId, type, productId, farmId);
   
   if (isCached(cacheKey)) {
     return; // Déjà tracké récemment
   }
 
   try {
-    await personalizationService.trackInteraction(userId, {
+    await localPersonalization.track(userId, {
+      type,
+      itemType,
       productId,
+      farmId,
       categoryId,
-      interactionType: type,
       searchQuery,
+      relatedFarmId,
     });
+
+    if (productId) {
+      await personalizationService.trackInteraction(userId, {
+        productId,
+        categoryId,
+        interactionType: type,
+        searchQuery,
+      });
+    }
     setCache(cacheKey);
   } catch (error) {
     console.warn('⚠️ [InteractionTracker] Erreur:', error);

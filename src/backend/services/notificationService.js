@@ -1,5 +1,7 @@
 import { supabase, TABLES } from '../config/supabase';
 
+let notificationChannelSequence = 0;
+
 /**
  * Service unifié de gestion des notifications
  * Source unique de vérité pour toutes les notifications (admin et client)
@@ -495,7 +497,8 @@ class NotificationService {
    * @param {string} userRole - Rôle de l'utilisateur pour filtrer les notifications
    */
   subscribeToNotifications(userId, callback, userRole = null) {
-    const channelName = `notifications:${userId}`;
+    notificationChannelSequence += 1;
+    const channelName = `notifications:${userId}:${userRole || 'all'}:${notificationChannelSequence}`;
     
     let subscription = supabase
       .channel(channelName)

@@ -8,7 +8,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
  * Composant Skeleton avec effet shimmer (miroir)
  * Utilisé pour afficher des placeholders pendant le chargement
  */
-export const Skeleton = ({ width, height, borderRadius = 8, style }) => {
+export const Skeleton = ({ width, height, borderRadius = 14, style }) => {
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -66,8 +66,8 @@ export const Skeleton = ({ width, height, borderRadius = 8, style }) => {
 export const CategorySkeleton = () => (
   <View style={styles.categorySkeleton}>
     <View style={styles.categorySkeletonCard}>
-      <Skeleton width={32} height={32} borderRadius={10} />
-      <Skeleton width={60} height={12} borderRadius={4} />
+      <Skeleton width={32} height={32} borderRadius={16} />
+      <Skeleton width={60} height={12} borderRadius={10} />
     </View>
   </View>
 );
@@ -77,11 +77,11 @@ export const CategorySkeleton = () => (
  */
 export const ProductCardSkeleton = ({ width = 160 }) => (
   <View style={[styles.productCardSkeleton, { width }]}>
-    <Skeleton width="100%" height={120} borderRadius={12} />
+    <Skeleton width="100%" height={120} borderRadius={20} />
     <View style={styles.productCardSkeletonContent}>
-      <Skeleton width="80%" height={16} borderRadius={4} />
-      <Skeleton width="60%" height={14} borderRadius={4} style={{ marginTop: 8 }} />
-      <Skeleton width="50%" height={18} borderRadius={4} style={{ marginTop: 8 }} />
+      <Skeleton width="80%" height={16} borderRadius={10} />
+      <Skeleton width="60%" height={14} borderRadius={10} style={{ marginTop: 8 }} />
+      <Skeleton width="50%" height={18} borderRadius={10} style={{ marginTop: 8 }} />
     </View>
   </View>
 );
@@ -91,11 +91,11 @@ export const ProductCardSkeleton = ({ width = 160 }) => (
  */
 export const ProductCardFullWidthSkeleton = () => (
   <View style={styles.productCardFullWidthSkeleton}>
-    <Skeleton width={120} height={120} borderRadius={12} />
+    <Skeleton width={120} height={120} borderRadius={20} />
     <View style={styles.productCardFullWidthContent}>
-      <Skeleton width="70%" height={18} borderRadius={4} />
-      <Skeleton width="90%" height={14} borderRadius={4} style={{ marginTop: 8 }} />
-      <Skeleton width="50%" height={16} borderRadius={4} style={{ marginTop: 12 }} />
+      <Skeleton width="70%" height={18} borderRadius={10} />
+      <Skeleton width="90%" height={14} borderRadius={10} style={{ marginTop: 8 }} />
+      <Skeleton width="50%" height={16} borderRadius={10} style={{ marginTop: 12 }} />
     </View>
   </View>
 );
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 120,
     height: 48,
-    borderRadius: 12,
+    borderRadius: 20,
     backgroundColor: '#F3F4F6',
     padding: 8,
     paddingHorizontal: 12,
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
   productCardSkeleton: {
     marginRight: 14,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   productCardFullWidthSkeleton: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 12,
     marginBottom: 12,
     marginHorizontal: 16,

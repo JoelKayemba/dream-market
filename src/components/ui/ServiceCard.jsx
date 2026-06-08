@@ -28,7 +28,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E8EDE9',
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 20,
     borderWidth: 1.5,
     borderColor: PRIMARY,
     backgroundColor: '#FFFFFF',
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 20,
     backgroundColor: PRIMARY,
   },
   btnSolidText: {
@@ -180,7 +180,7 @@ const minimalStyles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E2E0DA',
@@ -211,7 +211,7 @@ const minimalStyles = StyleSheet.create({
     right: 10,
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 24,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E0DA',
@@ -228,7 +228,7 @@ const minimalStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.94)',
     paddingHorizontal: 9,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#E8E6E1',
   },
@@ -238,7 +238,7 @@ const minimalStyles = StyleSheet.create({
   statusDot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
+    borderRadius: 10,
     backgroundColor: '#7D8F72',
   },
   statusDotOff: {

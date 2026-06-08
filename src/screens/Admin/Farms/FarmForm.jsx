@@ -61,6 +61,7 @@ export default function FarmForm({ route, navigation }) {
     delivery: !!farm?.delivery,
     pickup: !!farm?.pickup,
     farm_shop: farm?.farm_shop ?? farm?.farmShop ?? false,
+    is_priority: !!farm?.is_priority,
     certifications: farm?.certifications || [],
     sustainable_practices: farm?.sustainable_practices || farm?.sustainablePractices || [],
     story: farm?.story || '',
@@ -183,6 +184,7 @@ export default function FarmForm({ route, navigation }) {
         delivery: formData.delivery,
         pickup: formData.pickup,
         farm_shop: formData.farm_shop,
+        is_priority: formData.is_priority,
         certifications: formData.certifications,
         sustainable_practices: formData.sustainable_practices,
         contact: formData.contact,
@@ -381,6 +383,24 @@ export default function FarmForm({ route, navigation }) {
                 placeholderTextColor="#9CA3AF"
               />
             </View>
+
+            <TouchableOpacity
+              style={[styles.optionItem, formData.is_priority && styles.optionItemActive]}
+              onPress={() => toggleBooleanField('is_priority')}
+              activeOpacity={0.9}
+            >
+              <Ionicons
+                name={formData.is_priority ? 'star' : 'star-outline'}
+                size={22}
+                color={formData.is_priority ? COLORS.accent : '#E0E0E0'}
+              />
+              <View style={styles.optionTextBlock}>
+                <Text style={styles.optionText}>Ferme prioritaire</Text>
+                <Text style={styles.optionSubtext}>
+                  Ses produits seront favorisés dans l’affichage client.
+                </Text>
+              </View>
+            </TouchableOpacity>
 
             <View style={styles.field}>
               <Text style={styles.label}>Description</Text>
@@ -670,7 +690,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   optionItemActive: { backgroundColor: '#E8F5E8' },
+  optionTextBlock: {
+    flex: 1,
+  },
   optionText: { color: COLORS.ink, fontWeight: '600' },
+  optionSubtext: {
+    marginTop: 3,
+    color: COLORS.muted,
+    fontSize: 12,
+    lineHeight: 16,
+  },
 
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {

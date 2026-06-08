@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import { analyticsService } from '../../backend/services/analyticsService';
 
 // État initial pour les analytiques admin
@@ -211,14 +211,25 @@ export const selectOrdersAnalytics = (state) => state.admin.analytics.orders;
 export const selectGrowthMetrics = (state) => state.admin.analytics.growth;
 
 // Selectors composés
-export const selectAllAnalytics = (state) => ({
-  dashboard: state.admin.analytics.dashboard,
-  revenue: state.admin.analytics.revenue,
-  orders: state.admin.analytics.orders,
-  growth: state.admin.analytics.growth,
-  loading: state.admin.analytics.loading,
-  error: state.admin.analytics.error,
-  lastUpdated: state.admin.analytics.lastUpdated
-});
+export const selectAllAnalytics = createSelector(
+  [
+    selectDashboardStats,
+    selectRevenueAnalytics,
+    selectOrdersAnalytics,
+    selectGrowthMetrics,
+    selectAnalyticsLoading,
+    selectAnalyticsError,
+    selectAnalyticsLastUpdated
+  ],
+  (dashboard, revenue, orders, growth, loading, error, lastUpdated) => ({
+    dashboard,
+    revenue,
+    orders,
+    growth,
+    loading,
+    error,
+    lastUpdated
+  })
+);
 
 export default analyticsSlice.reducer;

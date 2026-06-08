@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: '#4CAF50',
-    borderRadius: 6,
+    borderRadius: 12,
   },
   markAllText: {
     color: '#FFFFFF',

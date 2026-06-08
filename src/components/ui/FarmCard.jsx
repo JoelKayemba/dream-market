@@ -14,8 +14,13 @@ const PRIMARY = '#2F8F46';
 const PRIMARY_SOFT = '#E8F5E9';
 
 const farmProductsCount = (farm) => {
-  if (Array.isArray(farm?.products)) return farm.products.length;
   if (typeof farm?.productCount === 'number') return farm.productCount;
+  if (Array.isArray(farm?.products)) {
+    if (farm.products.length === 1 && typeof farm.products[0]?.count === 'number') {
+      return farm.products[0].count;
+    }
+    if (farm.products.some((item) => item?.id != null)) return farm.products.length;
+  }
   return null;
 };
 
@@ -38,7 +43,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E8EDE9',
@@ -130,7 +135,7 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY_SOFT,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 20,
     marginBottom: 8,
   },
   tagText: {
@@ -156,7 +161,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 20,
     borderWidth: 1.5,
     borderColor: PRIMARY,
     backgroundColor: '#FFFFFF',
@@ -173,7 +178,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 20,
     backgroundColor: PRIMARY,
   },
   btnSolidText: {
@@ -183,13 +188,132 @@ const styles = StyleSheet.create({
   },
 });
 
+const compactStyles = StyleSheet.create({
+  wrap: {
+    width: '100%',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E2E0DA',
+    shadowColor: '#0F1E13',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  imageBlock: {
+    height: 94,
+    backgroundColor: '#EDECE8',
+    position: 'relative',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  imagePlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EDECE8',
+  },
+  fabHeart: {
+    position: 'absolute',
+    top: 7,
+    right: 7,
+    width: 28,
+    height: 28,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderWidth: 1,
+    borderColor: 'rgba(226,224,218,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifiedPill: {
+    position: 'absolute',
+    left: 7,
+    bottom: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  verifiedText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#2F8F46',
+  },
+  body: {
+    padding: 10,
+    gap: 7,
+  },
+  title: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2C2C28',
+    lineHeight: 17,
+    letterSpacing: -0.15,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#777E5C',
+    fontWeight: '500',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  tag: {
+    flexShrink: 1,
+    backgroundColor: '#F0F4EA',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  tagText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#4A5548',
+  },
+  tagMuted: {
+    backgroundColor: '#F7F6F3',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  tagMutedText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#86857D',
+  },
+  countText: {
+    fontSize: 10,
+    color: '#86857D',
+    fontWeight: '700',
+  },
+});
+
 const minimalStyles = StyleSheet.create({
   wrap: {
     width: '100%',
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E2E0DA',
@@ -220,7 +344,7 @@ const minimalStyles = StyleSheet.create({
     right: 10,
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 24,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E0DA',
@@ -237,7 +361,7 @@ const minimalStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.94)',
     paddingHorizontal: 9,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#E8E6E1',
   },
@@ -290,7 +414,7 @@ const minimalStyles = StyleSheet.create({
     backgroundColor: '#F7F6F3',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 20,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#E2E0DA',
@@ -321,14 +445,15 @@ export default function FarmCard({
   onViewProducts,
   navigation,
   style,
-  variant = 'default', // 'default' | 'minimal'
+  variant = 'default', // 'default' | 'minimal' | 'compact'
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const { toggleFarmFavorite, isFarmFavorite } = useFavorites();
   const isFavorite = isFarmFavorite(farm?.id);
+  const isCompact = variant === 'compact';
   const isMinimal = variant === 'minimal';
 
-  const imageUri = farm?.main_image || farm?.image;
+  const imageUri = farm?.main_image || farm?.cover_image || farm?.image;
   const location = farm?.location || farm?.city;
   const productCount = farmProductsCount(farm);
   const specialtyLabel = farm?.specialty ? formatSpecialtyLabel(farm.specialty) : null;
@@ -352,6 +477,88 @@ export default function FarmCard({
     },
     [farm, isFavorite, toggleFarmFavorite]
   );
+
+  if (isCompact) {
+    return (
+      <TouchableOpacity
+        style={[compactStyles.wrap, style]}
+        onPress={handlePress}
+        activeOpacity={0.92}
+        accessibilityRole="button"
+      >
+        <View style={compactStyles.card}>
+          <View style={compactStyles.imageBlock}>
+            {imageUri && !imgFailed ? (
+              <Image
+                source={{ uri: imageUri }}
+                style={compactStyles.image}
+                resizeMode="cover"
+                onError={() => setImgFailed(true)}
+              />
+            ) : (
+              <View style={compactStyles.imagePlaceholder}>
+                <Ionicons name="business-outline" size={28} color="#B8C4A8" />
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={compactStyles.fabHeart}
+              onPress={handleFavorite}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name={isFavorite ? 'heart' : 'heart-outline'}
+                size={15}
+                color={isFavorite ? '#8B5A5A' : '#5F6F52'}
+              />
+            </TouchableOpacity>
+
+            {farm?.verified ? (
+              <View style={compactStyles.verifiedPill}>
+                <Ionicons name="shield-checkmark-outline" size={11} color="#2F8F46" />
+                <Text style={compactStyles.verifiedText}>Référencée</Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={compactStyles.body}>
+            <Text style={compactStyles.title} numberOfLines={2}>
+              {farm?.name || 'Ferme'}
+            </Text>
+
+            {location ? (
+              <View style={compactStyles.metaItem}>
+                <Ionicons name="location-outline" size={12} color="#777E5C" />
+                <Text style={compactStyles.metaText} numberOfLines={1}>
+                  {location}
+                </Text>
+              </View>
+            ) : null}
+
+            <View style={compactStyles.footerRow}>
+              {specialtyLabel ? (
+                <View style={compactStyles.tag}>
+                  <Text style={compactStyles.tagText} numberOfLines={1}>
+                    {specialtyLabel}
+                  </Text>
+                </View>
+              ) : (
+                <View style={compactStyles.tagMuted}>
+                  <Text style={compactStyles.tagMutedText}>Ferme</Text>
+                </View>
+              )}
+
+              {productCount != null && productCount > 0 ? (
+                <Text style={compactStyles.countText}>
+                  {productCount} réf.
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  }
 
   if (isMinimal) {
     return (

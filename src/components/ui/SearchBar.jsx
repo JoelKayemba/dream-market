@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { borders } from '../../theme';
 
 export default function SearchBar({ 
   placeholder = "Rechercher...", 
@@ -49,7 +50,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E0E0E0',
-    borderRadius: 12,
+    borderRadius: borders.radius.round,
     paddingHorizontal: 16,
     paddingVertical: 12,
     shadowColor: '#000',

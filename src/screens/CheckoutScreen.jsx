@@ -224,6 +224,7 @@ export default function CheckoutScreen({ navigation }) {
             type: 'purchase',
             productId: item.product.id,
             categoryId: item.product.category_id || item.product.categories?.id,
+            relatedFarmId: item.product.farm_id || item.product.farms?.id,
             quantity: item.quantity,
           });
         });
@@ -565,7 +566,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10
   },
   backButton: {
-    width: 36, height: 36, borderRadius: 8,
+    width: 36, height: 36, borderRadius: 14,
     backgroundColor: '#F3F4F6',
     alignItems: 'center', justifyContent: 'center'
   },
@@ -580,7 +581,7 @@ const styles = StyleSheet.create({
   // Cards
   card: {
     backgroundColor: COLORS.card,
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: COLORS.border,
     marginBottom: 12,
@@ -590,7 +591,7 @@ const styles = StyleSheet.create({
   // Summary
   summaryHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   summaryIcon: {
-    width: 36, height: 36, borderRadius: 8,
+    width: 36, height: 36, borderRadius: 14,
     backgroundColor: '#F3F4F6',
     alignItems: 'center', justifyContent: 'center',
     marginRight: 10
@@ -603,7 +604,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F3F4F6'
   },
   itemLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 },
-  itemImage: { width: 52, height: 52, borderRadius: 8, backgroundColor: '#F3F4F6' },
+  itemImage: { width: 52, height: 52, borderRadius: 14, backgroundColor: '#F3F4F6' },
   itemName: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   itemDetails: { fontSize: 12.5, color: COLORS.subtle, marginTop: 2 },
   itemTotal: { fontSize: 14.5, fontWeight: '700', color: COLORS.text },
@@ -627,7 +628,7 @@ const styles = StyleSheet.create({
   inputLabel: { fontSize: 13.5, color: COLORS.text, fontWeight: '600', marginBottom: 6 },
   inputWrapper: {
     flexDirection: 'row', alignItems: 'flex-start',
-    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 10,
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 16,
     backgroundColor: COLORS.card,
     paddingHorizontal: 12, paddingVertical: 10
   },
@@ -639,14 +640,14 @@ const styles = StyleSheet.create({
   // Paiement
   paymentOption: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 12, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 10, backgroundColor: COLORS.card
+    padding: 12, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 16, backgroundColor: COLORS.card
   },
   selectedPaymentOption: { borderColor: COLORS.text, backgroundColor: COLORS.bg },
   paymentText: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   paymentSubtext: { fontSize: 12.5, color: COLORS.subtle, marginTop: 2 },
 
   radioButton: {
-    width: 20, height: 20, borderRadius: 10,
+    width: 20, height: 20, borderRadius: 16,
     borderWidth: 1.5, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center'
   },
   radioButtonSelected: { borderColor: COLORS.text },
@@ -656,7 +657,7 @@ const styles = StyleSheet.create({
   infoBox: {
     flexDirection: 'row', alignItems: 'flex-start',
     backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 10, padding: 12
+    borderRadius: 16, padding: 12
   },
   infoText: { fontSize: 12.5, color: COLORS.subtle, flex: 1 },
 
@@ -667,7 +668,7 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: COLORS.accent, borderRadius: 10, paddingVertical: 14
+    gap: 8, backgroundColor: COLORS.accent, borderRadius: 16, paddingVertical: 14
   },
   confirmButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', letterSpacing: 0.2 },
 
@@ -677,7 +678,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', padding: 20
   },
   modalContent: {
-    backgroundColor: COLORS.card, borderRadius: 12,
+    backgroundColor: COLORS.card, borderRadius: 20,
     width: '100%', maxWidth: 380, padding: 20,
     borderWidth: 1, borderColor: COLORS.border
   },
@@ -685,7 +686,7 @@ const styles = StyleSheet.create({
   modalMessage: { fontSize: 13, color: COLORS.subtle, textAlign: 'center', marginBottom: 16 },
   modalButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: COLORS.accent, paddingVertical: 12, borderRadius: 8
+    gap: 8, backgroundColor: COLORS.accent, paddingVertical: 12, borderRadius: 14
   },
   modalButtonText: { color: '#FFFFFF', fontSize: 14.5, fontWeight: '600' }
 });

@@ -32,7 +32,10 @@ export const productService = {
             id,
             name,
             location,
-            verified
+            verified,
+            is_priority,
+            main_image,
+            cover_image
           ),
           categories (
             id,
@@ -89,6 +92,9 @@ export const productService = {
             name,
             location,
             verified,
+            is_priority,
+            main_image,
+            cover_image,
             rating,
             review_count
           ),
@@ -180,7 +186,10 @@ export const productService = {
           farms (
             id,
             name,
-            location
+            location,
+            is_priority,
+            main_image,
+            cover_image
           ),
           categories (
             id,
@@ -279,7 +288,10 @@ export const productService = {
           farms (
             id,
             name,
-            location
+            location,
+            is_priority,
+            main_image,
+            cover_image
           ),
           categories (
             id,
@@ -340,7 +352,10 @@ export const productService = {
           farms (
             id,
             name,
-            location
+            location,
+            is_priority,
+            main_image,
+            cover_image
           ),
           categories (
             id,
@@ -392,7 +407,10 @@ export const productService = {
             id,
             name,
             location,
-            verified
+            verified,
+            is_priority,
+            main_image,
+            cover_image
           ),
           categories (
             id,
@@ -422,7 +440,10 @@ export const productService = {
             id,
             name,
             location,
-            verified
+            verified,
+            is_priority,
+            main_image,
+            cover_image
           ),
           categories (
             id,
@@ -452,7 +473,10 @@ export const productService = {
             id,
             name,
             location,
-            verified
+            verified,
+            is_priority,
+            main_image,
+            cover_image
           ),
           categories (
             id,
@@ -482,7 +506,10 @@ export const productService = {
             id,
             name,
             location,
-            verified
+            verified,
+            is_priority,
+            main_image,
+            cover_image
           ),
           categories (
             id,
@@ -512,7 +539,10 @@ export const productService = {
             id,
             name,
             location,
-            verified
+            verified,
+            is_priority,
+            main_image,
+            cover_image
           ),
           categories (
             id,
