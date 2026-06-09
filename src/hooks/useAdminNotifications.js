@@ -141,6 +141,8 @@ export const useAdminNotifications = () => {
         return 'Voir la commande';
       case 'admin_pending':
         return 'Traiter la commande';
+      case 'admin_product_review':
+        return 'Valider le produit';
       default:
         return 'Voir les détails';
     }

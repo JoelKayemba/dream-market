@@ -18,6 +18,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { resolvePostLoginRoute } from '../utils/authRouting';
+import { useAuthModal } from '../contexts/AuthModalContext';
+import { resetRoot } from '../navigation/navigationRef';
 import {
   isBlocked,
   recordFailedAttempt,
@@ -28,6 +31,7 @@ import {
 
 export default function LoginScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { openFarmerActivate, closeAuthModal } = useAuthModal();
   const { login, isLoading, error, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -178,13 +182,15 @@ export default function LoginScreen({ navigation }) {
       if (result.type.endsWith('/fulfilled')) {
         await resetAttempts('login');
         const role = result.payload?.user?.role;
-        const target = role === 'admin' ? 'AdminDashboard' : 'MainApp';
-        // Si on est dans un modal, fermer le modal au lieu de naviguer
-        if (navigation.goBack && typeof navigation.goBack === 'function') {
-          navigation.goBack();
-        } else {
-          navigation.replace(target);
+        const target = resolvePostLoginRoute(role);
+
+        if (typeof closeAuthModal === 'function') {
+          closeAuthModal();
         }
+
+        setTimeout(() => {
+          resetRoot([{ name: target }]);
+        }, 150);
       } else {
         // Enregistrer TOUTES les tentatives échouées
         const attemptData = await recordFailedAttempt('login');
@@ -429,6 +435,14 @@ export default function LoginScreen({ navigation }) {
                   <Text style={styles.registerLinkText}>S'inscrire</Text>
                 </TouchableOpacity>
               </View>
+
+              <TouchableOpacity
+                style={styles.farmerLink}
+                onPress={openFarmerActivate}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.farmerLinkText}>J'ai un code producteur Dream Field</Text>
+              </TouchableOpacity>
 
               {/* Liens légaux */}
               <View style={styles.legalLinksContainer}>
@@ -733,6 +747,17 @@ const styles = StyleSheet.create({
   registerLinkText: {
     color: '#2F8F46',
     fontSize: 15,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  farmerLink: {
+    alignItems: 'center',
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  farmerLinkText: {
+    color: '#6B735A',
+    fontSize: 13,
     fontWeight: '700',
     textDecorationLine: 'underline',
   },

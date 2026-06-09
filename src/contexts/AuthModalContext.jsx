@@ -30,12 +30,15 @@ const loadForgotPasswordScreen = () => {
   return ForgotPasswordScreen;
 };
 
+import { navigateRoot } from '../navigation/navigationRef';
+
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const AuthModalContext = createContext({
   openLogin: () => {},
   openRegister: () => {},
   openForgotPassword: () => {},
+  openFarmerActivate: () => {},
   closeAuthModal: () => {},
 });
 
@@ -111,8 +114,26 @@ export const AuthModalProvider = ({ children }) => {
     });
   };
 
+  const openFarmerActivate = () => {
+    const go = () => navigateRoot('FarmerActivate');
+
+    if (!visible) {
+      go();
+      return;
+    }
+
+    Animated.timing(slideAnim, {
+      toValue: SCREEN_HEIGHT,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      setVisible(false);
+      go();
+    });
+  };
+
   const renderModalContent = () => {
-    // Navigation mock pour les modals
+    // Navigation mock pour les modals (auth uniquement)
     const mockNavigation = {
       goBack: closeAuthModal,
       navigate: (screen) => {
@@ -122,6 +143,11 @@ export const AuthModalProvider = ({ children }) => {
           openLogin();
         } else if (screen === 'ForgotPassword') {
           openForgotPassword();
+        } else if (screen === 'FarmerActivate') {
+          openFarmerActivate();
+        } else {
+          closeAuthModal();
+          navigateRoot(screen);
         }
       },
       replace: (screen) => {
@@ -129,9 +155,20 @@ export const AuthModalProvider = ({ children }) => {
           openRegister();
         } else if (screen === 'Login') {
           openLogin();
+        } else if (screen === 'FarmerActivate') {
+          openFarmerActivate();
+        } else {
+          closeAuthModal();
+          navigateRoot(screen);
         }
       },
-      addListener: () => () => {}, // Mock listener
+      reset: (config) => {
+        closeAuthModal();
+        if (config?.routes?.[0]?.name) {
+          navigateRoot(config.routes[0].name);
+        }
+      },
+      addListener: () => () => {},
     };
 
     switch (modalType) {
@@ -154,6 +191,7 @@ export const AuthModalProvider = ({ children }) => {
         openLogin,
         openRegister,
         openForgotPassword,
+        openFarmerActivate,
         closeAuthModal,
       }}
     >

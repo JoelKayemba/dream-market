@@ -11,7 +11,7 @@ const ONBOARDING_STORAGE_KEY = '@dream_market_onboarding_completed';
 
 export default function WelcomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { openLogin, openRegister, openForgotPassword } = useAuthModal();
+  const { openLogin, openRegister, openForgotPassword, openFarmerActivate } = useAuthModal();
 
   // Bloquer le retour en arrière sur WelcomeScreen
   useEffect(() => {
@@ -110,6 +110,15 @@ export default function WelcomeScreen({ navigation }) {
               >
                 <Ionicons name="person-add-outline" size={20} color="#2F8F46" />
                 <Text style={styles.secondaryButtonText}>Créer un compte</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.farmerButton}
+                onPress={openFarmerActivate}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="leaf-outline" size={18} color="#6B735A" />
+                <Text style={styles.farmerButtonText}>J'ai un code producteur</Text>
               </TouchableOpacity>
             </View>
 
@@ -293,6 +302,23 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  farmerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 999,
+    backgroundColor: '#F0F4EC',
+    borderWidth: 1,
+    borderColor: '#D8E2CF',
+  },
+  farmerButtonText: {
+    color: '#6B735A',
+    fontSize: 14,
+    fontWeight: '700',
   },
   forgotPasswordLink: {
     alignItems: 'center',

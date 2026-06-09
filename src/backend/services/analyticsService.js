@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { commissionService } from './commissionService';
 
 class AnalyticsService {
   // Récupérer toutes les statistiques du dashboard
@@ -280,6 +281,18 @@ class AnalyticsService {
     }
   }
 
+  async getCommissionAnalytics(periodDays = 30) {
+    try {
+      return await commissionService.getAdminCommissionDashboard({
+        days: periodDays,
+        status: 'delivered',
+      });
+    } catch (error) {
+      console.error('Erreur lors de la récupération des commissions:', error);
+      throw error;
+    }
+  }
+
   // Récupérer toutes les analytiques en une seule fois (revenus et commandes seulement)
   async getAllAnalytics() {
     try {
@@ -287,12 +300,14 @@ class AnalyticsService {
         dashboardStats,
         revenueAnalytics,
         ordersAnalytics,
-        growthMetrics
+        growthMetrics,
+        commissionAnalytics,
       ] = await Promise.all([
         this.getDashboardStats(),
         this.getRevenueAnalytics(30),
         this.getOrdersAnalytics(30),
-        this.getGrowthMetrics()
+        this.getGrowthMetrics(),
+        this.getCommissionAnalytics(30),
       ]);
 
       const allAnalytics = {
@@ -300,6 +315,7 @@ class AnalyticsService {
         revenue: revenueAnalytics,
         orders: ordersAnalytics,
         growth: growthMetrics,
+        commissions: commissionAnalytics,
         lastUpdated: new Date().toISOString()
       };
 

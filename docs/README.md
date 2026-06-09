@@ -21,6 +21,7 @@
 - [Roadmap des Étapes](./05-roadmap-etapes.md)
 - [Critères de Succès & Risques](./06-criteres-succes-risques.md)
 - [Règles de Travail](./07-regles-travail.md)
+- [Espace Fermier — Architecture & Phases](./ESPACE_FERMIER_PHASES.md)
 
 ---
 

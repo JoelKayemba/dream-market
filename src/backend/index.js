@@ -14,4 +14,9 @@ export { passwordResetService } from './services/passwordResetService';
 export { deliveryFeeService } from './services/deliveryFeeService';
 export { cartService } from './services/cartService';
 export { personalizationService } from './services/personalizationService';
+export { farmerInvitationService } from './services/farmerInvitationService';
+export { farmerStatsService } from './services/farmerStatsService';
+export { farmerProductService, adminStockAlertService } from './services/farmerProductService';
+export { farmerProposalService } from './services/farmerProposalService';
+export { adminProductReviewService } from './services/adminProductReviewService';
 

@@ -64,6 +64,13 @@ export const productService = {
         query = query.not('old_price', 'is', null).gt('old_price', 0);
       }
 
+      if (!includeInactive) {
+        query = query.eq('review_status', 'published');
+      }
+      if (isActive === true) {
+        query = query.eq('is_active', true);
+      }
+
       const { data, error, count } = await query;
 
       if (error) throw error;
@@ -177,6 +184,8 @@ export const productService = {
       if (productData.tags && Array.isArray(productData.tags)) {
         cleanedData.tags = sanitizeArray(productData.tags, { maxLength: 50 });
       }
+
+      cleanedData.review_status = cleanedData.review_status || 'published';
 
       const { data, error } = await supabase
         .from('products')
@@ -387,6 +396,7 @@ export const productService = {
         `)
         .eq('farm_id', farmId)
         .eq('is_active', true)
+        .eq('review_status', 'published')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -420,6 +430,7 @@ export const productService = {
         `)
         .eq('category_id', categoryId)
         .eq('is_active', true)
+        .eq('review_status', 'published')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -453,6 +464,7 @@ export const productService = {
         `)
         .or(`name.ilike.%${query}%, description.ilike.%${query}%, short_description.ilike.%${query}%`)
         .eq('is_active', true)
+        .eq('review_status', 'published')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -486,6 +498,7 @@ export const productService = {
         `)
         .eq('is_organic', true)
         .eq('is_active', true)
+        .eq('review_status', 'published')
         .order('rating', { ascending: false });
 
       if (error) throw error;
@@ -519,6 +532,7 @@ export const productService = {
         `)
         .eq('is_new', true)
         .eq('is_active', true)
+        .eq('review_status', 'published')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -552,6 +566,7 @@ export const productService = {
         `)
         .eq('is_popular', true)
         .eq('is_active', true)
+        .eq('review_status', 'published')
         .order('rating', { ascending: false });
 
       if (error) throw error;

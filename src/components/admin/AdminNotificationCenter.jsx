@@ -18,29 +18,23 @@ export default function AdminNotificationCenter({ navigation }) {
  
   const handleNotificationPress = async (notification) => {
     try {
-      
-      
-      // Marquer comme lue
       markAsRead(notification.id);
-      
-      // Récupérer l'objet order complet depuis Supabase
+
+      if (notification.type === 'admin_product_review') {
+        setIsVisible(false);
+        navigation.navigate('FarmerProductRequests');
+        return;
+      }
+
       if (notification.data?.order_id || notification.data?.orderId) {
         const orderId = notification.data?.order_id || notification.data?.orderId;
-       
-        
-        // Importer orderService pour récupérer la commande complète
         const { orderService } = await import('../../backend/services/orderService');
         const order = await orderService.getOrderById(orderId);
-        
-        
-        
-        // Naviguer vers OrderDetailAdmin avec l'objet order complet (comme OrdersManagement)
         navigation.navigate('OrderDetailAdmin', { order });
       } else {
-        
-        Alert.alert('Erreur', 'Impossible de trouver l\'ID de la commande');
+        Alert.alert('Erreur', 'Impossible de trouver les détails de cette notification');
       }
-      
+
       setIsVisible(false);
     } catch (error) {
       console.error('[AdminNotificationCenter] Erreur lors de la navigation:', error);

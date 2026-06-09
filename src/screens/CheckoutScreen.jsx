@@ -33,6 +33,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { formatPrice, getCurrencySymbol } from '../utils/currency';
 import { useDeliveryFee } from '../hooks/useDeliveryFee';
+import { commissionService } from '../backend/services/commissionService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { trackInteractionWithUserId } from '../utils/interactionTracker';
 
@@ -188,19 +189,11 @@ export default function CheckoutScreen({ navigation }) {
       const estimatedDelivery = new Date();
       estimatedDelivery.setHours(estimatedDelivery.getHours() + 24);
 
+      const orderItems = await commissionService.buildOrderItemsWithCommission(cartItems);
+
       const orderData = {
         user_id: user.id,
-        items: cartItems.map((item) => ({
-          product_id: item.product.id,
-          product_name: item.product.name,
-          product_price: item.product.price,
-          product_currency: item.product.currency || 'CDF',
-          product_image: item.product.images?.[0] || item.product.image || null,
-          farm_id: item.product.farm_id || item.product.farms?.id || null,
-          farm_name: item.product.farms?.name || null,
-          quantity: item.quantity,
-          subtotal: item.product.price * item.quantity
-        })),
+        items: orderItems,
         delivery_address: deliveryAddress,
         phone_number: phoneNumber,
         notes,

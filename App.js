@@ -3,6 +3,7 @@ import React from 'react';
 import { StyleSheet, View, Image, ActivityIndicator, StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
+import { navigationRef } from './src/navigation/navigationRef';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Provider } from 'react-redux';
 import { store } from './src/store';
@@ -41,6 +42,9 @@ import OrderDetailScreen from './src/screens/OrderDetailScreen';
 
 // Écrans d'administration
 import AdminNavigator from './src/screens/Admin/AdminNavigator';
+import FarmerNavigator from './src/navigation/FarmerNavigator';
+import FarmerActivateScreen from './src/screens/Farmer/FarmerActivateScreen';
+import { resolvePostLoginRoute } from './src/utils/authRouting';
 
 const Stack = createStackNavigator();
 
@@ -84,6 +88,7 @@ export default function App() {
         store.dispatch({
           type: 'auth/logout/fulfilled'
         });
+        store.dispatch({ type: 'farmer/clearFarmerState' });
         // Vider le panier lors de la déconnexion
         store.dispatch({
           type: 'cart/switchUser',
@@ -117,7 +122,7 @@ export default function App() {
       if (result.payload && result.type.endsWith('/fulfilled')) {
         // Admin : tableau de bord admin ; sinon app cliente
         const role = result.payload.user?.role;
-        setInitialRoute(role === 'admin' ? 'AdminDashboard' : 'MainApp');
+        setInitialRoute(resolvePostLoginRoute(role));
         // Charger le panier de l'utilisateur connecté
         const { loadCart } = require('./src/store/cartSlice');
         store.dispatch(loadCart());
@@ -173,7 +178,7 @@ export default function App() {
           <Provider store={store}>
             <AuthModalProvider>
               <NotificationManager />
-              <NavigationContainer>
+              <NavigationContainer ref={navigationRef}>
               <Stack.Navigator
                 initialRouteName={initialRoute}
                 screenOptions={{
@@ -223,6 +228,15 @@ export default function App() {
                   }}
                 />
                 
+                <Stack.Screen
+                  name="FarmerActivate"
+                  component={FarmerActivateScreen}
+                  options={{
+                    title: 'Activation producteur',
+                    gestureEnabled: true,
+                  }}
+                />
+
                 {/* Application principale */}
                 <Stack.Screen
                   name="MainApp"
@@ -332,6 +346,15 @@ export default function App() {
                   component={OrderDetailScreen}
                   options={{
                     title: 'Détails de la commande'
+                  }}
+                />
+
+                <Stack.Screen
+                  name="FarmerApp"
+                  component={FarmerNavigator}
+                  options={{
+                    title: 'Espace producteur',
+                    gestureEnabled: false,
                   }}
                 />
 

@@ -437,6 +437,8 @@ export const selectFilteredProducts = (state) => {
       const stock = product.stock;
       return stock !== null && stock !== undefined && stock === 0;
     });
+  } else if (filters.status === 'pending_review') {
+    filtered = filtered.filter(product => product.review_status === 'pending_review');
   }
   
   // Tri

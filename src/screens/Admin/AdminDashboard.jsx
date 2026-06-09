@@ -5,6 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import Container from '../../components/ui/Container';
 import AdminNotificationCenter from '../../components/admin/AdminNotificationCenter';
+import AdminStockAlertsSection from '../../components/admin/AdminStockAlertsSection';
+import AdminPendingProductsSection from '../../components/admin/AdminPendingProductsSection';
+import AdminCommissionsSection from '../../components/admin/AdminCommissionsSection';
 import { useAuth } from '../../hooks/useAuth';
 import { useAdminNotifications } from '../../hooks/useAdminNotifications';
 import BackgroundNotificationService from '../../services/backgroundNotificationService';
@@ -30,6 +33,7 @@ export default function AdminDashboard({ navigation }) {
   const analyticsStats = useSelector(selectDashboardStats);
   
   const [refreshing, setRefreshing] = useState(false);
+  const [stockAlertsRefreshKey, setStockAlertsRefreshKey] = useState(0);
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalFarms: 0,
@@ -65,6 +69,7 @@ export default function AdminDashboard({ navigation }) {
       dispatch(fetchAllAnalytics())
     ]).finally(() => {
       setRefreshing(false);
+      setStockAlertsRefreshKey((key) => key + 1);
     });
   }, [dispatch]);
 
@@ -381,6 +386,23 @@ export default function AdminDashboard({ navigation }) {
             </View>
           </Container>
         )}
+
+        <AdminStockAlertsSection
+          navigation={navigation}
+          refreshKey={stockAlertsRefreshKey}
+        />
+
+        <AdminPendingProductsSection
+          navigation={navigation}
+          refreshKey={stockAlertsRefreshKey}
+        />
+
+        <Container>
+          <AdminCommissionsSection
+            navigation={navigation}
+            refreshKey={stockAlertsRefreshKey}
+          />
+        </Container>
 
         {/* Statistiques Principales */}
         <Container style={styles.statsSection}>

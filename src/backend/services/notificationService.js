@@ -333,25 +333,19 @@ class NotificationService {
         throw new Error('Paramètres requis manquants pour créer une notification');
       }
 
-      const { data: notification, error } = await supabase
-        .from(TABLES.NOTIFICATIONS)
-        .insert({
-          user_id: userId,
-          order_id: orderId,
-          type,
-          title,
-          message,
-          data,
-          priority,
-          is_read: false,
-          is_sent: false
-        })
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('create_app_notification', {
+        p_user_id: userId,
+        p_order_id: orderId,
+        p_type: type,
+        p_title: title,
+        p_message: message,
+        p_data: data,
+        p_priority: priority,
+      });
 
       if (error) throw error;
-      
-      return notification;
+
+      return data;
     } catch (error) {
       console.error('Erreur lors de la création de la notification:', error);
       throw error;

@@ -370,6 +370,12 @@ function ScrollingHeader({
                   icon: 'alert-circle-outline',
                   color: '#FF9800',
                 },
+                {
+                  id: 'pending_review',
+                  label: 'À valider',
+                  icon: 'hourglass-outline',
+                  color: '#9C27B0',
+                },
               ]}
               keyExtractor={(item) => String(item.id)}
               horizontal
@@ -458,7 +464,7 @@ function ListEmpty({ searchQuery, onAddProduct }) {
 
 export default function ProductsManagement({ navigation, route }) {
   const dispatch = useDispatch();
-  const { farmId } = (route && route.params) || {};
+  const { farmId, initialStatus } = (route && route.params) || {};
 
   // Local UI state
   const [searchQuery, setSearchQueryLocal] = useState('');
@@ -482,6 +488,13 @@ export default function ProductsManagement({ navigation, route }) {
     dispatch(fetchCategories());
     dispatch(fetchFarms());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (initialStatus) {
+      dispatch(setStatusFilter(initialStatus));
+      setShowFilters(true);
+    }
+  }, [dispatch, initialStatus]);
 
   const onRefresh = async () => {
     setRefreshing(true);

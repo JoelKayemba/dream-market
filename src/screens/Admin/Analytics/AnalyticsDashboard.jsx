@@ -12,6 +12,7 @@ import {
   setPeriod,
   setTopLimit
 } from '../../../store/admin/analyticsSlice';
+import { formatMoney } from '../../../utils/commission';
 
 const { width } = Dimensions.get('window');
 
@@ -345,7 +346,55 @@ export default function AnalyticsDashboard({ navigation }) {
                 icon="checkmark-circle-outline"
                 color="#4CAF50"
               />
+              <StatCard
+                title="Commissions Dream Field"
+                value={formatMoney(analytics.commissions?.totals?.commission_cdf || 0, 'CDF')}
+                subtitle={
+                  (analytics.commissions?.totals?.commission_usd || 0) > 0
+                    ? formatMoney(analytics.commissions.totals.commission_usd, 'USD')
+                    : 'Sur commandes livrées'
+                }
+                icon="pie-chart-outline"
+                color="#9C27B0"
+              />
+              <StatCard
+                title="À reverser fermiers"
+                value={formatMoney(analytics.commissions?.totals?.payout_cdf || 0, 'CDF')}
+                subtitle={
+                  (analytics.commissions?.totals?.payout_usd || 0) > 0
+                    ? formatMoney(analytics.commissions.totals.payout_usd, 'USD')
+                    : 'Net producteurs'
+                }
+                icon="wallet-outline"
+                color="#2E7D32"
+              />
             </View>
+
+            {(analytics.commissions?.farms || []).length > 0 ? (
+              <View style={styles.farmPayoutSection}>
+                <Text style={styles.subSectionTitle}>Reversements par ferme (30 j)</Text>
+                {(analytics.commissions.farms || []).slice(0, 8).map((farm) => (
+                  <View key={farm.farm_id} style={styles.farmPayoutRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.farmPayoutName}>{farm.farm_name}</Text>
+                      <Text style={styles.farmPayoutMeta}>
+                        {Number(farm.commission_rate || 0)} % · {farm.order_count || 0} cmd
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.farmPayoutAmount}>
+                        {formatMoney(farm.payout_cdf, 'CDF')}
+                      </Text>
+                      {(farm.payout_usd || 0) > 0 ? (
+                        <Text style={styles.farmPayoutSub}>
+                          {formatMoney(farm.payout_usd, 'USD')}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
         )}
 
@@ -729,4 +778,28 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 14,
   },
+  subSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6B7280',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  farmPayoutSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 4,
+  },
+  farmPayoutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  farmPayoutName: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  farmPayoutMeta: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
+  farmPayoutAmount: { fontSize: 13, fontWeight: '800', color: '#2E7D32' },
+  farmPayoutSub: { fontSize: 11, color: '#6B7280', marginTop: 2 },
 });

@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { deleteFarm, verifyFarm, selectAllFarms } from '../../../store/admin/farmSlice';
 import SafeAreaWrapper from '../../../components/SafeAreaWrapper';
+import FarmerInviteSection from './FarmerInviteSection';
 
 export default function FarmDetail({ route, navigation }) {
   const { farm: initialFarm = {} } = route.params || {};
@@ -152,6 +153,11 @@ export default function FarmDetail({ route, navigation }) {
           <InfoRow label="Région" value={farm?.region} icon="map-outline" />
           <InfoRow label="Spécialité" value={farm?.specialty} icon="leaf-outline" />
           <InfoRow
+            label="Commission Dream Field"
+            value={farm?.commission_rate != null ? `${Number(farm.commission_rate)} %` : '0 %'}
+            icon="pie-chart-outline"
+          />
+          <InfoRow
             label="Année d'établissement"
             value={farm?.established != null ? String(farm.established) : ''}
             icon="calendar-outline"
@@ -230,6 +236,9 @@ export default function FarmDetail({ route, navigation }) {
             <InfoRow label="Site web" value={farm.contact.website} icon="globe-outline" />
           ) : null}
         </View>
+
+        {/* Accès producteur */}
+        <FarmerInviteSection farmId={farm?.id} ownerId={farm?.owner_id} />
 
         {/* Statistiques */}
         <View style={styles.section}>

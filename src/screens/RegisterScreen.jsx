@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { resolvePostLoginRoute } from '../utils/authRouting';
 import {
   isBlocked,
   recordFailedAttempt,
@@ -187,7 +188,7 @@ export default function RegisterScreen({ navigation }) {
       if (result.type.endsWith('/fulfilled')) {
         await resetAttempts('register');
         const role = result.payload?.user?.role;
-        const target = role === 'admin' ? 'AdminDashboard' : 'MainApp';
+        const target = resolvePostLoginRoute(role);
         if (navigation.goBack && typeof navigation.goBack === 'function') {
           navigation.goBack();
         } else {

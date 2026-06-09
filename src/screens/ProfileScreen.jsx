@@ -19,6 +19,7 @@ import { useDispatch } from 'react-redux';
 import { logout as logoutAction } from '../store/authSlice';
 import { resetAttempts } from '../utils/attemptLimiter';
 import { useAuthModal } from '../contexts/AuthModalContext';
+import { resetToScreen } from '../navigation/navigationRef';
 
 /**
  * Composants locaux simples pour éviter les dépendances externes
@@ -72,6 +73,10 @@ export default function ProfileScreen({ navigation }) {
     email: '—',
     phone: '',
     role: 'user',
+  };
+
+  const goToFarmerApp = () => {
+    resetToScreen(navigation, 'FarmerApp');
   };
 
   const handleQuickAction = (route) => {
@@ -197,6 +202,11 @@ export default function ProfileScreen({ navigation }) {
                   <Ionicons name="shield-checkmark" size={12} color="#FFFFFF" />
                 </View>
               )}
+              {displayUser?.role === 'farmer' && (
+                <View style={styles.farmerBadge}>
+                  <Ionicons name="leaf" size={12} color="#FFFFFF" />
+                </View>
+              )}
             </View>
 
             <View style={styles.userInfo}>
@@ -255,6 +265,27 @@ export default function ProfileScreen({ navigation }) {
                 icon="shield-outline"
                 onPress={() => handleQuickAction('AdminDashboard')}
                 style={styles.adminButton}
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Espace producteur si rôle fermier */}
+        {displayUser?.role === 'farmer' && (
+          <View style={styles.section}>
+            <View style={[styles.adminSection, styles.farmerSection]}>
+              <View style={styles.adminHeader}>
+                <Ionicons name="leaf-outline" size={20} color="#2E7D32" />
+                <Text style={styles.adminTitle}>Espace producteur</Text>
+              </View>
+              <Text style={styles.adminSubtitle}>
+                Stats, stock, ventes et propositions pour votre ferme partenaire.
+              </Text>
+              <PrimaryButton
+                title="Ouvrir mon espace producteur"
+                icon="stats-chart-outline"
+                onPress={goToFarmerApp}
+                style={styles.farmerButton}
               />
             </View>
           </View>
@@ -563,6 +594,26 @@ const styles = StyleSheet.create({
   },
   adminButton: {
     alignSelf: 'flex-start',
+  },
+  farmerSection: {
+    borderLeftColor: '#81C784',
+  },
+  farmerButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#2E7D32',
+  },
+  farmerBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#2E7D32',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
 
   // ABOUT + LOGOUT

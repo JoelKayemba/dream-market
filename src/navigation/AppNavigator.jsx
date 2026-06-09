@@ -26,9 +26,12 @@ export default function AppNavigator({ navigation }) {
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
 
-    // Empêcher le retour par swipe depuis MainApp
+    // Empêcher le retour par swipe — sauf reset explicite (ex. espace producteur)
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      // Empêcher complètement le retour depuis MainApp
+      const actionType = e.data?.action?.type;
+      if (actionType === 'RESET' || actionType === 'REPLACE') {
+        return;
+      }
       e.preventDefault();
     });
 

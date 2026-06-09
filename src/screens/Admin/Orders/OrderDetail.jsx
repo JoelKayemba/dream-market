@@ -18,6 +18,7 @@ import {
   selectOrderById,
 } from '../../../store/admin/ordersSlice';
 import { openWhatsApp, openPhoneCall, openEmail } from '../../../utils/contactInfo';
+import { getLineFinancials, sumOrderItemsFinancials, formatMoney as formatCommissionMoney } from '../../../utils/commission';
 
 /* === Palette conservée === */
 const COLORS = {
@@ -96,6 +97,11 @@ export default function OrderDetail({ route, navigation }) {
     }
     return baseTotals;
   }, [order?.totalsWithDelivery, order?.totals, deliveryFeeAmount, deliveryFeeCurrency]);
+
+  const commissionSummary = React.useMemo(
+    () => sumOrderItemsFinancials(order?.items || []),
+    [order?.items]
+  );
 
   const STATUS = {
     pending:   { label: 'En attente',      color: '#FF9800', icon: 'time-outline' },
@@ -335,6 +341,7 @@ export default function OrderDetail({ route, navigation }) {
           <View style={{ gap: 10 }}>
             {(order.items || []).map((item, idx) => {
               const currency = item.product_currency || 'CDF';
+              const line = getLineFinancials(item);
               return (
                 <View key={idx} style={styles.itemRow}>
                   {item.product_image ? (
@@ -358,6 +365,19 @@ export default function OrderDetail({ route, navigation }) {
                     <Text style={styles.itemMeta}>
                       {formatPrice(item.product_price || 0, currency)} × {item.quantity}
                     </Text>
+                    {item.farm_id ? (
+                      <View style={styles.commissionBreakdown}>
+                        <Text style={styles.commissionLine}>
+                          Client : {formatPrice(line.subtotal, currency)}
+                        </Text>
+                        <Text style={styles.commissionLine}>
+                          Dream Field ({line.commission_rate} %) : −{formatPrice(line.commission_amount, currency)}
+                        </Text>
+                        <Text style={styles.payoutLine}>
+                          Fermier : {formatPrice(line.farmer_payout_amount, currency)}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
 
                   <Text style={styles.itemTotal}>
@@ -368,6 +388,30 @@ export default function OrderDetail({ route, navigation }) {
             })}
           </View>
         </Card>
+
+        {(commissionSummary.commissionCdf > 0 || commissionSummary.commissionUsd > 0) ? (
+          <Card>
+            <SectionTitle>Répartition Dream Field</SectionTitle>
+            <View style={styles.kvRow}>
+              <Text style={styles.kvKey}>Commission totale</Text>
+              <Text style={styles.kvVal}>
+                {formatCommissionMoney(commissionSummary.commissionCdf, 'CDF')}
+                {commissionSummary.commissionUsd > 0
+                  ? ` · ${formatCommissionMoney(commissionSummary.commissionUsd, 'USD')}`
+                  : ''}
+              </Text>
+            </View>
+            <View style={styles.kvRow}>
+              <Text style={styles.kvKey}>À reverser aux fermes</Text>
+              <Text style={[styles.kvVal, { color: COLORS.accent }]}>
+                {formatCommissionMoney(commissionSummary.payoutCdf, 'CDF')}
+                {commissionSummary.payoutUsd > 0
+                  ? ` · ${formatCommissionMoney(commissionSummary.payoutUsd, 'USD')}`
+                  : ''}
+              </Text>
+            </View>
+          </Card>
+        ) : null}
 
         {/* Livraison */}
         <Card>
@@ -687,6 +731,9 @@ const styles = StyleSheet.create({
     fontWeight: '600' 
   },
   itemMeta: { color: COLORS.muted, marginTop: 2, fontSize: 12 },
+  commissionBreakdown: { marginTop: 6, gap: 2 },
+  commissionLine: { fontSize: 11, color: COLORS.muted },
+  payoutLine: { fontSize: 11, color: COLORS.accent, fontWeight: '700' },
   itemTotal: { color: COLORS.accent, fontWeight: '800' },
 
   /* Livraison bloc */

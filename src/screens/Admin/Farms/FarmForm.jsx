@@ -62,6 +62,7 @@ export default function FarmForm({ route, navigation }) {
     pickup: !!farm?.pickup,
     farm_shop: farm?.farm_shop ?? farm?.farmShop ?? false,
     is_priority: !!farm?.is_priority,
+    commission_rate: farm?.commission_rate != null ? String(farm.commission_rate) : '0',
     certifications: farm?.certifications || [],
     sustainable_practices: farm?.sustainable_practices || farm?.sustainablePractices || [],
     story: farm?.story || '',
@@ -185,6 +186,7 @@ export default function FarmForm({ route, navigation }) {
         pickup: formData.pickup,
         farm_shop: formData.farm_shop,
         is_priority: formData.is_priority,
+        commission_rate: Math.max(0, Math.min(100, parseFloat(formData.commission_rate) || 0)),
         certifications: formData.certifications,
         sustainable_practices: formData.sustainable_practices,
         contact: formData.contact,
@@ -401,6 +403,21 @@ export default function FarmForm({ route, navigation }) {
                 </Text>
               </View>
             </TouchableOpacity>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Commission Dream Field (%)</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.commission_rate}
+                onChangeText={(t) => setFormData((p) => ({ ...p, commission_rate: t.replace(',', '.') }))}
+                placeholder="Ex. 10"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="decimal-pad"
+              />
+              <Text style={styles.helpText}>
+                Pourcentage prélevé sur chaque vente produit de cette ferme. Le fermier voit le net après commission.
+              </Text>
+            </View>
 
             <View style={styles.field}>
               <Text style={styles.label}>Description</Text>
@@ -698,7 +715,12 @@ const styles = StyleSheet.create({
     marginTop: 3,
     color: COLORS.muted,
     fontSize: 12,
-    lineHeight: 16,
+  },
+  helpText: {
+    marginTop: 6,
+    color: COLORS.muted,
+    fontSize: 12,
+    lineHeight: 17,
   },
 
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

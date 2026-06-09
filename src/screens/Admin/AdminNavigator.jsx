@@ -26,6 +26,7 @@ import UserAnalytics from './Analytics/UserAnalytics';
 import DeliveryFeeSettings from './Settings/DeliveryFeeSettings';
 import FeedbacksManagement from './Feedbacks/FeedbacksManagement';
 import FeedbackDetail from './Feedbacks/FeedbackDetail';
+import FarmerProductRequestsScreen from './Products/FarmerProductRequestsScreen';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -44,6 +45,12 @@ function AdminDrawerContent({ navigation }) {
       title: 'Gestion des Produits',
       icon: 'leaf-outline',
       screen: 'ProductsManagement'
+    },
+    {
+      id: 'farmer_requests',
+      title: 'Demandes producteurs',
+      icon: 'hourglass-outline',
+      screen: 'FarmerProductRequests'
     },
     {
       id: 'farms',
@@ -115,6 +122,7 @@ function getScreenComponent(screenName) {
   const screens = {
     AdminDashboard,
     ProductsManagement,
+    FarmerProductRequests: FarmerProductRequestsScreen,
     ProductForm,
     ProductCategories,
     FarmsManagement,
@@ -158,6 +166,13 @@ export default function AdminNavigator() {
         component={ProductsManagement}
         options={{
           title: 'Gestion des Produits'
+        }}
+      />
+      <Stack.Screen
+        name="FarmerProductRequests"
+        component={FarmerProductRequestsScreen}
+        options={{
+          title: 'Demandes producteurs'
         }}
       />
       <Stack.Screen

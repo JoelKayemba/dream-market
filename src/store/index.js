@@ -6,6 +6,7 @@ import favoritesReducer from './favoritesSlice';
 import adminReducer from './admin';
 import clientReducer from './client';
 import notificationsReducer from './notificationsSlice';
+import farmerReducer from './farmer/farmerSlice';
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +17,7 @@ export const store = configureStore({
     admin: adminReducer,
     client: clientReducer,
     notifications: notificationsReducer,
+    farmer: farmerReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

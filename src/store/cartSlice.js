@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { orderService, cartService } from '../backend';
+import { commissionService } from '../backend/services/commissionService';
 import { supabase } from '../backend/config/supabase';
 import { loginUser, registerUser, loadStoredAuth, logout } from './authSlice';
 
@@ -353,18 +354,7 @@ export const submitOrder = createAsyncThunk(
         throw new Error('Le panier est vide');
       }
 
-      // Préparer les items pour la commande
-      const orderItems = cartItems.map(item => ({
-        product_id: item.product.id,
-        product_name: item.product.name,
-        product_price: item.product.price,
-        product_currency: item.product.currency || 'CDF',
-        product_image: item.product.images?.[0] || item.product.image || null,
-        farm_id: item.product.farm_id || item.product.farms?.id || null,
-        farm_name: item.product.farms?.name || null,
-        quantity: item.quantity,
-        subtotal: item.product.price * item.quantity
-      }));
+      const orderItems = await commissionService.buildOrderItemsWithCommission(cartItems);
 
       // Calculer les totaux pour chaque devise
       const totals = cartItems.reduce((acc, item) => {

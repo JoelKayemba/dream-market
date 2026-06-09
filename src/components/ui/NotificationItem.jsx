@@ -22,6 +22,8 @@ const NotificationItem = ({
         case 'admin_pending_order':
         case 'admin_pending':
           return { name: 'time', color: '#FF9800', bgColor: '#FFF3E0' };
+        case 'admin_product_review':
+          return { name: 'hourglass', color: '#9C27B0', bgColor: '#F3E5F5' };
         default:
           return { name: 'notifications', color: '#2196F3', bgColor: '#E3F2FD' };
       }
@@ -38,6 +40,8 @@ const NotificationItem = ({
         case 'order_status_update':
           return { name: 'cube', color: '#4CAF50', bgColor: '#E8F5E8' };
         case 'product':
+        case 'product_proposal_approved':
+        case 'product_proposal_rejected':
           return { name: 'leaf', color: '#8BC34A', bgColor: '#F1F8E9' };
         case 'farm':
           return { name: 'business', color: '#FF9800', bgColor: '#FFF3E0' };

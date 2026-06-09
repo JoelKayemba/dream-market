@@ -148,7 +148,24 @@ export const cartService = {
       const mergedItems = [];
       const allProductIds = new Set([...localMap.keys(), ...dbMap.keys()]);
 
+      // Ignorer les produits supprimés ou inexistants (évite FK carts_product_id_fkey)
+      let validProductIds = new Set();
+      if (allProductIds.size > 0) {
+        const { data: existingProducts, error: productsError } = await supabase
+          .from(TABLES.PRODUCTS)
+          .select('id')
+          .in('id', [...allProductIds]);
+
+        if (productsError) throw productsError;
+        validProductIds = new Set((existingProducts || []).map((p) => p.id));
+      }
+
       for (const productId of allProductIds) {
+        if (!validProductIds.has(productId)) {
+          await cartService.removeCartItem(userId, productId).catch(() => {});
+          continue;
+        }
+
         const localQty = localMap.get(productId);
         const dbQty = dbMap.get(productId);
 
